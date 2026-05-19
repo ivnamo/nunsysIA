@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial para responder preguntas de negocio e
 
 ## Estado actual
 
-Fase actual: **Fase 1 - FastAPI base + schemas + health**.
+Fase actual: **Fase 2 - ERP Northwind**.
 
 Este repositorio contiene por ahora:
 
@@ -25,8 +25,12 @@ Este repositorio contiene por ahora:
 - endpoint `GET /health`;
 - schema Pydantic de health;
 - tests unitarios e integracion para health.
+- seed SQL Northwind minimo;
+- schemas Pydantic ERP;
+- repositorio ERP testeable sin Docker;
+- tests deterministas de consultas ERP.
 
-No hay todavia `/api/query`, agentes, tools, RAG, ERP, produccion ni logica funcional de negocio.
+No hay todavia `/api/query`, agentes, tools LangChain, RAG, produccion ni logica funcional expuesta por API.
 
 ## Arquitectura decidida
 
@@ -113,12 +117,11 @@ pytest
 
 ## Siguiente fase
 
-Fase 2:
+Fase 3:
 
-- preparar ERP Northwind con datos controlados;
-- crear modelo/seed minimo;
-- preparar conexion a base;
-- crear repositorios ERP;
-- crear tests de consultas ERP.
+- crear API mock de produccion;
+- exponer estados de pedidos;
+- incluir bloqueos, retrasos y motivos;
+- crear tests o pruebas HTTP basicas.
 
-No se debe implementar todavia produccion, RAG ni agentes en Fase 2.
+No se debe implementar todavia RAG ni agentes en Fase 3.

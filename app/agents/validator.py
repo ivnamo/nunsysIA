@@ -1,0 +1,82 @@
+from app.agents.planner import ExecutionPlan
+from app.agents.state import MAX_REPLANS, AgentState
+
+
+class ValidatorNode:
+    def __call__(self, state: AgentState) -> AgentState:
+        plan = ExecutionPlan.model_validate(state.get("plan") or {})
+        attempts = state.get("attempts", 0)
+
+        if plan.intent == "unsupported":
+            return {
+                **state,
+                "status": "unsupported",
+                "validation_decision": "fail",
+                "failure_reason": "La pregunta queda fuera del alcance de la POC actual.",
+            }
+
+        if plan.intent == "rag":
+            return {
+                **state,
+                "status": "insufficient_context",
+                "validation_decision": "fail",
+                "failure_reason": "RAG documental se implementa en una fase posterior.",
+            }
+
+        tool_calls = state.get("tool_calls", [])
+        failed_calls = [call for call in tool_calls if call.status == "error"]
+        if failed_calls:
+            return self._fail_or_replan(
+                state,
+                attempts,
+                "Una o mas tools devolvieron error.",
+                status="tool_error",
+            )
+
+        sources = set(state.get("sources", []))
+        missing_sources = set(plan.expected_sources) - sources
+        if missing_sources:
+            return self._fail_or_replan(
+                state,
+                attempts,
+                f"Faltan fuentes obligatorias: {', '.join(sorted(missing_sources))}.",
+                status="partial_answer",
+            )
+
+        if plan.steps and not tool_calls:
+            return self._fail_or_replan(
+                state,
+                attempts,
+                "El plan tenia pasos pero no se registraron tool calls.",
+                status="failed",
+            )
+
+        return {
+            **state,
+            "status": "completed",
+            "validation_decision": "finish",
+            "failure_reason": None,
+        }
+
+    @staticmethod
+    def _fail_or_replan(
+        state: AgentState,
+        attempts: int,
+        failure_reason: str,
+        status: str,
+    ) -> AgentState:
+        if attempts < MAX_REPLANS:
+            return {
+                **state,
+                "attempts": attempts + 1,
+                "status": status,
+                "validation_decision": "replan",
+                "failure_reason": failure_reason,
+            }
+
+        return {
+            **state,
+            "status": status,
+            "validation_decision": "fail",
+            "failure_reason": failure_reason,
+        }

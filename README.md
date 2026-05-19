@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial para responder preguntas de negocio e
 
 ## Estado actual
 
-Fase actual: **Fase 4 - Tools ERP y produccion**.
+Fase actual: **Fase 5 - LangGraph basico con Planner/Reasoner/Validator**.
 
 Este repositorio contiene por ahora:
 
@@ -37,8 +37,14 @@ Este repositorio contiene por ahora:
 - `ProductionAPITool` determinista con input/output Pydantic;
 - cliente HTTP de produccion;
 - tests unitarios de tools.
+- `AgentState` compartido para LangGraph;
+- Planner determinista con plan estructurado;
+- Reasoner/Executor que ejecuta tools ERP y produccion;
+- Validator con replanning limitado por `MAX_REPLANS = 2`;
+- FinalResponseBuilder con `QueryResponse` estructurada;
+- tests unitarios e integracion del grafo basico.
 
-No hay todavia `/api/query`, LangGraph, agentes, RAG ni integracion ERP + produccion en el backend principal.
+No hay todavia `/api/query`, Chainlit, RAG ni integracion del grafo en el backend principal.
 
 ## Arquitectura decidida
 
@@ -142,13 +148,13 @@ Endpoints del mock:
 
 ## Siguiente fase
 
-Fase 5:
+Fase 6:
 
-- definir `AgentState`;
-- crear Planner con plan estructurado;
-- crear Reasoner/Executor;
-- crear Validator Node;
-- crear FinalResponseBuilder;
-- limitar replanning con `MAX_REPLANS = 2`.
+- implementar pipeline RAG como tool controlada;
+- subir PDFs mediante capa documental;
+- extraer texto, crear chunks y metadata;
+- indexar en ChromaDB;
+- recuperar chunks con fuentes;
+- devolver `insufficient_context` si no hay evidencia suficiente.
 
-No se debe implementar todavia RAG en Fase 5.
+No se debe implementar todavia `/api/query` en Fase 6 salvo que se cambie explicitamente el plan.

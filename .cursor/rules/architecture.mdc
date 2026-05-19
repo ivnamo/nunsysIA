@@ -1,0 +1,74 @@
+---
+description: Architecture rules for LangGraph agentic workflow
+globs:
+  - "app/agents/**/*.py"
+  - "app/tools/**/*.py"
+  - "app/core/**/*.py"
+  - "docs/**/*.md"
+alwaysApply: false
+---
+
+# Architecture Rules
+
+LangGraph is the main orchestrator. LangChain is the toolbox for tools, prompts, retrievers, embeddings, parsers and LLM calls.
+
+## Fixed Agentic Flow
+
+The approved flow is:
+
+```text
+User
+-> FastAPI / Chainlit
+-> LangGraph StateGraph
+-> Planner Agent
+-> Reasoner / Executor Agent
+-> Validator Node
+-> FinalResponseBuilder
+```
+
+Do not replace this flow with a single free-form agent.
+
+## Required Nodes
+
+- `Planner Agent`: classifies intent and creates a structured plan.
+- `Reasoner / Executor Agent`: executes deterministic tools and merges results.
+- `Validator Node`: checks sufficiency, schema, sources and traceability.
+- `FinalResponseBuilder`: builds the final API response.
+
+## Replanning
+
+- Replanning is allowed only when the Validator detects a recoverable issue.
+- `MAX_REPLANS = 2`.
+- Infinite loops are forbidden.
+- If the system cannot answer after the limit, return `partial_answer`, `insufficient_context` or `failed`.
+
+## Shared LangGraph State
+
+The shared state should include at least:
+
+- `question`
+- `conversation_history`
+- `plan`
+- `tool_results`
+- `sources`
+- `reasoning`
+- `tool_calls`
+- `attempts`
+- `status`
+- `final_answer`
+- `failure_reason`
+- `confidence`
+
+Use Pydantic models at API boundaries and for serializable plans. Keep the StateGraph state explicit and testable.
+
+## Module Boundaries
+
+- `agents/` coordinates.
+- `tools/` calls deterministic capabilities.
+- `api/` translates HTTP into application calls.
+- `rag/` owns document ingestion and retrieval.
+- `erp/` owns ERP database access.
+- `production/` owns production API access.
+- `core/` owns shared config, logging and tracing.
+
+Do not move database queries, HTTP calls or retrieval logic into agent prompt files.

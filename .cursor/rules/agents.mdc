@@ -1,0 +1,70 @@
+---
+description: Agent, planner, executor and validator rules
+globs:
+  - "app/agents/**/*.py"
+  - "app/tools/**/*.py"
+alwaysApply: false
+---
+
+# Agent Rules
+
+Agents coordinate deterministic capabilities. They must not invent business results.
+
+## Planner Agent
+
+The Planner must:
+
+- receive the user question and context;
+- classify intent as `erp`, `production`, `erp_production`, `rag`, `mixed` or `conversation`;
+- select required sources;
+- create a serializable structured plan;
+- select only approved tools:
+  - `ERPTool`
+  - `ProductionAPITool`
+  - `DocumentRAGTool`
+  - `MemoryTool`
+
+Plans must be validated with Pydantic.
+
+## Reasoner / Executor Agent
+
+The Reasoner / Executor must:
+
+- execute the plan step by step;
+- call deterministic tools;
+- capture every tool call;
+- merge ERP, production and RAG results;
+- produce structured intermediate results.
+
+It must not fabricate missing tool outputs.
+
+## Validator Node
+
+The Validator decides:
+
+- `finish`
+- `replan`
+- `fail`
+
+It must check:
+
+- sufficient data;
+- required sources were consulted;
+- output schema can be satisfied;
+- traceability is present;
+- max replans was not exceeded.
+
+## Final Output
+
+The final output must satisfy the `/api/query` response schema. If context is insufficient, return a controlled status instead of hallucinating.
+
+## Traceability
+
+Every tool call must record:
+
+- tool name;
+- args summary;
+- status;
+- output summary;
+- error summary when applicable;
+- duration when available.

@@ -1,0 +1,53 @@
+---
+description: RAG rules for document ingestion and retrieval
+globs:
+  - "app/rag/**/*.py"
+  - "app/tools/rag_tool.py"
+  - "app/api/routes_documents.py"
+alwaysApply: false
+---
+
+# RAG Rules
+
+RAG is implemented as `DocumentRAGTool`. It is not an autonomous agent.
+
+## Pipeline
+
+The approved pipeline is:
+
+```text
+PDF upload
+-> text extraction
+-> chunking
+-> embeddings
+-> ChromaDB
+-> retrieval
+-> answer with sources
+```
+
+## Metadata
+
+Every chunk must include:
+
+- `document_id`
+- `filename`
+- `page`
+- `chunk_id`
+- `uploaded_at`
+
+Additional metadata is allowed only if useful and documented.
+
+## Answer Rules
+
+- Document answers must be grounded in retrieved chunks.
+- Include document sources in the response.
+- If there are no relevant chunks, return `insufficient_context`.
+- Do not use model memory as a substitute for the document.
+- Do not answer from general knowledge when the user asks about uploaded documents.
+
+## Retrieval
+
+- Keep retrieval deterministic enough to test.
+- Prefer small, explicit top-k values for the POC.
+- Preserve chunk metadata through retrieval.
+- Tests should cover ingestion, retrieval success and no-context behavior.

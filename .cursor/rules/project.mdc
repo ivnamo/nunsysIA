@@ -1,0 +1,59 @@
+---
+description: Global project rules for the Nunsys agentic POC
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Project Rules
+
+This repository is a technical POC for an enterprise agentic system. The goal is to answer business questions in natural language by combining ERP data, production API data and PDF documents through RAG.
+
+## Mandatory Stack
+
+- Backend: FastAPI.
+- Agentic orchestration: LangGraph.
+- LLM ecosystem: LangChain.
+- UI: Chainlit.
+- Vector store: ChromaDB.
+- Schemas and contracts: Pydantic.
+- Tests: pytest.
+- Packaging and runtime: Docker and Docker Compose.
+
+Do not introduce alternative frameworks, orchestration layers, vector stores or UI frameworks without explicit approval.
+
+## Global Constraints
+
+- Do not implement architecture outside the agreed design.
+- Do not create parallel architectures.
+- Do not mix API route handlers with business logic.
+- Do not invent ERP, production or document data.
+- Do not answer without sources when the question requires ERP, production or RAG evidence.
+- Do not use LLM memory as a substitute for database/API/document retrieval.
+- Keep modules small and focused.
+- Use Pydantic for request, response, plan and tool schemas.
+- Every user-facing answer from `/api/query` must include traceability fields.
+- Every tool call must be recorded in a structured way.
+- Keep documentation in Spanish unless code identifiers or technical terms are clearer in English.
+
+## Expected Modularity
+
+- `api/` exposes thin FastAPI routes.
+- `agents/` contains LangGraph nodes, state and prompts.
+- `tools/` contains deterministic LangChain tools.
+- `rag/` contains document loading, chunking, embeddings, ChromaDB and retrieval.
+- `erp/` contains database access and ERP repositories.
+- `production/` contains production API clients and schemas.
+- `core/` contains config, logging and tracing.
+
+## Response Discipline
+
+Responses must distinguish:
+
+- data obtained from sources;
+- visible reasoning summary;
+- tool calls executed;
+- errors or missing context;
+- final status.
+
+Never expose hidden chain-of-thought. Use concise visible reasoning suitable for audit.

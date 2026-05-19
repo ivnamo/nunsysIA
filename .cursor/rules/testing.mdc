@@ -1,0 +1,42 @@
+---
+description: Testing rules for the POC
+globs:
+  - "tests/**/*.py"
+  - "app/**/*.py"
+alwaysApply: false
+---
+
+# Testing Rules
+
+Use pytest for all tests.
+
+## Test Style
+
+- Tests must be small, deterministic and readable.
+- Mock LLM calls when possible.
+- Do not require paid LLM calls for basic tests.
+- Prefer fixed fixtures and seed data.
+- Test behavior, not implementation details.
+
+## Minimum Test Coverage
+
+Create tests for:
+
+- health endpoint;
+- `/api/query` request and response schema;
+- Planner output shape;
+- Validator routing decisions;
+- `ERPTool`;
+- `ProductionAPITool`;
+- RAG ingestion;
+- RAG retrieval;
+- insufficient context behavior;
+- controlled tool errors.
+
+## Regression Tests
+
+When fixing a bug, add or update a test that would have caught it.
+
+## Boundaries
+
+Do not make unit tests depend on Docker when a mock or fixture is enough. Integration tests may depend on Docker Compose when explicitly marked or documented.

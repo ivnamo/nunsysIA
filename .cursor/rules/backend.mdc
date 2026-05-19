@@ -1,0 +1,51 @@
+---
+description: Backend and FastAPI rules
+globs:
+  - "app/api/**/*.py"
+  - "app/main.py"
+  - "app/schemas/**/*.py"
+alwaysApply: false
+---
+
+# Backend Rules
+
+FastAPI is the only backend framework for this POC.
+
+## Required Endpoints
+
+- `GET /health`
+- `POST /api/query`
+- `POST /api/documents/upload`
+- `GET /api/documents`
+
+Do not add extra public endpoints unless they support the agreed POC scope.
+
+## Route Design
+
+- Routes must be thin.
+- Routes validate input, call an application service or graph entrypoint, and return Pydantic responses.
+- Do not put SQL, production API calls, ChromaDB calls or LangGraph node logic inside route handlers.
+- Use clear HTTP status codes.
+- Use controlled error responses.
+
+## Schemas
+
+- Use Pydantic for all request and response models.
+- The `/api/query` response must expose:
+  - `answer`
+  - `sources`
+  - `reasoning`
+  - `tool_calls`
+  - `status`
+  - `confidence` when possible
+
+## Error Handling
+
+- Do not leak stack traces to users.
+- Do not return raw LangChain or LangGraph objects.
+- Do not expose environment variables, connection strings or secrets.
+- Convert tool failures into structured statuses such as `tool_error`, `partial_answer`, `insufficient_context` or `failed`.
+
+## Testing
+
+Every endpoint must have at least one success test and one relevant error or edge-case test.

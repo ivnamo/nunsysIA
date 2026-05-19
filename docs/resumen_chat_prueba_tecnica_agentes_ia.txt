@@ -1,0 +1,1158 @@
+PRUEBA TÉCNICA AGENTES IA - RESUMEN COMPLETO DEL CHAT
+========================================================
+
+Archivo generado a partir de la conversación sobre el PDF:
+"Prueba técnica agentes IA - Especificación de prueba técnica"
+
+Fecha de generación: 2026-05-18
+
+
+ÍNDICE
+======
+
+1. Requisitos del sistema extraídos del PDF
+2. Cómo probarlo en una POC
+3. Cómo probar la integración con ERP y producción
+4. Arquitectura recomendada
+5. Endpoints y formato de respuesta
+6. Tests recomendados
+7. Demo recomendada
+8. Uso de Cursor AI con GPT-5.5
+9. Prompts útiles para construir la POC con Cursor
+
+
+1. REQUISITOS DEL SISTEMA EXTRAÍDOS DEL PDF
+===========================================
+
+1.1. Objetivo general del sistema
+---------------------------------
+
+Se debe desarrollar una POC de sistema multi-agente inteligente capaz de responder preguntas de negocio en lenguaje natural, integrando varias fuentes de datos empresariales:
+
+- ERP basado en la base de datos Northwind.
+- Sistema de producción accesible mediante API REST.
+- Documentos PDF mediante RAG.
+- Capacidad de generar respuestas consolidadas, explicables y trazables.
+
+El sistema debe interpretar consultas, planificar acciones, ejecutar llamadas a diferentes fuentes y generar respuestas finales comprensibles.
+
+
+1.2. Requisitos funcionales obligatorios
+----------------------------------------
+
+A) Consultas en lenguaje natural sobre ERP y producción
+
+El sistema debe responder preguntas de negocio como:
+
+- "¿Qué pedidos pendientes tiene el cliente X y en qué estado de producción están?"
+- "¿Qué pedidos están bloqueados y cuál es el motivo?"
+- "¿Qué clientes tienen pedidos retrasados por problemas de producción?"
+- "Dame un resumen del estado de los pedidos de este mes"
+
+Para ello, debe ser capaz de:
+
+- Consultar datos del ERP:
+  - Clientes.
+  - Pedidos.
+  - Importes.
+- Consultar el sistema de producción mediante API REST.
+- Combinar información de ERP y producción.
+- Generar una respuesta consolidada y comprensible.
+
+
+B) Consultas sobre documentos con RAG
+
+El sistema debe permitir:
+
+- Subir documentos en formato PDF.
+- Indexar esos documentos en una base de datos vectorial.
+- Hacer preguntas sobre el contenido de los documentos.
+
+Ejemplos de consultas:
+
+- "¿Qué dice este documento sobre plazos de entrega?"
+- "Resume los puntos clave del contrato"
+- "¿Hay alguna penalización por retrasos?"
+
+
+C) API de consulta
+
+El sistema debe exponer al menos este endpoint:
+
+POST /api/query
+
+Este endpoint debe:
+
+- Recibir una pregunta en lenguaje natural.
+- Procesarla mediante el sistema multi-agente.
+- Devolver una respuesta estructurada.
+
+Formato esperado de respuesta:
+
+{
+  "answer": "El cliente ALFKI tiene 3 pedidos pendientes...",
+  "sources": ["ERP", "Producción"],
+  "reasoning": [
+    "Consulta ERP para pedidos",
+    "Consulta API de producción",
+    "Fusión de resultados"
+  ]
+}
+
+
+1.3. Explicabilidad y trazabilidad
+----------------------------------
+
+Este punto aparece como muy importante y obligatorio.
+
+Cada respuesta del sistema debe incluir:
+
+- Qué fuentes se han consultado.
+- Qué pasos se han ejecutado.
+- Qué lógica se ha seguido, aunque sea de forma simplificada.
+
+Esto sirve para evaluar correctamente el razonamiento del sistema.
+
+
+1.4. Memoria conversacional opcional
+------------------------------------
+
+El sistema puede incluir memoria conversacional. No es obligatorio, pero está especificado como opcional.
+
+Debe permitir:
+
+- Recordar el contexto de la conversación.
+- Tener en cuenta al menos las últimas 5 interacciones.
+- Resolver preguntas encadenadas como:
+  - "¿Y cuáles de esos pedidos están bloqueados?"
+  - "¿Cuál es el impacto económico de esos?"
+
+
+1.5. Requisitos técnicos
+------------------------
+
+La aplicación debe cumplir con estos requisitos técnicos:
+
+- Usar deepAgents de LangChain como framework principal.
+- Tener un diseño basado en agentes:
+  - Multi-agent.
+  - O bien un workflow agentic.
+- Incluir una interfaz gráfica para hacer preguntas en lenguaje natural.
+- La interfaz debe estar hecha en Chainlit o una tecnología similar.
+
+
+1.6. Requisitos de arquitectura
+-------------------------------
+
+La solución debe demostrar capacidades propias de un perfil senior:
+
+- Arquitectura modular.
+- Arquitectura escalable.
+- Separación clara de responsabilidades.
+- Integración de fuentes estructuradas y no estructuradas.
+- Capacidad de razonamiento y planificación.
+- Trazabilidad de acciones, pasos y decisiones.
+- Uso de logs o mecanismos similares para seguir el flujo del sistema.
+
+
+1.7. Entregables obligatorios
+-----------------------------
+
+El candidato debe entregar:
+
+1. Código fuente completo de la aplicación.
+2. Instrucciones claras para configurar y ejecutar la aplicación.
+3. Archivo README.md que incluya:
+   - Arquitectura de la solución.
+   - Decisiones técnicas adoptadas.
+   - Dependencias.
+   - Ejemplos de uso.
+4. Dockerfile.
+5. Archivo docker-compose.yml.
+
+
+1.8. Entregable opcional pero valorable
+---------------------------------------
+
+También se valora entregar:
+
+- Un vídeo breve o demo mostrando la aplicación en funcionamiento.
+
+
+1.9. Criterios de evaluación
+----------------------------
+
+Funcionalidad:
+
+- Cumplimiento de todos los requisitos especificados.
+- Integración correcta entre:
+  - ERP.
+  - Producción.
+  - Documentos.
+
+Calidad del código:
+
+- Código limpio.
+- Código estructurado.
+- Código mantenible.
+- Buen uso de abstracciones.
+- Separación de responsabilidades.
+
+Uso de LangChain:
+
+- Correcta integración del modelo de lenguaje.
+- Uso adecuado de:
+  - Agentes.
+  - Memoria.
+  - Tools.
+- Diseño coherente del flujo de ejecución.
+
+Arquitectura:
+
+- Escalabilidad.
+- Extensibilidad.
+- Trazabilidad del sistema:
+  - Logs.
+  - Pasos.
+  - Decisiones.
+
+
+1.10. Resumen corto de lo que hay que construir
+-----------------------------------------------
+
+Hay que hacer una aplicación con LangChain deepAgents que funcione como un sistema multi-agente capaz de:
+
+- Recibir preguntas en lenguaje natural.
+- Consultar una base de datos ERP tipo Northwind.
+- Consultar una API REST de producción.
+- Subir e indexar PDFs.
+- Responder preguntas sobre esos PDFs mediante RAG.
+- Combinar información de varias fuentes.
+- Explicar qué ha hecho para llegar a la respuesta.
+- Exponer una API POST /api/query.
+- Tener una interfaz gráfica tipo Chainlit.
+- Estar dockerizada.
+- Tener README, instrucciones y ejemplos de uso.
+
+
+2. CÓMO PROBARLO EN UNA POC
+===========================
+
+Para una POC no necesitas conectarte a un ERP real desde el primer día. Lo más razonable es simular el ecosistema empresarial completo, pero con integraciones realistas:
+
+- Una base de datos tipo ERP.
+- Una API REST de producción.
+- Un módulo RAG para PDFs.
+- Un agente que orqueste todo.
+
+La clave es que el agente no se invente los datos, sino que use herramientas reales aunque los datos sean de prueba.
+
+
+2.1. Arquitectura básica de la POC
+----------------------------------
+
+Usuario / Chainlit
+        |
+        v
+FastAPI / LangChain DeepAgents
+        |
+        +--> Tool ERP: consulta Northwind
+        |
+        +--> Tool Producción: llama a una API REST mock
+        |
+        +--> Tool RAG: consulta PDFs indexados
+        |
+        v
+Respuesta final con answer + sources + reasoning
+
+
+3. CÓMO PROBAR LA INTEGRACIÓN CON ERP Y PRODUCCIÓN
+==================================================
+
+3.1. Simular el ERP con Northwind
+---------------------------------
+
+Como el PDF menciona Northwind, puedes usar una base de datos local con ese esquema.
+
+Opciones:
+
+- PostgreSQL.
+- SQLite.
+- SQL Server.
+- MySQL.
+
+Para la POC, se recomienda PostgreSQL en Docker porque queda más profesional y se parece más a un entorno real.
+
+Tablas mínimas útiles de Northwind:
+
+- customers
+- orders
+- order_details
+- products
+- employees
+- shippers
+
+Para las preguntas del PDF necesitas especialmente:
+
+- customers
+- orders
+- order_details
+
+Ejemplo de datos ERP:
+
+Customer ALFKI
+  Order 10248 - pendiente - importe 440 €
+  Order 10252 - pendiente - importe 1863 €
+  Order 10255 - enviado - importe 2490 €
+
+El agente debería tener una tool tipo:
+
+def get_customer_pending_orders(customer_id: str):
+    """
+    Consulta en el ERP los pedidos pendientes de un cliente.
+    """
+
+Internamente esa tool ejecutaría SQL contra Northwind.
+
+
+3.2. Simular el sistema de producción con una API REST
+------------------------------------------------------
+
+El ERP te dice que existe un pedido, cliente e importe.
+
+Pero el estado productivo puede venir de otro sistema, por ejemplo:
+
+Pedido 10248 -> En fabricación
+Pedido 10252 -> Bloqueado por falta de material
+Pedido 10255 -> Finalizado
+
+Para probarlo, creas una API REST fake con FastAPI.
+
+Endpoints mínimos:
+
+GET /production/orders/{order_id}
+GET /production/orders?status=blocked
+GET /production/orders/delayed
+
+Ejemplo de respuesta:
+
+{
+  "order_id": "10252",
+  "production_status": "blocked",
+  "blocked_reason": "Falta de material",
+  "estimated_finish_date": "2026-03-22"
+}
+
+
+3.3. Flujo de prueba principal
+------------------------------
+
+Pregunta:
+
+"¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?"
+
+Flujo esperado:
+
+1. El agente detecta que necesita datos de ERP.
+2. Llama a la tool ERP.
+3. La tool ERP devuelve los pedidos pendientes del cliente ALFKI.
+4. El agente detecta que necesita el estado productivo de esos pedidos.
+5. Llama a la API REST de producción por cada pedido.
+6. Fusiona los datos.
+7. Devuelve una respuesta consolidada.
+8. Incluye fuentes y razonamiento.
+
+Respuesta esperada:
+
+{
+  "answer": "El cliente ALFKI tiene 2 pedidos pendientes. El pedido 10248 está en fabricación y el pedido 10252 está bloqueado por falta de material.",
+  "sources": ["ERP", "Producción"],
+  "reasoning": [
+    "Se consultó el ERP para localizar los pedidos pendientes del cliente ALFKI.",
+    "Se consultó la API de producción para obtener el estado de los pedidos 10248 y 10252.",
+    "Se combinaron los datos comerciales del ERP con los estados productivos."
+  ]
+}
+
+
+3.4. Pruebas manuales recomendadas
+----------------------------------
+
+Prueba 1: consulta directa al ERP
+
+Pregunta:
+
+"¿Qué pedidos pendientes tiene el cliente ALFKI?"
+
+Validas que solo consulte el ERP.
+
+Resultado esperado:
+
+{
+  "sources": ["ERP"],
+  "reasoning": [
+    "Consulta ERP para obtener pedidos pendientes del cliente ALFKI."
+  ]
+}
+
+
+Prueba 2: consulta ERP + producción
+
+Pregunta:
+
+"¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?"
+
+Aquí debe consultar:
+
+ERP -> pedidos
+Producción API -> estado de cada pedido
+
+Resultado esperado:
+
+{
+  "sources": ["ERP", "Producción"]
+}
+
+
+Prueba 3: producción primero y ERP después
+
+Pregunta:
+
+"¿Qué clientes tienen pedidos bloqueados por problemas de producción?"
+
+Orden lógico:
+
+1. Consultar API de producción para encontrar pedidos bloqueados.
+2. Extraer los order_id.
+3. Consultar ERP para saber a qué clientes pertenecen.
+4. Devolver cliente + pedido + motivo de bloqueo.
+
+Este caso es muy bueno para demostrar razonamiento multi-fuente.
+
+
+Prueba 4: resumen mensual
+
+Pregunta:
+
+"Dame un resumen del estado de los pedidos de este mes."
+
+El sistema debería:
+
+1. Consultar ERP para pedidos del mes.
+2. Consultar producción para sus estados.
+3. Agrupar por estado.
+4. Calcular importes si procede.
+5. Devolver resumen.
+
+Ejemplo:
+
+{
+  "answer": "Este mes hay 12 pedidos: 5 en fabricación, 3 bloqueados, 2 retrasados y 2 finalizados. El importe total afectado por bloqueos es de 8.420 €.",
+  "sources": ["ERP", "Producción"],
+  "reasoning": [
+    "Se consultaron los pedidos del mes en el ERP.",
+    "Se consultó el estado productivo de cada pedido.",
+    "Se agruparon los pedidos por estado y se calcularon importes."
+  ]
+}
+
+
+3.5. Datos de prueba controlados
+--------------------------------
+
+Para que la demo sea sólida, prepara datos intencionados.
+
+ERP / Northwind:
+
+Cliente: ALFKI
+Pedido 10248
+Importe: 440 €
+Estado ERP: pendiente
+
+Pedido 10252
+Importe: 1863 €
+Estado ERP: pendiente
+
+Cliente: ANATR
+Pedido 10301
+Importe: 920 €
+Estado ERP: pendiente
+
+Sistema de producción:
+
+Pedido 10248
+Estado: en fabricación
+Motivo bloqueo: null
+
+Pedido 10252
+Estado: bloqueado
+Motivo bloqueo: falta de material
+
+Pedido 10301
+Estado: retrasado
+Motivo bloqueo: avería en línea de producción
+
+Así puedes probar preguntas como:
+
+"¿Qué pedidos están bloqueados y cuál es el motivo?"
+
+Y sabes exactamente qué debería responder.
+
+
+4. ARQUITECTURA RECOMENDADA
+===========================
+
+Estructura razonable de proyecto:
+
+poc-agentes-ia/
+│
+├── app/
+│   ├── main.py                  # FastAPI
+│   ├── agents/
+│   │   ├── orchestrator.py       # Agente principal
+│   │   └── prompts.py
+│   │
+│   ├── tools/
+│   │   ├── erp_tool.py           # Consultas SQL a Northwind
+│   │   ├── production_tool.py    # Cliente HTTP API producción
+│   │   └── rag_tool.py           # Consulta documentos
+│   │
+│   ├── services/
+│   │   ├── erp_service.py
+│   │   ├── production_service.py
+│   │   └── document_service.py
+│   │
+│   ├── schemas/
+│   │   └── query.py
+│   │
+│   └── config.py
+│
+├── production_mock/
+│   └── main.py                  # API fake de producción
+│
+├── chainlit_app/
+│   └── app.py                   # Interfaz conversacional
+│
+├── data/
+│   ├── northwind.sql
+│   └── production_seed.json
+│
+├── tests/
+│   ├── test_erp_tool.py
+│   ├── test_production_tool.py
+│   └── test_query_endpoint.py
+│
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── README.md
+
+
+4.1. Docker Compose recomendado
+-------------------------------
+
+La POC debería poder levantarse con:
+
+docker compose up --build
+
+Servicios recomendados:
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - production-api
+
+  chainlit:
+    build: .
+    command: chainlit run chainlit_app/app.py --host 0.0.0.0 --port 8501
+    ports:
+      - "8501:8501"
+    depends_on:
+      - app
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: northwind
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./data/northwind.sql:/docker-entrypoint-initdb.d/northwind.sql
+
+  production-api:
+    build: ./production_mock
+    ports:
+      - "8001:8001"
+
+  vector-db:
+    image: chromadb/chroma
+    ports:
+      - "8002:8000"
+
+Con esto demuestras:
+
+- ERP realista con base de datos.
+- API REST separada.
+- Backend multi-agente.
+- Interfaz gráfica.
+- Vector DB para RAG.
+- Despliegue reproducible.
+
+
+5. ENDPOINTS Y FORMATO DE RESPUESTA
+===================================
+
+5.1. Endpoint mínimo obligatorio
+--------------------------------
+
+POST /api/query
+
+Body:
+
+{
+  "question": "¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?"
+}
+
+Response:
+
+{
+  "answer": "...",
+  "sources": ["ERP", "Producción"],
+  "reasoning": [
+    "Consulta ERP para pedidos pendientes",
+    "Consulta API de producción",
+    "Fusión de resultados"
+  ],
+  "data": {
+    "customer_id": "ALFKI",
+    "orders": [
+      {
+        "order_id": "10248",
+        "amount": 440,
+        "erp_status": "pending",
+        "production_status": "in_progress"
+      },
+      {
+        "order_id": "10252",
+        "amount": 1863,
+        "erp_status": "pending",
+        "production_status": "blocked",
+        "blocked_reason": "Falta de material"
+      }
+    ]
+  }
+}
+
+
+5.2. Endpoints adicionales recomendados
+---------------------------------------
+
+También añadiría:
+
+POST /api/documents/upload
+POST /api/documents/query
+GET /health
+
+Pero el obligatorio según el PDF es:
+
+POST /api/query
+
+
+5.3. Cómo probarlo manualmente desde terminal
+---------------------------------------------
+
+curl -X POST http://localhost:8000/api/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?"
+  }'
+
+
+5.4. Cómo probarlo desde Chainlit
+---------------------------------
+
+Abrir:
+
+http://localhost:8501
+
+Probar:
+
+"¿Qué pedidos pendientes tiene el cliente ALFKI?"
+
+Luego:
+
+"¿Y cuáles están bloqueados?"
+
+Si implementas memoria conversacional, debería entender que "cuáles" se refiere a los pedidos anteriores.
+
+
+5.5. Trazabilidad recomendada
+-----------------------------
+
+Todas las respuestas deberían incluir algo como:
+
+{
+  "trace": [
+    {
+      "step": 1,
+      "tool": "erp_tool",
+      "input": {
+        "customer_id": "ALFKI",
+        "status": "pending"
+      },
+      "output_summary": "2 pedidos encontrados"
+    },
+    {
+      "step": 2,
+      "tool": "production_tool",
+      "input": {
+        "order_ids": ["10248", "10252"]
+      },
+      "output_summary": "1 pedido en fabricación, 1 bloqueado"
+    }
+  ]
+}
+
+Esto es importante porque el PDF insiste en explicabilidad y trazabilidad.
+
+
+6. TESTS RECOMENDADOS
+=====================
+
+Para que parezca una POC seria, conviene añadir tests sencillos pero claros.
+
+6.1. Test de ERP
+----------------
+
+def test_get_pending_orders_by_customer():
+    result = get_pending_orders_by_customer("ALFKI")
+
+    assert len(result) == 2
+    assert result[0]["customer_id"] == "ALFKI"
+
+
+6.2. Test de producción
+-----------------------
+
+def test_get_production_status():
+    result = get_production_status("10252")
+
+    assert result["production_status"] == "blocked"
+    assert result["blocked_reason"] == "Falta de material"
+
+
+6.3. Test de integración
+------------------------
+
+def test_query_customer_pending_orders_with_production_status():
+    response = client.post("/api/query", json={
+        "question": "¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?"
+    })
+
+    data = response.json()
+
+    assert "ERP" in data["sources"]
+    assert "Producción" in data["sources"]
+    assert len(data["reasoning"]) >= 2
+
+Este último es el más importante porque valida la orquestación.
+
+
+7. DEMO RECOMENDADA
+===================
+
+Demo de 5 minutos:
+
+1. Levantar todo con:
+
+docker compose up --build
+
+2. Abrir Chainlit.
+
+3. Preguntar:
+
+"¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?"
+
+4. Mostrar que responde con:
+
+ERP + Producción + reasoning
+
+5. Preguntar:
+
+"¿Qué clientes tienen pedidos bloqueados por problemas de producción?"
+
+6. Subir un PDF de ejemplo.
+
+7. Preguntar:
+
+"¿Qué dice este documento sobre plazos de entrega?"
+
+8. Mostrar el README con arquitectura, decisiones técnicas y ejemplos.
+
+
+7.1. Alcance mínimo recomendado
+-------------------------------
+
+Para una POC sólida, implementaría este alcance mínimo:
+
+- ERP: PostgreSQL con Northwind.
+- Producción: API REST mock con FastAPI.
+- Agentes: LangChain DeepAgents o workflow agentic.
+- Tools: ERP tool, Production tool, RAG tool.
+- RAG: Chroma o FAISS.
+- Interfaz: Chainlit.
+- API: FastAPI con POST /api/query.
+- Memoria: últimas 5 interacciones, aunque sea simple.
+- Docker: Dockerfile + docker-compose.yml.
+- Trazabilidad: sources, reasoning, trace.
+
+La integración con ERP se prueba mejor no conectando a un ERP real, sino montando una base Northwind dockerizada con datos controlados y demostrando que las respuestas cambian cuando cambian los datos del ERP. Eso prueba que el sistema consulta una fuente estructurada real y no responde de memoria.
+
+
+8. USO DE CURSOR AI CON GPT-5.5
+===============================
+
+Cursor AI con GPT-5.5 puede ayudarte a construir esta POC, pero no conviene esperar que la haga perfecta en un solo prompt.
+
+Puede generar gran parte de:
+
+- Código.
+- Estructura del repositorio.
+- Docker.
+- Endpoints.
+- Tools.
+- Tests.
+- README.
+
+Pero tendrás que ir guiándolo, ejecutando, corrigiendo errores y validando la integración.
+
+Para esta prueba concreta, es una buena herramienta, porque el PDF pide una POC de integración:
+
+- ERP Northwind.
+- API REST de producción.
+- RAG.
+- Chainlit.
+- Endpoint /api/query.
+- Trazabilidad.
+- Arquitectura modular.
+
+
+8.1. Qué puede hacer bien Cursor
+--------------------------------
+
+Cursor con GPT-5.5 te puede ayudar mucho a generar:
+
+- Estructura del repo.
+- FastAPI backend.
+- Endpoint POST /api/query.
+- Dockerfile y docker-compose.
+- Mock API de producción.
+- Conexión a PostgreSQL / Northwind.
+- Servicios ERP con SQLAlchemy.
+- Tools de LangChain.
+- RAG con Chroma / FAISS.
+- Chainlit UI.
+- Tests básicos.
+- README técnico.
+- Corrección de errores.
+
+
+8.2. Partes delicadas a vigilar
+-------------------------------
+
+Donde tienes que vigilar más:
+
+- deepagents / LangChain:
+  Las APIs cambian y puede inventarse imports.
+
+- Docker networking:
+  Puede fallar la comunicación entre servicios.
+
+- Esquema Northwind:
+  Puede asumir columnas que no existen.
+
+- Trazabilidad:
+  Hay que diseñarla explícitamente.
+
+- RAG:
+  Puede funcionar, pero hay que probar carga, chunking e indexación.
+
+- Memoria conversacional:
+  Puede implementarla simple, pero hay que acotarla.
+
+
+8.3. Recomendación realista
+---------------------------
+
+Cursor + GPT-5.5 puede hacer esta POC, pero úsalo como copiloto senior, no como piloto automático.
+
+Plan recomendado:
+
+Día 1:
+- Estructura.
+- Docker.
+- FastAPI.
+- Postgres.
+- Mock producción.
+
+Día 2:
+- Tools ERP.
+- Tools producción.
+- Endpoint /api/query.
+
+Día 3:
+- Agente/orquestador.
+- Trazabilidad.
+
+Día 4:
+- RAG.
+- Subida de PDFs.
+
+Día 5:
+- Chainlit.
+- Tests.
+- README.
+- Demo.
+
+La parte más importante para que la prueba quede fuerte no es que el agente "hable bonito", sino que puedas demostrar esto:
+
+Pregunta del usuario
+→ consulta ERP real
+→ consulta API producción real
+→ fusiona datos
+→ responde con fuentes
+→ muestra pasos ejecutados
+→ deja trazabilidad verificable
+
+
+9. PROMPTS ÚTILES PARA CONSTRUIR LA POC CON CURSOR
+==================================================
+
+9.1. Prompt 1: crear arquitectura base
+--------------------------------------
+
+Quiero construir una POC para una prueba técnica de agentes IA.
+
+Stack:
+- Python
+- FastAPI
+- LangChain / deepagents
+- PostgreSQL con base Northwind simulada
+- API REST mock de producción con FastAPI
+- Chroma para RAG
+- Chainlit como interfaz
+- Docker y docker-compose
+
+Crea una arquitectura modular de proyecto con:
+- backend FastAPI
+- production_mock
+- tools ERP, producción y RAG
+- services
+- schemas
+- tests
+- README inicial
+
+No implementes todavía toda la lógica, solo la estructura de carpetas y archivos mínimos.
+
+
+9.2. Prompt 2: docker-compose
+-----------------------------
+
+Implementa el docker-compose.yml para levantar:
+
+1. backend FastAPI en puerto 8000
+2. production-api mock en puerto 8001
+3. postgres con base de datos northwind
+4. chromadb
+5. chainlit en puerto 8501
+
+Usa variables de entorno claras.
+Asegúrate de que los servicios se comuniquen por nombre de servicio Docker.
+
+
+9.3. Prompt 3: ERP Northwind mínimo
+-----------------------------------
+
+Crea un seed SQL mínimo compatible con PostgreSQL para simular Northwind.
+
+Necesito tablas:
+- customers
+- orders
+- order_details
+- products
+
+Incluye clientes ALFKI, ANATR y BONAP.
+Incluye pedidos pendientes, bloqueados, retrasados y finalizados.
+Incluye importes calculables desde order_details.
+
+Después crea un servicio erp_service.py con funciones:
+- get_pending_orders_by_customer(customer_id)
+- get_orders_by_month(year, month)
+- get_customer_by_order(order_id)
+- calculate_order_amount(order_id)
+
+Usa SQLAlchemy.
+
+
+9.4. Prompt 4: API mock de producción
+-------------------------------------
+
+Crea una API FastAPI mock de producción.
+
+Endpoints:
+- GET /production/orders/{order_id}
+- GET /production/orders
+- GET /production/orders/blocked
+- GET /production/orders/delayed
+
+Cada pedido debe devolver:
+- order_id
+- production_status
+- blocked_reason
+- estimated_finish_date
+- delay_reason
+
+Incluye datos coherentes con los order_id del ERP.
+
+
+9.5. Prompt 5: tools de LangChain
+---------------------------------
+
+Crea tools de LangChain para:
+
+1. Consultar pedidos pendientes en ERP.
+2. Consultar estado de producción por order_id.
+3. Consultar pedidos bloqueados en producción.
+4. Buscar información en documentos RAG.
+
+Cada tool debe devolver datos estructurados en JSON.
+No quiero respuestas narrativas dentro de las tools.
+
+
+9.6. Prompt 6: orquestador multi-agente
+---------------------------------------
+
+Implementa un orquestador agentic usando LangChain / deepagents.
+
+Debe recibir una pregunta en lenguaje natural y decidir qué tools usar.
+
+Casos mínimos:
+1. "¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?"
+2. "¿Qué pedidos están bloqueados y cuál es el motivo?"
+3. "¿Qué clientes tienen pedidos retrasados por problemas de producción?"
+4. "Dame un resumen del estado de los pedidos de este mes"
+5. Preguntas sobre documentos PDF mediante RAG
+
+La respuesta final debe tener este formato:
+
+{
+  "answer": "...",
+  "sources": ["ERP", "Producción"],
+  "reasoning": ["...", "..."],
+  "trace": [
+    {
+      "step": 1,
+      "tool": "...",
+      "input": {},
+      "output_summary": "..."
+    }
+  ],
+  "data": {}
+}
+
+
+9.7. Prompt 7: endpoint /api/query
+----------------------------------
+
+Implementa POST /api/query en FastAPI.
+
+Entrada:
+{
+  "question": "..."
+}
+
+Salida:
+{
+  "answer": "...",
+  "sources": [],
+  "reasoning": [],
+  "trace": [],
+  "data": {}
+}
+
+Debe llamar al orquestador agentic.
+Añade validación con Pydantic.
+Añade manejo de errores.
+
+
+9.8. Prompt 8: Chainlit
+-----------------------
+
+Implementa una interfaz Chainlit que permita hacer preguntas en lenguaje natural al endpoint POST /api/query.
+
+Debe mostrar:
+- respuesta final
+- fuentes consultadas
+- reasoning
+- trace paso a paso.
+
+
+9.9. Prompt 9: tests
+--------------------
+
+Crea tests con pytest para:
+
+1. ERP service.
+2. Production API client.
+3. Endpoint POST /api/query.
+4. Caso integrado ERP + producción.
+
+El test integrado debe validar que para la pregunta:
+
+"¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?"
+
+La respuesta incluye:
+- ERP en sources.
+- Producción en sources.
+- reasoning no vacío.
+- trace con al menos dos pasos.
+
+
+9.10. Reglas para darle a Cursor
+--------------------------------
+
+No dejes que Cursor improvise demasiado. Dale reglas estrictas:
+
+No inventes columnas.
+No inventes endpoints.
+Si necesitas asumir algo, indícalo.
+Prioriza código simple y ejecutable.
+No uses servicios externos salvo OpenAI API.
+Todo debe poder levantarse con docker compose up --build.
+
+Después de cada cambio, pídele:
+
+Ejecuta los tests / revisa errores / corrige solo lo necesario sin reescribir toda la arquitectura.
+
+
+CONCLUSIÓN
+==========
+
+La POC debe demostrar principalmente que el sistema puede:
+
+1. Recibir preguntas en lenguaje natural.
+2. Decidir qué fuentes consultar.
+3. Consultar una base ERP tipo Northwind.
+4. Consultar una API REST de producción.
+5. Consultar documentos mediante RAG.
+6. Fusionar datos de varias fuentes.
+7. Responder de forma estructurada.
+8. Incluir sources, reasoning y trace.
+9. Ser ejecutable con Docker.
+10. Tener una interfaz gráfica tipo Chainlit.
+
+La parte más importante para la evaluación será que la integración ERP + producción sea real dentro de la POC: una base de datos con datos controlados, una API separada y una respuesta final que demuestre qué se consultó y cómo se fusionaron los datos.

@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial para responder preguntas de negocio e
 
 ## Estado actual
 
-Fase actual: **Fase 3 - API mock de produccion**.
+Fase actual: **Fase 4 - Tools ERP y produccion**.
 
 Este repositorio contiene por ahora:
 
@@ -32,8 +32,13 @@ Este repositorio contiene por ahora:
 - API mock de produccion separada del backend principal;
 - seed JSON de estados productivos;
 - tests HTTP basicos del mock de produccion.
+- trazabilidad estructurada para tool calls;
+- `ERPTool` determinista con input/output Pydantic;
+- `ProductionAPITool` determinista con input/output Pydantic;
+- cliente HTTP de produccion;
+- tests unitarios de tools.
 
-No hay todavia `/api/query`, agentes, tools LangChain, RAG ni integracion ERP + produccion en el backend principal.
+No hay todavia `/api/query`, LangGraph, agentes, RAG ni integracion ERP + produccion en el backend principal.
 
 ## Arquitectura decidida
 
@@ -137,12 +142,13 @@ Endpoints del mock:
 
 ## Siguiente fase
 
-Fase 4:
+Fase 5:
 
-- crear `ERPTool`;
-- crear `ProductionAPITool`;
-- definir input/output con Pydantic;
-- registrar tool calls;
-- crear tests unitarios.
+- definir `AgentState`;
+- crear Planner con plan estructurado;
+- crear Reasoner/Executor;
+- crear Validator Node;
+- crear FinalResponseBuilder;
+- limitar replanning con `MAX_REPLANS = 2`.
 
-No se debe implementar todavia RAG ni agentes en Fase 4.
+No se debe implementar todavia RAG en Fase 5.

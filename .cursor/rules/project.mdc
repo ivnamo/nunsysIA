@@ -57,3 +57,7 @@ Responses must distinguish:
 - final status.
 
 Never expose hidden chain-of-thought. Use concise visible reasoning suitable for audit.
+
+## Git Workflow
+
+Seguir `.cursor/rules/git-workflow.mdc`: `develop` para construccion, `main` para estado estable, `feature/*` para tareas acotadas. Remoto: `https://github.com/ivnamo/nunsysIA.git`.

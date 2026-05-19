@@ -14,6 +14,7 @@ Leer siempre:
 - `.cursor/rules/agents.mdc`
 - `.cursor/rules/rag.mdc`
 - `.cursor/rules/testing.mdc`
+- `.cursor/rules/git-workflow.mdc`
 - `docs/ARCHITECTURE.md`
 - `docs/TASK_PLAN.md`
 - `docs/API_CONTRACT.md`
@@ -29,6 +30,20 @@ Cada prompt debe indicar:
 - tests esperados;
 - que no se cambie la arquitectura;
 - que se resuman cambios y como probar.
+
+## Flujo Git (main + develop)
+
+Repositorio en la nube: [ivnamo/nunsysIA](https://github.com/ivnamo/nunsysIA).
+
+| Rama | Uso |
+|------|-----|
+| `develop` | Trabajo diario e integracion por fases |
+| `main` | Estado estable, demo y entregas |
+| `feature/*` | Tareas acotadas desde `develop` |
+
+Flujo: `feature/*` → `develop` → `main` (solo cuando la fase cumpla criterios o se acuerde entrega).
+
+Detalle completo en `.cursor/rules/git-workflow.mdc`.
 
 ## Despues de Cada Fase
 

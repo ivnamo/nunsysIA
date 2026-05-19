@@ -1,0 +1,37 @@
+[
+  {
+    "order_id": 10248,
+    "production_status": "in_progress",
+    "blocked_reason": null,
+    "delay_reason": null,
+    "estimated_finish_date": "2026-05-22"
+  },
+  {
+    "order_id": 10252,
+    "production_status": "blocked",
+    "blocked_reason": "Falta de material",
+    "delay_reason": null,
+    "estimated_finish_date": "2026-05-30"
+  },
+  {
+    "order_id": 10255,
+    "production_status": "finished",
+    "blocked_reason": null,
+    "delay_reason": null,
+    "estimated_finish_date": "2026-05-14"
+  },
+  {
+    "order_id": 10301,
+    "production_status": "delayed",
+    "blocked_reason": null,
+    "delay_reason": "Averia en linea de produccion",
+    "estimated_finish_date": "2026-06-03"
+  },
+  {
+    "order_id": 10312,
+    "production_status": "blocked",
+    "blocked_reason": "Falta de capacidad",
+    "delay_reason": null,
+    "estimated_finish_date": "2026-06-02"
+  }
+]

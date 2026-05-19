@@ -11,6 +11,7 @@ def test_phase_0_project_structure_exists() -> None:
         "app/production",
         "app/core",
         "app/schemas",
+        "production_mock",
         "chainlit_app",
         "data/sample_docs",
         "tests/unit",

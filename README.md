@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial para responder preguntas de negocio e
 
 ## Estado actual
 
-Fase actual: **Fase 2 - ERP Northwind**.
+Fase actual: **Fase 3 - API mock de produccion**.
 
 Este repositorio contiene por ahora:
 
@@ -29,8 +29,11 @@ Este repositorio contiene por ahora:
 - schemas Pydantic ERP;
 - repositorio ERP testeable sin Docker;
 - tests deterministas de consultas ERP.
+- API mock de produccion separada del backend principal;
+- seed JSON de estados productivos;
+- tests HTTP basicos del mock de produccion.
 
-No hay todavia `/api/query`, agentes, tools LangChain, RAG, produccion ni logica funcional expuesta por API.
+No hay todavia `/api/query`, agentes, tools LangChain, RAG ni integracion ERP + produccion en el backend principal.
 
 ## Arquitectura decidida
 
@@ -67,6 +70,7 @@ app/
   production/
   core/
   schemas/
+production_mock/
 chainlit_app/
 data/
   sample_docs/
@@ -115,13 +119,30 @@ Ejecutar tests:
 pytest
 ```
 
+## API mock de produccion
+
+Ejecutar manualmente:
+
+```bash
+python -m uvicorn production_mock.main:app --reload --port 8001
+```
+
+Endpoints del mock:
+
+- `GET /health`
+- `GET /production/orders`
+- `GET /production/orders?status=blocked`
+- `GET /production/orders?status=delayed`
+- `GET /production/orders/{order_id}`
+
 ## Siguiente fase
 
-Fase 3:
+Fase 4:
 
-- crear API mock de produccion;
-- exponer estados de pedidos;
-- incluir bloqueos, retrasos y motivos;
-- crear tests o pruebas HTTP basicas.
+- crear `ERPTool`;
+- crear `ProductionAPITool`;
+- definir input/output con Pydantic;
+- registrar tool calls;
+- crear tests unitarios.
 
-No se debe implementar todavia RAG ni agentes en Fase 3.
+No se debe implementar todavia RAG ni agentes en Fase 4.

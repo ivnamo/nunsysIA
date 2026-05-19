@@ -41,7 +41,7 @@ Repositorio en la nube: [ivnamo/nunsysIA](https://github.com/ivnamo/nunsysIA).
 | `main` | Estado estable, demo y entregas |
 | `feature/*` | Tareas acotadas desde `develop` |
 
-Flujo: `feature/*` → `develop` → `main` (solo cuando la fase cumpla criterios o se acuerde entrega).
+Flujo: `feature/*` -> `develop` -> `main` (solo cuando la fase cumpla criterios o se acuerde entrega).
 
 Detalle completo en `.cursor/rules/git-workflow.mdc`.
 

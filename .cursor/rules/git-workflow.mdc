@@ -1,5 +1,5 @@
 ---
-description: Flujo Git con main estable, develop de integración y ramas feature
+description: Flujo Git con main estable, develop de integracion y ramas feature
 globs:
   - "**/*"
 alwaysApply: true
@@ -9,7 +9,7 @@ alwaysApply: true
 
 Remoto oficial: `https://github.com/ivnamo/nunsysIA.git`
 
-Este repositorio es **independiente** del Git de la carpeta padre `Repos`. No mezclar commits ni pushes con otros proyectos del monorepo local.
+Este repositorio es independiente del Git de la carpeta padre `Repos`. No mezclar commits ni pushes con otros proyectos del monorepo local.
 
 ## Ramas
 
@@ -17,52 +17,49 @@ Este repositorio es **independiente** del Git de la carpeta padre `Repos`. No me
 |------|-----------|
 | `main` | Estable: demo, entregas y estado aceptado por fase |
 | `develop` | Integracion diaria y construccion continua del POC |
-| `feature/*` | Tareas acotadas (fase, modulo o fix concreto) |
+| `feature/*` | Tareas acotadas: fase, modulo o fix concreto |
 
-Rama de trabajo habitual: **`develop`**.
+Rama de trabajo habitual: `develop`.
 
 ## Reglas para el agente
 
 - No hacer push a `main` salvo que el usuario lo pida explicitamente o sea merge de entrega acordada.
-- Desarrollo nuevo: partir de `develop` (`git checkout develop` y actualizar con `git pull origin develop` si hay remoto).
-- Cambios de fase o modulo: crear rama `feature/<nombre-corto>` desde `develop` (ej. `feature/fase-0-setup`).
-- Commits **atomicos**: un commit = un cambio logico coherente (una fase parcial, un fix, una doc).
-- Mensajes de commit en espanol o ingles tecnico claro; formato preferido: `tipo: descripcion breve` (`feat`, `fix`, `docs`, `test`, `chore`, `refactor`).
-- No commitear secretos (`.env`, credenciales, tokens). Ver `.gitignore`.
-- No crear commits ni push sin que el usuario lo pida, salvo instruccion explicita en el mensaje.
+- Desarrollo nuevo: partir de `develop`.
+- Cambios de fase o modulo: crear rama `feature/<nombre-corto>` desde `develop`.
+- Commits atomicos: un commit equivale a un cambio logico coherente.
+- Mensajes de commit claros. Formato preferido: `tipo: descripcion breve`.
+- No commitear secretos: `.env`, credenciales o tokens.
+- No crear commits ni push sin que el usuario lo pida.
 - No usar `git push --force` en `main` ni `develop` salvo peticion explicita del usuario.
 
 ## Integracion
 
 ```text
-feature/*  --merge-->  develop  --merge (entrega)-->  main
+feature/* -> develop -> main
 ```
 
-1. Trabajar en `feature/*` con commits pequenos y revisables.
-2. Integrar en `develop` con merge (o PR hacia `develop` en GitHub).
+1. Trabajar en `feature/*` con cambios pequenos y revisables.
+2. Integrar en `develop` con merge o PR.
 3. Pasar a `main` solo cuando la fase cumpla criterios de `docs/TASK_PLAN.md` o el usuario indique entrega estable.
-4. Tras merge a `main`, `git push origin main` solo si el usuario lo solicita o forma parte de la tarea acordada.
+4. Tras merge a `main`, hacer push solo si el usuario lo solicita o forma parte de la tarea acordada.
 
 ## Comandos de referencia
 
 ```bash
 git checkout develop
-git pull origin develop
 git checkout -b feature/fase-0-setup
 
 # al terminar la feature
 git checkout develop
 git merge feature/fase-0-setup
-git push origin develop
 
-# entrega estable (cuando proceda)
+# entrega estable, cuando proceda
 git checkout main
 git merge develop
-git push origin main
 ```
 
-## Pull requests (recomendado)
+## Pull requests recomendadas
 
-- `feature/*` → `develop` para integracion diaria.
-- `develop` → `main` para releases o hitos de fase.
-- Descripcion del PR: que cambia, como probar, fase del `TASK_PLAN.md` si aplica.
+- `feature/*` -> `develop` para integracion diaria.
+- `develop` -> `main` para releases o hitos de fase.
+- Descripcion del PR: que cambia, como probar y fase de `docs/TASK_PLAN.md`.

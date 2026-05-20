@@ -8,13 +8,19 @@ from app.agents.validator import ValidatorNode
 from app.schemas.query import QueryResponse
 from app.tools.erp_tool import ERPTool
 from app.tools.production_tool import ProductionAPITool
+from app.tools.rag_tool import DocumentRAGTool
 
 
-def build_agent_graph(erp_tool: ERPTool, production_tool: ProductionAPITool):
+def build_agent_graph(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+    rag_tool: DocumentRAGTool | None = None,
+):
     planner = PlannerAgent()
     reasoner = ReasonerExecutorAgent(
         erp_tool=erp_tool,
         production_tool=production_tool,
+        rag_tool=rag_tool,
     )
     validator = ValidatorNode()
     final_response = FinalResponseBuilder()
@@ -46,8 +52,13 @@ def run_agent_graph(
     production_tool: ProductionAPITool,
     question: str,
     conversation_id: str | None = None,
+    rag_tool: DocumentRAGTool | None = None,
 ) -> QueryResponse:
-    graph = build_agent_graph(erp_tool=erp_tool, production_tool=production_tool)
+    graph = build_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        rag_tool=rag_tool,
+    )
     result = graph.invoke(
         {
             "question": question,

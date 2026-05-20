@@ -32,13 +32,14 @@ def test_planner_creates_blocked_orders_plan() -> None:
     ]
 
 
-def test_planner_marks_documental_query_as_rag_without_tool_steps() -> None:
+def test_planner_marks_documental_query_as_rag_with_document_tool_step() -> None:
     planner = PlannerAgent()
 
     state = planner({"question": "Resume el PDF del contrato marco", "attempts": 0})
 
     assert state["intent"] == "rag"
-    assert state["plan"]["steps"] == []
+    assert state["plan"]["steps"][0]["tool"] == "DocumentRAGTool"
+    assert state["plan"]["steps"][0]["action"] == "query"
     assert state["plan"]["expected_sources"] == ["Documentos"]
 
 

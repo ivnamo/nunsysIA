@@ -44,6 +44,9 @@ class FinalResponseBuilder:
             return "No se pudo completar la consulta de forma fiable."
 
         data = state.get("data", {})
+        if data.get("rag"):
+            return data["rag"]["answer"]
+
         if plan.intent == "erp_production" and data.get("production_orders"):
             return self._answer_blocked_orders(data)
 

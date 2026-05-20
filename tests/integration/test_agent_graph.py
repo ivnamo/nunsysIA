@@ -5,8 +5,12 @@ from app.agents.graph import run_agent_graph
 from app.erp.database import create_sqlite_connection, load_seed_sql
 from app.erp.repositories import NorthwindRepository
 from app.production.client import ProductionAPIClient
+from app.rag.embeddings import DeterministicEmbeddingModel
+from app.rag.ingestion import DocumentIngestionService
+from app.rag.vector_store import InMemoryDocumentVectorStore
 from app.tools.erp_tool import ERPTool
 from app.tools.production_tool import ProductionAPITool
+from app.tools.rag_tool import DocumentRAGTool
 
 
 @pytest.fixture()
@@ -65,7 +69,7 @@ def test_agent_graph_answers_blocked_orders_with_erp_customer_context(
     assert "Falta de capacidad" in response.answer
 
 
-def test_agent_graph_returns_insufficient_context_for_rag_before_phase_6(
+def test_agent_graph_returns_insufficient_context_when_rag_tool_is_not_configured(
     erp_tool: ERPTool,
     production_tool: ProductionAPITool,
 ) -> None:
@@ -77,8 +81,35 @@ def test_agent_graph_returns_insufficient_context_for_rag_before_phase_6(
 
     assert response.status == "insufficient_context"
     assert response.sources == []
-    assert response.tool_calls == []
+    assert response.tool_calls[0].status == "skipped"
     assert "contexto documental suficiente" in response.answer
+
+
+def test_agent_graph_answers_rag_query_when_document_tool_is_configured(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes("Contrato marco con penalizacion por retrasos en entrega."),
+        filename="contrato.pdf",
+    )
+
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        rag_tool=DocumentRAGTool(
+            vector_store=vector_store,
+            embedding_model=DeterministicEmbeddingModel(),
+        ),
+        question="Que dice el PDF del contrato sobre penalizacion por retrasos?",
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Documentos"]
+    assert "penalizacion" in response.answer
+    assert response.tool_calls[0].tool == "DocumentRAGTool"
 
 
 def _production_transport() -> httpx.MockTransport:
@@ -145,3 +176,34 @@ def _production_transport() -> httpx.MockTransport:
         return httpx.Response(500, text="unexpected path")
 
     return httpx.MockTransport(handler)
+
+
+def _pdf_bytes(text: str) -> bytes:
+    stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET".encode("latin-1")
+    objects = [
+        b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n",
+        b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n",
+        b"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj\n",
+        b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n",
+        b"5 0 obj << /Length "
+        + str(len(stream)).encode()
+        + b" >> stream\n"
+        + stream
+        + b"\nendstream endobj\n",
+    ]
+    body = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for pdf_object in objects:
+        offsets.append(len(body))
+        body.extend(pdf_object)
+    xref = len(body)
+    body.extend(f"xref\n0 {len(objects) + 1}\n".encode())
+    body.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        body.extend(f"{offset:010d} 00000 n \n".encode())
+    body.extend(
+        f"trailer << /Root 1 0 R /Size {len(objects) + 1} >>\n"
+        f"startxref\n{xref}\n%%EOF\n".encode()
+    )
+    return bytes(body)

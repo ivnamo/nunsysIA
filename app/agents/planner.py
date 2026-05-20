@@ -41,9 +41,16 @@ class PlannerAgent:
         if "document" in normalized or "pdf" in normalized or "contrato" in normalized:
             return ExecutionPlan(
                 intent="rag",
-                steps=[],
+                steps=[
+                    PlanStep(
+                        step_id=1,
+                        tool="DocumentRAGTool",
+                        action="query",
+                        args={"query": question, "top_k": 3},
+                    )
+                ],
                 expected_sources=["Documentos"],
-                answer_requirements=["RAG se implementa en una fase posterior."],
+                answer_requirements=["Responder solo con chunks documentales recuperados."],
             )
 
         if "bloquead" in normalized:

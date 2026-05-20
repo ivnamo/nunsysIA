@@ -15,14 +15,6 @@ class ValidatorNode:
                 "failure_reason": "La pregunta queda fuera del alcance de la POC actual.",
             }
 
-        if plan.intent == "rag":
-            return {
-                **state,
-                "status": "insufficient_context",
-                "validation_decision": "fail",
-                "failure_reason": "RAG documental se implementa en una fase posterior.",
-            }
-
         tool_calls = state.get("tool_calls", [])
         failed_calls = [call for call in tool_calls if call.status == "error"]
         if failed_calls:
@@ -32,6 +24,23 @@ class ValidatorNode:
                 "Una o mas tools devolvieron error.",
                 status="tool_error",
             )
+
+        rag_result = state.get("data", {}).get("rag")
+        if plan.intent == "rag" and rag_result:
+            if rag_result.get("status") == "insufficient_context":
+                return {
+                    **state,
+                    "status": "insufficient_context",
+                    "validation_decision": "fail",
+                    "failure_reason": "No hay chunks documentales relevantes.",
+                }
+            if rag_result.get("status") == "completed":
+                return {
+                    **state,
+                    "status": "completed",
+                    "validation_decision": "finish",
+                    "failure_reason": None,
+                }
 
         sources = set(state.get("sources", []))
         missing_sources = set(plan.expected_sources) - sources

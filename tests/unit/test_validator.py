@@ -65,22 +65,77 @@ def test_validator_replans_when_required_source_is_missing() -> None:
     assert state["attempts"] == 1
 
 
-def test_validator_fails_rag_until_document_pipeline_exists() -> None:
+def test_validator_fails_rag_when_context_is_insufficient() -> None:
     validator = ValidatorNode()
 
     state = validator(
         {
             "plan": {
                 "intent": "rag",
-                "steps": [],
+                "steps": [
+                    {
+                        "step_id": 1,
+                        "tool": "DocumentRAGTool",
+                        "action": "query",
+                        "args": {"query": "contrato"},
+                        "required": True,
+                    }
+                ],
                 "expected_sources": ["Documentos"],
                 "answer_requirements": [],
             },
-            "sources": [],
-            "tool_calls": [],
+            "sources": ["Documentos"],
+            "tool_calls": [
+                ToolCallTrace(tool="DocumentRAGTool", status="success", source="Documentos")
+            ],
+            "data": {
+                "rag": {
+                    "answer": "No hay contexto documental suficiente para responder sin inventar.",
+                    "status": "insufficient_context",
+                    "chunks": [],
+                }
+            },
             "attempts": 0,
         }
     )
 
     assert state["status"] == "insufficient_context"
     assert state["validation_decision"] == "fail"
+
+
+def test_validator_finishes_rag_when_document_context_exists() -> None:
+    validator = ValidatorNode()
+
+    state = validator(
+        {
+            "plan": {
+                "intent": "rag",
+                "steps": [
+                    {
+                        "step_id": 1,
+                        "tool": "DocumentRAGTool",
+                        "action": "query",
+                        "args": {"query": "contrato"},
+                        "required": True,
+                    }
+                ],
+                "expected_sources": ["Documentos"],
+                "answer_requirements": [],
+            },
+            "sources": ["Documentos"],
+            "tool_calls": [
+                ToolCallTrace(tool="DocumentRAGTool", status="success", source="Documentos")
+            ],
+            "data": {
+                "rag": {
+                    "answer": "Respuesta basada en chunks.",
+                    "status": "completed",
+                    "chunks": [{"chunk_id": "chunk-1"}],
+                }
+            },
+            "attempts": 0,
+        }
+    )
+
+    assert state["status"] == "completed"
+    assert state["validation_decision"] == "finish"

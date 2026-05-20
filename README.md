@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Fase actual: **Fase 5 - LangGraph basico con Planner/Reasoner/Validator**.
+Fase actual: **Fase 6 - RAG con subida de PDFs**.
 
 Este repositorio contiene por ahora:
 
@@ -43,19 +43,25 @@ Este repositorio contiene por ahora:
 - Validator con replanning limitado por `MAX_REPLANS = 2`;
 - FinalResponseBuilder con `QueryResponse` estructurada;
 - tests unitarios e integracion del grafo basico.
+- pipeline RAG PDF -> texto -> chunks -> embeddings -> vector store;
+- adaptador ChromaDB con fallback local en memoria si Chroma no esta disponible;
+- `DocumentRAGTool` con trazabilidad y `insufficient_context`;
+- endpoints `POST /api/documents/upload` y `GET /api/documents`;
+- tests de ingestion, retrieval, tool RAG y endpoints documentales.
 
 Disponible para ejecutar actualmente:
 
 - backend FastAPI con `GET /health`;
+- endpoints documentales para subir y listar PDFs;
 - API mock de produccion;
 - tests automatizados;
-- grafo LangGraph invocable desde tests y codigo Python.
+- grafo LangGraph invocable desde tests y codigo Python;
+- RAG documental invocable como tool y desde endpoints documentales.
 
 Pendiente todavia:
 
 - endpoint `POST /api/query`;
 - integracion del grafo en el backend principal;
-- RAG documental;
 - interfaz Chainlit;
 - Docker Compose.
 
@@ -155,6 +161,19 @@ Comprobar health:
 curl http://localhost:8000/health
 ```
 
+Subir un PDF:
+
+```bash
+curl -X POST http://localhost:8000/api/documents/upload \
+  -F "file=@ruta/al/documento.pdf;type=application/pdf"
+```
+
+Listar documentos indexados:
+
+```bash
+curl http://localhost:8000/api/documents
+```
+
 ## API mock de produccion
 
 Ejecutar manualmente:
@@ -173,13 +192,11 @@ Endpoints del mock:
 
 ## Siguiente fase
 
-Fase 6:
+Fase 7:
 
-- implementar pipeline RAG como tool controlada;
-- subir PDFs mediante capa documental;
-- extraer texto, crear chunks y metadata;
-- indexar en ChromaDB;
-- recuperar chunks con fuentes;
-- devolver `insufficient_context` si no hay evidencia suficiente.
+- preparar interfaz Chainlit para demo;
+- mostrar respuesta, fuentes, reasoning visible y tool calls;
+- conectar con el backend cuando exista `/api/query`;
+- mantener UI ligera y orientada a la prueba tecnica.
 
-No se debe implementar todavia `/api/query` en Fase 6 salvo que se cambie explicitamente el plan.
+Antes de Chainlit puede ser conveniente implementar `POST /api/query` si se decide priorizar una demo end-to-end desde API.

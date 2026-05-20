@@ -14,12 +14,19 @@ from app.tools.production_tool import (
     ProductionOrderInput,
     ProductionOrdersInput,
 )
+from app.tools.rag_tool import DocumentRAGInput, DocumentRAGTool
 
 
 class ReasonerExecutorAgent:
-    def __init__(self, erp_tool: ERPTool, production_tool: ProductionAPITool) -> None:
+    def __init__(
+        self,
+        erp_tool: ERPTool,
+        production_tool: ProductionAPITool,
+        rag_tool: DocumentRAGTool | None = None,
+    ) -> None:
         self._erp_tool = erp_tool
         self._production_tool = production_tool
+        self._rag_tool = rag_tool
 
     def __call__(self, state: AgentState) -> AgentState:
         plan = ExecutionPlan.model_validate(state.get("plan") or {})
@@ -47,9 +54,13 @@ class ReasonerExecutorAgent:
             self._execute_production_step(step, execution)
             return
 
+        if step.tool == "DocumentRAGTool":
+            self._execute_rag_step(step, execution)
+            return
+
         execution.add_skipped(
             tool=step.tool,
-            source="Documentos" if step.tool == "DocumentRAGTool" else "Memoria",
+            source="Memoria",
             args=step.args,
             summary=f"{step.tool} no esta implementada en esta fase",
         )
@@ -142,6 +153,34 @@ class ReasonerExecutorAgent:
             source="Produccion",
             args=step.args,
             summary=f"Accion de produccion no soportada: {step.action}",
+        )
+
+    def _execute_rag_step(self, step: PlanStep, execution: "_ExecutionContext") -> None:
+        if self._rag_tool is None:
+            execution.data["rag"] = {
+                "answer": "No hay contexto documental suficiente para responder sin inventar.",
+                "status": "insufficient_context",
+                "chunks": [],
+            }
+            execution.add_skipped(
+                tool="DocumentRAGTool",
+                source="Documentos",
+                args=step.args,
+                summary="DocumentRAGTool no esta configurada en este grafo",
+            )
+            return
+
+        if step.action == "query":
+            result = self._rag_tool.query(DocumentRAGInput.model_validate(step.args))
+            execution.data["rag"] = result.data
+            execution.add_result(result, "Consulta RAG documental con chunks recuperados")
+            return
+
+        execution.add_skipped(
+            tool="DocumentRAGTool",
+            source="Documentos",
+            args=step.args,
+            summary=f"Accion RAG no soportada: {step.action}",
         )
 
 

@@ -95,6 +95,25 @@ def test_api_uploads_demo_document_space_and_answers_rag_questions(
     assert "5 dias laborables" in deadline_payload["answer"]
     assert "contrato_marco_logistica_2026.pdf" in deadline_payload["data"]["rag"]["documents"]
 
+    summary_response = client.post(
+        "/api/query",
+        json={
+            "question": (
+                "resumeme en dos frases este documento: "
+                "procedimiento_produccion_bloqueos.pdf"
+            )
+        },
+    )
+
+    assert summary_response.status_code == 200
+    summary_payload = summary_response.json()
+    assert summary_payload["status"] == "completed"
+    assert summary_payload["answer"].count(".") == 2
+    assert "5 dias laborables" not in summary_payload["answer"]
+    assert summary_payload["data"]["rag"]["documents"] == [
+        "procedimiento_produccion_bloqueos.pdf"
+    ]
+
 
 def test_api_returns_insufficient_context_for_unrelated_document_question(
     client: TestClient,

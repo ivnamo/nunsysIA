@@ -22,6 +22,7 @@ class DocumentVectorStore(Protocol):
         self,
         query_embedding: list[float],
         top_k: int,
+        filenames: set[str] | None = None,
     ) -> list[RetrievedDocumentChunk]:
         ...
 
@@ -44,7 +45,9 @@ class InMemoryDocumentVectorStore:
         self,
         query_embedding: list[float],
         top_k: int,
+        filenames: set[str] | None = None,
     ) -> list[RetrievedDocumentChunk]:
+        normalized_filenames = _normalize_filenames(filenames)
         scored_chunks = [
             RetrievedDocumentChunk(
                 text=chunk.text,
@@ -52,6 +55,8 @@ class InMemoryDocumentVectorStore:
                 score=_cosine_similarity(query_embedding, embedding),
             )
             for chunk, embedding in self._items
+            if not normalized_filenames
+            or chunk.metadata.filename.lower() in normalized_filenames
         ]
         return sorted(scored_chunks, key=lambda chunk: chunk.score, reverse=True)[:top_k]
 
@@ -132,13 +137,18 @@ class ChromaDocumentVectorStore:
         self,
         query_embedding: list[float],
         top_k: int,
+        filenames: set[str] | None = None,
     ) -> list[RetrievedDocumentChunk]:
+        where = _chroma_filename_filter(filenames or set())
         try:
-            result = self._collection.query(
-                query_embeddings=[query_embedding],
-                n_results=top_k,
-                include=["documents", "metadatas", "distances"],
-            )
+            query_args = {
+                "query_embeddings": [query_embedding],
+                "n_results": top_k,
+                "include": ["documents", "metadatas", "distances"],
+            }
+            if where:
+                query_args["where"] = where
+            result = self._collection.query(**query_args)
         except Exception as exc:
             raise VectorStoreError("No se pudo consultar ChromaDB.") from exc
 
@@ -187,3 +197,15 @@ def _cosine_similarity(left: list[float], right: list[float]) -> float:
     if left_norm == 0 or right_norm == 0:
         return 0.0
     return numerator / (left_norm * right_norm)
+
+
+def _normalize_filenames(filenames: set[str] | None) -> set[str]:
+    return {filename.lower() for filename in filenames or set() if filename}
+
+
+def _chroma_filename_filter(filenames: set[str]) -> dict[str, object] | None:
+    if not filenames:
+        return None
+    if len(filenames) == 1:
+        return {"filename": next(iter(filenames))}
+    return {"filename": {"$in": sorted(filenames)}}

@@ -1,8 +1,13 @@
+import asyncio
+from collections.abc import Coroutine
+from contextlib import suppress
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import chainlit as cl
 
+from app.schemas.query import QueryResponse
 from chainlit_app.client import BackendClient, BackendClientError
 from chainlit_app.config import get_chainlit_settings
 from chainlit_app.formatting import (
@@ -13,6 +18,8 @@ from chainlit_app.formatting import (
 )
 
 _DOCUMENT_LIST_REQUESTS = {"/documentos", "documentos", "listar documentos"}
+_THINKING_UPDATE_SECONDS = 0.7
+_THINKING_FRAMES = ("Pensando", "Pensando.", "Pensando..", "Pensando...")
 
 
 @cl.on_chat_start
@@ -42,13 +49,16 @@ async def on_message(message: cl.Message) -> None:
         await _send_document_list(client)
         return
 
-    response_message = cl.Message(content="Procesando consulta...")
+    response_message = cl.Message(content=_thinking_message(0))
     await response_message.send()
 
     try:
-        response = await client.query(
-            question=question,
-            conversation_id=cl.user_session.get("conversation_id"),
+        response = await _run_with_thinking_indicator(
+            operation=client.query(
+                question=question,
+                conversation_id=cl.user_session.get("conversation_id"),
+            ),
+            message=response_message,
         )
     except BackendClientError as exc:
         response_message.content = format_error(str(exc))
@@ -56,6 +66,33 @@ async def on_message(message: cl.Message) -> None:
         response_message.content = format_query_response(response)
 
     await response_message.update()
+
+
+async def _run_with_thinking_indicator(
+    operation: Coroutine[Any, Any, QueryResponse],
+    message: cl.Message,
+) -> QueryResponse:
+    task = asyncio.create_task(operation)
+    frame_index = 1
+
+    try:
+        while True:
+            done, _ = await asyncio.wait({task}, timeout=_THINKING_UPDATE_SECONDS)
+            if done:
+                return await task
+            message.content = _thinking_message(frame_index)
+            await message.update()
+            frame_index += 1
+    finally:
+        if not task.done():
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+
+
+def _thinking_message(frame_index: int) -> str:
+    frame = _THINKING_FRAMES[frame_index % len(_THINKING_FRAMES)]
+    return f"{frame}\n\nSigo consultando el backend."
 
 
 def _client() -> BackendClient:

@@ -513,9 +513,9 @@ Resultado esperado:
 - si hay fallo de LLM, embeddings o Chroma, debe aparecer como respuesta controlada con `tool_calls`, no como 500.
 - si se usa cualquier ruta alternativa, debe aparecer `fallbacks` con marcadores `FALLBACK_*`.
 
-### Chainlit se queda en `Procesando consulta...`
+### Chainlit se queda en `Pensando...`
 
-Si `/documentos` funciona pero una pregunta se queda en `Procesando consulta...`, valida primero la API directamente:
+Si `/documentos` funciona pero una pregunta se queda en la animacion `Pensando...`, valida primero la API directamente:
 
 ```powershell
 $body = @{

@@ -44,6 +44,45 @@ def test_document_rag_tool_returns_grounded_answer_and_trace() -> None:
     assert "FALLBACK" in result.tool_call.output_summary
 
 
+def test_document_rag_tool_summarizes_named_pdf_without_mixing_documents() -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Procedimiento operativo de produccion. "
+            "Una orden puede estar en in_progress, blocked, delayed o finished. "
+            "El estado blocked se usa por falta de material o capacidad. "
+            "Un pedido bloqueado mas de 72 horas debe escalarse a operaciones."
+        ),
+        filename="procedimiento_produccion_bloqueos.pdf",
+    )
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Contrato marco de logistica. Los pedidos standard deben entregarse "
+            "en 5 dias laborables desde la liberacion."
+        ),
+        filename="contrato_marco_logistica_2026.pdf",
+    )
+    tool = DocumentRAGTool(vector_store=vector_store)
+
+    result = tool.query(
+        DocumentRAGInput(
+            query=(
+                "resumeme en dos frases este documento: "
+                "procedimiento_produccion_bloqueos.pdf"
+            ),
+            top_k=5,
+            min_score=0,
+        )
+    )
+
+    assert result.data["status"] == "completed"
+    assert "5 dias laborables" not in result.data["answer"]
+    assert result.data["answer"].count(".") == 2
+    filenames = {chunk["metadata"]["filename"] for chunk in result.data["chunks"]}
+    assert filenames == {"procedimiento_produccion_bloqueos.pdf"}
+
+
 def test_document_rag_tool_returns_insufficient_context_without_relevant_chunks() -> None:
     vector_store = InMemoryDocumentVectorStore()
     service = DocumentIngestionService(vector_store=vector_store)

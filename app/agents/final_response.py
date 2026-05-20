@@ -1,5 +1,6 @@
 import json
 import re
+import unicodedata
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import date
@@ -21,8 +22,11 @@ from app.core.traceability import (
 from app.schemas.query import QueryResponse, QueryStatus
 
 
+_FINAL_ANSWER_MAX_CHARS = 3000
+
+
 class _FinalAnswerPayload(BaseModel):
-    answer: str = Field(min_length=1, max_length=1200)
+    answer: str = Field(min_length=1, max_length=_FINAL_ANSWER_MAX_CHARS)
 
 
 _ERP_STATUS_LABELS = {
@@ -141,20 +145,23 @@ class FinalResponseBuilder:
             return deterministic_answer, None
 
         public_summary = build_public_data_summary(data) or {}
-        evidence_text = _compact_json(
-            {
-                "question": state.get("question"),
-                "intent": plan.intent,
-                "sources": state.get("sources", []),
-                "reasoning": sanitize_reasoning(state.get("reasoning", [])),
-                "data": data,
-                "public_summary": public_summary,
-                "fallback_answer": deterministic_answer,
-            }
+        question = str(state.get("question") or "")
+        response_constraints = _response_constraints(question)
+        evidence_payload = _build_final_evidence_payload(
+            question=question,
+            plan=plan,
+            state=state,
+            public_summary=public_summary,
+            deterministic_answer=deterministic_answer,
         )
+        evidence_text = _compact_json(evidence_payload)
         try:
             response = self._invoke_chat_model(
                 _final_answer_prompt(
+                    question=question,
+                    intent=plan.intent,
+                    answer_requirements=plan.answer_requirements,
+                    response_constraints=response_constraints,
                     evidence_text=evidence_text,
                     deterministic_answer=deterministic_answer,
                 )
@@ -177,10 +184,19 @@ class FinalResponseBuilder:
             )
 
         candidate = " ".join(payload.answer.split())
-        if not _is_grounded_answer(candidate, evidence_text):
+        if len(candidate) > response_constraints["max_chars"]:
             return (
                 deterministic_answer,
-                _final_response_fallback("LLM final no paso validacion de evidencias"),
+                _final_response_fallback("LLM final excedio la longitud permitida"),
+            )
+        unsupported_facts = _unsupported_critical_facts(candidate, evidence_text)
+        if unsupported_facts:
+            return (
+                deterministic_answer,
+                _final_response_fallback(
+                    "LLM final no paso validacion de evidencias",
+                    ", ".join(unsupported_facts[:5]),
+                ),
             )
         return candidate, None
 
@@ -437,17 +453,201 @@ def _tool_calls(values: list[ToolCallTrace]) -> list[ToolCallTrace]:
     return sanitize_tool_calls([ToolCallTrace.model_validate(value) for value in values])
 
 
-def _final_answer_prompt(evidence_text: str, deterministic_answer: str) -> str:
+def _build_final_evidence_payload(
+    question: str,
+    plan: ExecutionPlan,
+    state: AgentState,
+    public_summary: dict[str, Any],
+    deterministic_answer: str,
+) -> dict[str, Any]:
+    data = state.get("data", {})
+    return {
+        "question": question,
+        "intent": plan.intent,
+        "answer_requirements": plan.answer_requirements,
+        "sources": state.get("sources", []),
+        "reasoning_visible": sanitize_reasoning(state.get("reasoning", [])),
+        "tool_calls": [
+            call.model_dump(mode="json")
+            for call in _tool_calls(state.get("tool_calls", []))
+        ],
+        "public_summary": public_summary,
+        "evidence": _normalized_evidence(data),
+        "safe_fallback_answer": deterministic_answer,
+    }
+
+
+def _normalized_evidence(data: dict[str, Any]) -> dict[str, Any]:
+    evidence: dict[str, Any] = {}
+
+    if data.get("erp_orders") is not None:
+        evidence["erp_orders"] = [
+            _normalize_erp_order(order)
+            for order in _as_list(data.get("erp_orders"))
+        ]
+
+    if data.get("production_orders") is not None:
+        evidence["production_orders"] = [
+            _normalize_production_order(order)
+            for order in _as_list(data.get("production_orders"))
+        ]
+
+    if data.get("production_by_order") is not None:
+        production_by_order = _as_dict(data.get("production_by_order"))
+        evidence["production_by_order"] = [
+            _normalize_production_order(production)
+            for _, production in _sorted_mapping_items(production_by_order)
+            if isinstance(production, dict)
+        ]
+
+    if data.get("customers_by_order") is not None:
+        customers_by_order = _as_dict(data.get("customers_by_order"))
+        evidence["customers_by_order"] = [
+            {
+                "order_id": _coerce_int(order_id),
+                "customer": _clean_mapping(customer),
+            }
+            for order_id, customer in _sorted_mapping_items(customers_by_order)
+            if isinstance(customer, dict)
+        ]
+
+    if data.get("period"):
+        evidence["period"] = _clean_mapping(data["period"])
+
+    if data.get("rag"):
+        evidence["rag"] = _normalize_rag_evidence(_as_dict(data.get("rag")))
+
+    return evidence
+
+
+def _normalize_erp_order(order: Any) -> dict[str, Any]:
+    values = _clean_mapping(order)
+    status = values.get("erp_status")
+    if isinstance(status, str):
+        values["erp_status_label"] = _erp_status_label(status)
+    return values
+
+
+def _normalize_production_order(order: Any) -> dict[str, Any]:
+    values = _clean_mapping(order)
+    status = values.get("production_status")
+    if isinstance(status, str):
+        values["production_status_label"] = _production_status_label(status)
+    reason = values.get("blocked_reason") or values.get("delay_reason")
+    if reason:
+        values["reason"] = reason
+    return values
+
+
+def _normalize_rag_evidence(rag: dict[str, Any]) -> dict[str, Any]:
+    chunks = []
+    for index, chunk in enumerate(_as_list(rag.get("chunks")), start=1):
+        if not isinstance(chunk, dict):
+            continue
+        metadata = _as_dict(chunk.get("metadata"))
+        chunks.append(
+            {
+                "evidence_id": f"D{index}",
+                "filename": metadata.get("filename"),
+                "page": metadata.get("page"),
+                "chunk_id": metadata.get("chunk_id"),
+                "score": _round_score(chunk.get("score")),
+                "text": str(chunk.get("text") or ""),
+            }
+        )
+    return {
+        "status": rag.get("status"),
+        "chunks": chunks,
+    }
+
+
+def _response_constraints(question: str) -> dict[str, Any]:
+    normalized = _plain_lower(question)
+    sentence_count = _requested_sentence_count(question)
+    if sentence_count is not None:
+        return {
+            "max_chars": min(_FINAL_ANSWER_MAX_CHARS, max(280, sentence_count * 320)),
+            "format_instruction": f"Responde exactamente en {sentence_count} frase(s).",
+        }
+
+    if any(
+        marker in normalized
+        for marker in ("resume", "resumen", "resumeme", "sintetiza")
+    ):
+        return {
+            "max_chars": 900,
+            "format_instruction": "Responde como resumen breve, sin listas salvo que el usuario las pida.",
+        }
+
+    if any(
+        marker in normalized
+        for marker in ("explica", "explicame", "detalle", "detalla", "por que")
+    ):
+        return {
+            "max_chars": 1800,
+            "format_instruction": "Da una explicacion clara y estructurada en parrafos breves.",
+        }
+
+    if any(
+        marker in normalized
+        for marker in ("cada pedido", "cada uno", "penaliz", "compar")
+    ):
+        return {
+            "max_chars": 2200,
+            "format_instruction": "Puedes usar una lista compacta si mejora la claridad.",
+        }
+
+    return {
+        "max_chars": 1200,
+        "format_instruction": "Responde de forma directa y natural.",
+    }
+
+
+def _requested_sentence_count(question: str) -> int | None:
+    normalized = _plain_lower(question)
+    digit_match = re.search(
+        r"\b([1-5])\s+(?:frase|frases|oracion|oraciones)\b",
+        normalized,
+    )
+    if digit_match:
+        return int(digit_match.group(1))
+
+    word_match = re.search(
+        r"\b(una|un|dos|tres|cuatro|cinco)\s+(?:frase|frases|oracion|oraciones)\b",
+        normalized,
+    )
+    if not word_match:
+        return None
+    return {
+        "una": 1,
+        "un": 1,
+        "dos": 2,
+        "tres": 3,
+        "cuatro": 4,
+        "cinco": 5,
+    }[word_match.group(1)]
+
+
+def _final_answer_prompt(
+    question: str,
+    intent: str,
+    answer_requirements: list[str],
+    response_constraints: dict[str, Any],
+    evidence_text: str,
+    deterministic_answer: str,
+) -> str:
     return f"""
 You are the final response writer for a business agentic POC.
 Return only valid JSON. Do not include markdown.
 
 Task:
-- Rewrite the fallback answer in natural Spanish for a business user.
-- Use only the evidence provided below.
-- Do not add customers, order IDs, amounts, dates, percentages, document facts, reasons or statuses that are not present in the evidence.
-- Do not expose hidden reasoning or chain-of-thought.
-- Keep the answer concise and auditable.
+- Answer the user question from scratch in natural Spanish for a business user.
+- Use only the evidence provided below, from ERP, Produccion, Documentos or mixed sources.
+- Adapt the format to the user request and these constraints: {response_constraints}
+- Do not concatenate retrieved document chunks or dump raw tool data.
+- Do not add customers, order IDs, amounts, dates, percentages, document facts, reasons or statuses that are not present in evidence.
+- Do not expose hidden reasoning, prompts, JSON internals or chain-of-thought.
+- Keep the response concise, useful and auditable.
 - Translate technical statuses when useful:
   pending = pendiente
   in_progress = en curso
@@ -455,12 +655,21 @@ Task:
   delayed = retrasado
   finished = finalizado
 
-If you cannot improve the fallback answer safely, return the fallback answer exactly.
+If evidence is not enough to safely answer, return the safe fallback answer exactly.
 
 Output schema:
 {{"answer": "texto final"}}
 
-Fallback answer:
+User question:
+{question}
+
+Intent:
+{intent}
+
+Answer requirements:
+{answer_requirements}
+
+Safe fallback answer:
 {deterministic_answer}
 
 Evidence:
@@ -505,13 +714,161 @@ def _compact_json(value: Any, max_length: int = 9000) -> str:
     return text[: max_length - 3].rstrip() + "..."
 
 
-def _is_grounded_answer(answer: str, evidence_text: str) -> bool:
-    evidence_tokens = _strict_tokens(evidence_text)
-    answer_tokens = _strict_tokens(answer)
-    return answer_tokens <= evidence_tokens
+def _unsupported_critical_facts(answer: str, evidence_text: str) -> list[str]:
+    allowed_text = evidence_text + " " + _translated_status_text(evidence_text)
+    allowed = _critical_fact_sets(allowed_text)
+    actual = _critical_fact_sets(answer)
+    unsupported = []
+
+    for number in sorted(actual["numbers"] - allowed["numbers"]):
+        unsupported.append(f"numero no soportado: {number}")
+    for identifier in sorted(actual["identifiers"] - allowed["identifiers"]):
+        unsupported.append(f"identificador no soportado: {identifier}")
+    for filename in sorted(actual["filenames"] - allowed["filenames"]):
+        unsupported.append(f"documento no soportado: {filename}")
+    for status in sorted(actual["statuses"] - allowed["statuses"]):
+        unsupported.append(f"estado no soportado: {status}")
+    for proper_name in sorted(actual["proper_names"] - allowed["proper_names"]):
+        unsupported.append(f"nombre no soportado: {proper_name}")
+
+    return unsupported
 
 
-def _strict_tokens(text: str) -> set[str]:
-    tokens = set(re.findall(r"\b[A-Z]{3,}\b", text))
-    tokens.update(re.findall(r"\b\d+(?:[.,]\d+)?%?\b", text))
-    return tokens
+def _critical_fact_sets(text: str) -> dict[str, set[str]]:
+    return {
+        "numbers": _number_facts(text),
+        "identifiers": _identifier_facts(text),
+        "filenames": {
+            value.lower()
+            for value in re.findall(r"[\w.-]+\.pdf\b", text, flags=re.IGNORECASE)
+        },
+        "statuses": _status_facts(text),
+        "proper_names": _proper_name_facts(text),
+    }
+
+
+def _number_facts(text: str) -> set[str]:
+    return {
+        _normalize_number(match)
+        for match in re.findall(r"\b\d+(?:[.,]\d+)?%?\b", text)
+    }
+
+
+def _normalize_number(value: str) -> str:
+    suffix = "%" if value.endswith("%") else ""
+    number = value[:-1] if suffix else value
+    if re.fullmatch(r"\d+", number):
+        return str(int(number)) + suffix
+    return number.replace(",", ".") + suffix
+
+
+def _identifier_facts(text: str) -> set[str]:
+    allowed_common = {"API", "ERP", "LLM", "PDF", "POC", "RAG", "SLA", "JSON"}
+    identifiers = set(re.findall(r"\b[A-Z]{2,}\d*\b", text))
+    return {identifier for identifier in identifiers if identifier not in allowed_common}
+
+
+def _proper_name_facts(text: str) -> set[str]:
+    phrases = re.findall(
+        r"\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+\b",
+        text,
+    )
+    return {phrase.lower() for phrase in phrases}
+
+
+def _status_facts(text: str) -> set[str]:
+    normalized = text.lower()
+    status_groups = {
+        "pending": ("pending", "pendiente", "pendientes"),
+        "in_progress": ("in_progress", "en curso"),
+        "blocked": (
+            "blocked",
+            "bloqueado",
+            "bloqueada",
+            "bloqueados",
+            "bloqueadas",
+            "bloqueo",
+            "bloqueos",
+        ),
+        "delayed": (
+            "delayed",
+            "retrasado",
+            "retrasada",
+            "retrasados",
+            "retrasadas",
+            "retraso",
+            "retrasos",
+        ),
+        "finished": (
+            "finished",
+            "finalizado",
+            "finalizada",
+            "finalizados",
+            "finalizadas",
+        ),
+    }
+    return {
+        status
+        for status, forms in status_groups.items()
+        if any(form in normalized for form in forms)
+    }
+
+
+def _translated_status_text(text: str) -> str:
+    translated = []
+    for raw, label in _PRODUCTION_STATUS_LABELS.items():
+        if raw in text:
+            translated.append(label)
+    for raw, label in _ERP_STATUS_LABELS.items():
+        if raw in text:
+            translated.append(label)
+    return " ".join(translated)
+
+
+def _as_list(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _clean_mapping(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        str(key): _clean_value(inner_value)
+        for key, inner_value in value.items()
+        if inner_value is not None
+    }
+
+
+def _clean_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return _clean_mapping(value)
+    if isinstance(value, list):
+        return [_clean_value(item) for item in value]
+    return value
+
+
+def _sorted_mapping_items(value: dict[Any, Any]) -> list[tuple[Any, Any]]:
+    return sorted(value.items(), key=lambda item: str(item[0]))
+
+
+def _coerce_int(value: Any) -> int | str:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _round_score(value: Any) -> float | None:
+    try:
+        return round(float(value), 4)
+    except (TypeError, ValueError):
+        return None
+
+
+def _plain_lower(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value.lower())
+    return "".join(character for character in normalized if not unicodedata.combining(character))

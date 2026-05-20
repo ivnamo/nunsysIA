@@ -65,7 +65,12 @@ def test_build_public_data_summary_does_not_return_raw_rows() -> None:
                 "chunks": [
                     {
                         "text": "contenido interno",
-                        "metadata": {"filename": "contrato.pdf"},
+                        "metadata": {
+                            "filename": "contrato.pdf",
+                            "page": 2,
+                            "chunk_id": "doc_123_p2_c1",
+                        },
+                        "score": 0.876543,
                     }
                 ],
             },
@@ -80,5 +85,13 @@ def test_build_public_data_summary_does_not_return_raw_rows() -> None:
             "status": "completed",
             "chunks_count": 1,
             "documents": ["contrato.pdf"],
+            "citations": [
+                {
+                    "filename": "contrato.pdf",
+                    "page": 2,
+                    "chunk_id": "doc_123_p2_c1",
+                    "score": 0.8765,
+                }
+            ],
         },
     }

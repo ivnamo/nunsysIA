@@ -53,6 +53,34 @@ def test_format_query_response_shows_fallbacks() -> None:
     assert "FALLBACK_PLANNER_RULE_BASED" in content
 
 
+def test_format_query_response_shows_document_citations() -> None:
+    response = QueryResponse(
+        answer="El contrato fija penalizaciones.",
+        sources=["Documentos"],
+        status="completed",
+        data={
+            "rag": {
+                "status": "completed",
+                "chunks_count": 1,
+                "documents": ["contrato.pdf"],
+                "citations": [
+                    {
+                        "filename": "contrato.pdf",
+                        "page": 1,
+                        "chunk_id": "doc_123_p1_c1",
+                        "score": 0.91234,
+                    }
+                ],
+            }
+        },
+    )
+
+    content = format_query_response(response)
+
+    assert "**Citas documentales**" in content
+    assert "`contrato.pdf`, pagina `1`, chunk `doc_123_p1_c1`, score `0.9123`" in content
+
+
 def test_format_upload_response_summarizes_indexing() -> None:
     response = DocumentUploadResponse(
         document_id="doc_123",

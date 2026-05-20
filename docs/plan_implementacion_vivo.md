@@ -699,7 +699,7 @@ Tareas:
 - [x] Mejorar FinalResponseBuilder para redactar con LLM solo a partir de datos de tools.
 - [x] Impedir que el LLM invente clientes, pedidos, importes, estados o clausulas desde Planner/FinalResponseBuilder mediante lista cerrada de actions, evidencias y fallback determinista.
 - [ ] Mejorar RAG para 3-5 documentos: top-k configurable, metadata, citas y scores.
-- [ ] Incluir citas documentales visibles: filename, page, chunk_id, score.
+- [x] Incluir citas documentales visibles: filename, page, chunk_id, score.
 - [ ] Implementar memoria conversacional simple con ultimas 5 interacciones por `conversation_id`.
 - [ ] Cubrir preguntas encadenadas: "esos pedidos", "cuales estan bloqueados", "impacto economico".
 - [x] Anadir fixtures/sample PDFs de demo.
@@ -1162,7 +1162,7 @@ La POC se considera terminada cuando:
 - [ ] `POST /api/query` responde con `answer`, `sources`, `reasoning`, `tool_calls`, `fallbacks`, `confidence`, `status` y `data` cuando aplique.
 - [ ] Los 4 casos ERP/produccion del PDF funcionan.
 - [ ] Se pueden subir 3-5 PDFs y preguntar sobre su contenido.
-- [ ] Las respuestas RAG incluyen citas/metadatos de documento, pagina/chunk y evidencia recuperada.
+- [x] Las respuestas RAG incluyen citas/metadatos de documento y pagina/chunk; el texto completo de chunks no se expone en `data`.
 - [ ] La abstraccion LLM permite usar Gemini u OpenAI mediante variables de entorno, sin secretos en Git.
 - [ ] Existe fallback determinista cuando no hay API key para el proveedor configurado.
 - [ ] Las pruebas automatizadas mockean LLM y no requieren llamadas pagadas.

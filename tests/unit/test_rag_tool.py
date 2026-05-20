@@ -31,6 +31,9 @@ def test_document_rag_tool_returns_grounded_answer_and_trace() -> None:
     assert result.data["status"] == "completed"
     assert "penalizacion" in result.data["answer"]
     assert result.data["chunks"][0]["metadata"]["filename"] == "contrato.pdf"
+    assert result.data["chunks"][0]["metadata"]["page"] == 1
+    assert result.data["chunks"][0]["metadata"]["chunk_id"].endswith("_p1_c1")
+    assert isinstance(result.data["chunks"][0]["score"], float)
     assert any(
         "FALLBACK_EMBEDDINGS_DETERMINISTIC" in fallback
         for fallback in result.data["fallbacks"]

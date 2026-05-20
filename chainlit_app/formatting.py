@@ -11,6 +11,10 @@ def format_query_response(response: QueryResponse) -> str:
     if response.sources:
         sections.append("**Fuentes**\n" + "\n".join(f"- {source}" for source in response.sources))
 
+    citations = _format_rag_citations(response)
+    if citations:
+        sections.append(citations)
+
     if response.reasoning:
         sections.append(
             "**Pasos ejecutados**\n"
@@ -75,3 +79,34 @@ def _format_meta(response: QueryResponse) -> str | None:
     if response.confidence is not None:
         values.append(f"confianza: `{response.confidence:.2f}`")
     return " | ".join(values) if values else None
+
+
+def _format_rag_citations(response: QueryResponse) -> str | None:
+    rag = (response.data or {}).get("rag") if response.data else None
+    if not isinstance(rag, dict):
+        return None
+
+    citations = rag.get("citations")
+    if not isinstance(citations, list) or not citations:
+        return None
+
+    lines = []
+    for citation in citations:
+        if not isinstance(citation, dict):
+            continue
+        filename = citation.get("filename")
+        page = citation.get("page")
+        chunk_id = citation.get("chunk_id")
+        score = citation.get("score")
+        if filename is None or page is None or chunk_id is None or score is None:
+            continue
+        try:
+            score_value = float(score)
+        except (TypeError, ValueError):
+            continue
+        lines.append(
+            f"- `{filename}`, pagina `{page}`, chunk `{chunk_id}`, score `{score_value:.4f}`"
+        )
+    if not lines:
+        return None
+    return "**Citas documentales**\n" + "\n".join(lines)

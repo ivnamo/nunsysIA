@@ -90,6 +90,7 @@ def build_public_data_summary(data: dict[str, Any]) -> dict[str, Any] | None:
             "status": rag.get("status"),
             "chunks_count": len(chunks),
             "documents": _document_names(chunks),
+            "citations": _rag_citations(chunks),
         }
         if rag.get("fallbacks"):
             summary["rag"]["fallbacks"] = [
@@ -171,3 +172,43 @@ def _document_names(chunks: list[Any]) -> list[str]:
         if filename:
             names.add(str(filename))
     return sorted(names)
+
+
+def _rag_citations(chunks: list[Any]) -> list[dict[str, Any]]:
+    citations: list[dict[str, Any]] = []
+    seen_chunk_ids: set[str] = set()
+    for chunk in chunks:
+        if not isinstance(chunk, dict):
+            continue
+
+        metadata = chunk.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            continue
+
+        filename = metadata.get("filename")
+        page = metadata.get("page")
+        chunk_id = metadata.get("chunk_id")
+        score = chunk.get("score")
+        if not filename or page is None or not chunk_id or score is None:
+            continue
+
+        chunk_id_text = str(chunk_id)
+        if chunk_id_text in seen_chunk_ids:
+            continue
+        seen_chunk_ids.add(chunk_id_text)
+
+        try:
+            page_value = int(page)
+            score_value = round(float(score), 4)
+        except (TypeError, ValueError):
+            continue
+
+        citations.append(
+            {
+                "filename": str(filename),
+                "page": page_value,
+                "chunk_id": chunk_id_text,
+                "score": score_value,
+            }
+        )
+    return citations

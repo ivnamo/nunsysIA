@@ -14,7 +14,6 @@ El repositorio ya ha superado las fases 0 a 8 y se encuentra en **P9 - funcional
 
 Pendiente antes del cierre:
 
-- citas documentales visibles por chunk;
 - memoria conversacional de ultimas 5 interacciones;
 - Docker Compose completo;
 - README final y guion demo.
@@ -160,7 +159,7 @@ Riesgos:
 
 ## Fase 6: RAG con subida de PDFs
 
-Estado: completada en version funcional. Pendiente P9: citas visibles por chunk y mejora de retrieval/evidencias.
+Estado: completada en version funcional. P9 ya expone citas visibles por chunk; queda mejora futura de retrieval/evidencias si se endurece la demo.
 
 Objetivo: permitir consultas documentales.
 
@@ -242,7 +241,7 @@ Tareas:
 - Probar upload + query documental desde API y Chainlit.
 - Documentar validacion manual exacta.
 - Mejorar respuesta final con LLM controlado. Estado: completada.
-- Incluir citas documentales visibles por chunk.
+- Incluir citas documentales visibles por chunk. Estado: completada.
 - Implementar memoria conversacional simple.
 
 Criterio de aceptacion:

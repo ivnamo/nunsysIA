@@ -102,6 +102,12 @@ def test_query_endpoint_answers_document_question_after_upload(
     assert payload["data"]["rag"]["status"] == "completed"
     assert payload["data"]["rag"]["chunks_count"] >= 1
     assert payload["data"]["rag"]["documents"] == ["contrato.pdf"]
+    citation = payload["data"]["rag"]["citations"][0]
+    assert citation["filename"] == "contrato.pdf"
+    assert citation["page"] == 1
+    assert citation["chunk_id"].endswith("_p1_c1")
+    assert isinstance(citation["score"], float)
+    assert "Contrato marco" not in str(payload["data"])
 
 
 def test_query_endpoint_rejects_blank_question(client: TestClient) -> None:

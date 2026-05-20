@@ -112,6 +112,26 @@ Errores posibles:
 - `422`: validacion Pydantic.
 - `500`: error interno controlado.
 
+En respuestas RAG completadas, `data.rag` debe incluir citas documentales por chunk sin exponer el texto completo del chunk:
+
+```json
+{
+  "rag": {
+    "status": "completed",
+    "chunks_count": 2,
+    "documents": ["contrato.pdf"],
+    "citations": [
+      {
+        "filename": "contrato.pdf",
+        "page": 1,
+        "chunk_id": "doc_123_p1_c1",
+        "score": 0.9123
+      }
+    ]
+  }
+}
+```
+
 ## `POST /api/documents/upload`
 
 Descripcion: sube un PDF para indexarlo en el vector store documental. En local puede usarse el fallback en memoria si ChromaDB no esta instalado o disponible.
@@ -177,7 +197,7 @@ Errores posibles:
 - No devolver filas raw de ERP, respuestas raw de produccion ni chunks completos en `data`.
 - `data` debe ser un resumen publico de evidencias para auditoria y demo.
 - `fallbacks` debe listar cualquier ruta alternativa usada: planner por reglas, respuesta determinista, embeddings deterministas o vector store en memoria.
-- En respuestas RAG, `data.rag.documents` resume los documentos usados. Las citas completas por chunk quedan pendientes de la siguiente iteracion P9.
+- En respuestas RAG, `data.rag.documents` resume los documentos usados y `data.rag.citations` expone `filename`, `page`, `chunk_id` y `score` por chunk recuperado.
 - No devolver secretos.
 - Mantener respuestas compatibles con Pydantic.
 - Los errores deben ser comprensibles y trazables.

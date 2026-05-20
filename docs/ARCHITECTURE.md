@@ -87,7 +87,7 @@ Si no hay contexto documental suficiente, el sistema debe devolver `insufficient
 
 El vector store objetivo es ChromaDB. En local, si ChromaDB no esta instalado o no responde, la app usa un fallback en memoria para que la POC siga siendo validable sin Docker.
 
-La fase actual devuelve documentos usados en `data.rag.documents`; las citas visibles por chunk con `filename`, `page`, `chunk_id` y `score` son la siguiente mejora P9.
+La respuesta publica devuelve documentos usados en `data.rag.documents` y citas visibles por chunk en `data.rag.citations` con `filename`, `page`, `chunk_id` y `score`. No expone textos completos de chunks en `data`.
 
 ## LLM y proveedores
 
@@ -142,7 +142,6 @@ Implementado y validado manualmente:
 Pendiente para cierre de producto:
 
 - memoria conversacional de 5 interacciones;
-- citas documentales visibles por chunk;
 - Docker Compose completo.
 
 ## Por Que Encaja con una POC Senior

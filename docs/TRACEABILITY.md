@@ -149,8 +149,9 @@ El campo `data` puede usarse para facilitar demo y auditoria, pero debe contener
 - `rag.status`
 - `rag.chunks_count`
 - `rag.documents`
+- `rag.citations` con `filename`, `page`, `chunk_id` y `score`
 - `rag.fallbacks`
 
 No debe contener importes detallados, textos completos de chunks, connection strings, errores raw, prompts ni objetos internos.
 
-Las citas documentales completas por chunk (`filename`, `page`, `chunk_id`, `score`) estan previstas como mejora P9. Hasta entonces `data.rag.documents` permite auditar que documentos participaron sin exponer chunks completos.
+Las citas documentales por chunk se devuelven en `data.rag.citations`. No deben incluir texto completo del chunk: solo metadatos publicos y score para auditoria.

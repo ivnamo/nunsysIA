@@ -69,6 +69,24 @@ def test_agent_graph_answers_blocked_orders_with_erp_customer_context(
     assert "Falta de capacidad" in response.answer
 
 
+def test_agent_graph_answers_delayed_orders_with_erp_customer_context(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        question="Que clientes tienen pedidos retrasados por problemas de produccion?",
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Produccion", "ERP"]
+    assert "Pedidos retrasados" in response.answer
+    assert "10301" in response.answer
+    assert "Ana Trujillo Emparedados" in response.answer
+    assert "Averia en linea de produccion" in response.answer
+
+
 def test_agent_graph_returns_insufficient_context_when_rag_tool_is_not_configured(
     erp_tool: ERPTool,
     production_tool: ProductionAPITool,

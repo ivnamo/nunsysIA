@@ -1,0 +1,66 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [4 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >> endobj
+5 0 obj << /Length 1244 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Procedimiento operativo de produccion) Tj
+T*
+() Tj
+T*
+(Estados de produccion:) Tj
+T*
+(Una orden puede estar en in_progress, blocked, delayed o finished. El estado blocked) Tj
+T*
+(se usa cuando la orden no puede continuar por falta de material, falta de capacidad,) Tj
+T*
+(incidencia de calidad o aprobacion pendiente. El estado delayed se usa cuando la) Tj
+T*
+(orden continua abierta pero no llegara a la fecha estimada.) Tj
+T*
+() Tj
+T*
+(Motivos habituales de bloqueo:) Tj
+T*
+(Los motivos mas frecuentes son falta de material, falta de capacidad, incidencia) Tj
+T*
+(de calidad y mantenimiento no planificado. Cada bloqueo debe incluir order_id,) Tj
+T*
+(motivo, responsable y fecha estimada de desbloqueo.) Tj
+T*
+() Tj
+T*
+(Motivos habituales de retraso:) Tj
+T*
+(Los retrasos se clasifican como averia en linea de produccion, cambio de prioridad,) Tj
+T*
+(retrabajo por calidad o espera de validacion tecnica. El equipo de produccion debe) Tj
+T*
+(informar al ERP cuando el retraso afecta a un cliente prioritario.) Tj
+T*
+() Tj
+T*
+(Escalado:) Tj
+T*
+(Un pedido bloqueado mas de 72 horas debe escalarse a operaciones. Un pedido retrasado) Tj
+T*
+(con impacto en cliente debe comunicarse a comercial y logistica.) Tj
+T*
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000185 00000 n 
+0000000311 00000 n 
+trailer << /Root 1 0 R /Size 6 >>
+startxref
+1607
+%%EOF

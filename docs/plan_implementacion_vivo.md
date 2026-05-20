@@ -1,7 +1,7 @@
 # Plan vivo de implementacion - POC agentes IA Nunsys
 
 Fecha de creacion: 2026-05-18
-Ultima actualizacion: 2026-05-19
+Ultima actualizacion: 2026-05-20
 
 Este documento es la hoja de ruta viva del proyecto. Debe actualizarse al cerrar cada fase con:
 
@@ -16,6 +16,40 @@ Estado del repositorio al crear la primera version:
 - Solo existe documentacion en `docs/`.
 - No hay todavia codigo fuente, `README.md`, `Dockerfile` ni `docker-compose.yml`.
 - La fuente funcional principal es `docs/Prueba-Tecnica-IA-Agentes.pdf`.
+
+## 0. Estado actual y cambio de prioridad - 2026-05-20
+
+El proyecto ya dispone de una base funcional validada manualmente:
+
+- FastAPI con `GET /health`, `POST /api/query`, `POST /api/documents/upload` y `GET /api/documents`.
+- ERP Northwind reducido con datos controlados.
+- API REST mock de produccion.
+- Tools deterministas para ERP, produccion y RAG.
+- LangGraph con Planner, Reasoner/Executor, Validator y FinalResponseBuilder.
+- Chainlit conectado a `/api/query`.
+- Trazabilidad normalizada y sanitizada.
+- RAG con subida de PDFs y fallback local en memoria si ChromaDB no esta disponible.
+
+Correccion de rumbo:
+
+La POC no debe tratarse como una demo tecnica minima. Sera evaluada como un producto funcional. Por tanto, antes de cerrar Docker y documentacion final, hay que reforzar la funcionalidad real:
+
+- integrar LLM real con **Gemini**;
+- mejorar el Planner con interpretacion semantica controlada;
+- mejorar la respuesta final con LLM, pero solo sobre datos devueltos por tools;
+- soportar consultas sobre **3-5 documentos PDF** con citas y evidencias;
+- cubrir explicitamente las preguntas obligatorias del documento de la prueba tecnica;
+- implementar memoria conversacional de ultimas 5 interacciones;
+- mantener fallback determinista y tests sin llamadas pagadas;
+- conservar trazabilidad, guardrails y `insufficient_context` cuando falte evidencia.
+
+Nueva prioridad inmediata:
+
+1. Integracion LLM controlada con Gemini.
+2. RAG multi-documento defendible.
+3. Casos funcionales obligatorios ERP + produccion + documentos.
+4. Memoria conversacional simple.
+5. Docker Compose y demo final.
 
 ## 1. Objetivo
 
@@ -45,11 +79,35 @@ El foco de evaluacion no es que el chat "hable bonito". El foco es demostrar que
 - API mock de produccion con FastAPI.
 - LangGraph como orquestador principal del flujo agentic.
 - LangChain para tools, prompts, retrievers, embeddings, llamadas al LLM y utilidades RAG.
+- Gemini como proveedor LLM real de la POC mediante API key en `.env`.
+- `langchain-google-genai` como integracion LangChain para Gemini, si no hay incompatibilidades.
 - Pydantic para contratos, estado validado, respuestas estructuradas y planes.
 
 ### Stack RAG y evaluacion
 
 - ChromaDB como vector store inicial decidido para la POC.
+- Retrieval multi-documento con metadata por chunk y citas visibles.
+- Tests RAG deterministas sin llamadas pagadas.
+
+### Variables LLM previstas
+
+Nunca se debe commitear una API key real. La configuracion prevista es:
+
+```env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.0-flash
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+LLM_TEMPERATURE=0
+LLM_TIMEOUT_SECONDS=30
+EMBEDDING_PROVIDER=gemini
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_MODEL=gemini-embedding-001
+```
+
+El proveedor por defecto sera Gemini porque es la API key disponible ahora, pero la arquitectura debe permitir cambiar a OpenAI por variables de entorno sin tocar grafo, agents ni tools.
 
 ### Stack de arquitectura y control
 
@@ -181,6 +239,10 @@ El Validator puede ser un nodo determinista, no necesariamente otro agente LLM. 
 | D14 | Chainlit como UI | Cumple requisito de interfaz grafica | Demo rapida | Decidida |
 | D15 | Docker Compose como experiencia principal | Entrega reproducible | Facilita evaluacion | Decidida |
 | D16 | Diagramas C4 en docs | Explica arquitectura de forma senior | No afecta runtime | Recomendada |
+| D17 | Gemini como proveedor LLM real | La API key disponible es de Gemini | Permite pruebas reales sin cambiar la arquitectura LangChain/LangGraph | Decidida |
+| D18 | LLM controlado, no LLM libre | El evaluador medira funcionalidad y fiabilidad | El LLM clasifica, redacta y ayuda al RAG, pero las tools son la fuente de verdad | Decidida |
+| D19 | Fallback determinista sin API key | Tests y demo tecnica deben poder ejecutarse sin coste ni secretos | Mayor robustez local y CI | Decidida |
+| D20 | RAG multi-documento antes de Docker final | El caso de uso exige subir 3-5 documentos y preguntar sobre ellos | Prioriza funcionalidad evaluable frente a cierre prematuro | Decidida |
 
 ## 6. Arquitectura final recomendada
 
@@ -479,27 +541,15 @@ Response recomendada:
   "confidence": 0.86,
   "status": "completed",
   "data": {
-    "customer_id": "ALFKI",
-    "orders": [
-      {
-        "order_id": "10248",
-        "amount": 440.0,
-        "erp_status": "pending",
-        "production_status": "in_progress",
-        "blocked_reason": null
-      },
-      {
-        "order_id": "10252",
-        "amount": 1863.0,
-        "erp_status": "pending",
-        "production_status": "blocked",
-        "blocked_reason": "Falta de material"
-      }
-    ]
+    "erp_orders_count": 2,
+    "erp_order_ids": [10248, 10252],
+    "production_statuses_count": 2
   },
   "failure_reason": null
 }
 ```
+
+Nota: `data` debe ser un resumen publico de evidencias. No debe devolver filas raw de ERP, respuestas raw de produccion, chunks completos ni objetos internos.
 
 Estados permitidos:
 
@@ -617,6 +667,129 @@ requirements-dev.txt
 Regla: los tests deben validar contra estos datos, no contra respuestas generadas libremente.
 
 ## 13. Roadmap por fases
+
+### Replanificacion actual - producto evaluable
+
+Las fases historicas de este documento se mantienen como referencia, pero el estado real del repositorio ya ha avanzado hasta API, Chainlit, RAG basico y trazabilidad. La siguiente secuencia efectiva queda asi:
+
+#### Fase actual P9 - Funcionalidad evaluable con abstraccion LLM, RAG multi-documento y memoria
+
+Objetivo: convertir la POC en un producto demo funcional, capaz de resolver los casos exigidos por el documento de prueba tecnica.
+
+Tareas:
+
+- [x] Anadir dependencia `langchain-google-genai` a `requirements.txt`.
+- [x] Mantener `langchain-openai` como proveedor alternativo ya soportado por configuracion.
+- [x] Anadir variables `LLM_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `LLM_TEMPERATURE`, `LLM_TIMEOUT_SECONDS`, `EMBEDDING_PROVIDER`, `GEMINI_EMBEDDING_MODEL`, `OPENAI_EMBEDDING_MODEL`, `EMBEDDING_MODEL`.
+- [x] Crear adapter `app/core/llm.py` con factory por proveedor (`gemini`, `openai`, fallback).
+- [x] Mantener fallback determinista cuando no exista API key o dependencia opcional disponible.
+- [x] Instalar `langchain-google-genai` en `.venv` para pruebas reales con Gemini.
+- [x] Convertir Planner en hibrido: LLM configurado + schema Pydantic + fallback por reglas.
+- [ ] Mejorar FinalResponseBuilder para redactar con LLM solo a partir de datos de tools.
+- [x] Impedir que el LLM invente clientes, pedidos, importes, estados o clausulas desde el Planner mediante lista cerrada de tools/actions y fallback determinista.
+- [ ] Mejorar RAG para 3-5 documentos: top-k configurable, metadata, citas y scores.
+- [ ] Incluir citas documentales visibles: filename, page, chunk_id, score.
+- [ ] Implementar memoria conversacional simple con ultimas 5 interacciones por `conversation_id`.
+- [ ] Cubrir preguntas encadenadas: "esos pedidos", "cuales estan bloqueados", "impacto economico".
+- [x] Anadir fixtures/sample PDFs de demo.
+- [x] Crear tests con LLM mock y tests RAG deterministas.
+
+Casos obligatorios que deben funcionar antes de pasar a Docker:
+
+- [ ] "Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?"
+- [ ] "Que pedidos estan bloqueados y cual es el motivo?"
+- [x] "Que clientes tienen pedidos retrasados por problemas de produccion?"
+- [ ] "Dame un resumen del estado de los pedidos de este mes"
+- [x] "Que dice este documento sobre plazos de entrega?"
+- [ ] "Resume los puntos clave del contrato"
+- [x] "Hay alguna penalizacion por retrasos?"
+- [ ] Pregunta encadenada: "Y cuales de esos pedidos estan bloqueados?"
+- [ ] Pregunta encadenada: "Cual es el impacto economico de esos?"
+
+Decision implementada:
+
+- El Planner es hibrido. Si hay `LLM_PROVIDER` y API key configurada, intenta generar un plan JSON con el LLM.
+- El plan del LLM solo se acepta si cumple `ExecutionPlan` y usa tools/actions permitidas por el Reasoner.
+- Los argumentos se normalizan antes de ejecutar: no se aceptan actions arbitrarias ni campos extra sensibles.
+- Si el LLM falla, devuelve markdown roto, propone una accion no soportada o no hay API key, se usa el planner determinista.
+- El caso de pedidos retrasados queda soportado con `ProductionAPITool.list_orders(status="delayed")` y cruce posterior con ERP.
+
+Avance RAG/UI implementado:
+
+- Se crearon 5 PDFs mock realistas en `data/sample_docs/` para demo documental.
+- Se anadio `scripts/generate_sample_pdfs.py` para regenerar esos PDFs desde contenido versionado.
+- Chainlit acepta subida espontanea de PDFs al espacio documental del backend.
+- Chainlit permite listar el espacio documental con `/documentos`.
+- Se limitaron uploads de Chainlit a PDFs, maximo 5 archivos y 25 MB por archivo.
+- Se oculto el modo Chain-of-Thought de Chainlit para no mostrar razonamiento interno sensible.
+- `DocumentRAGTool` ahora exige evidencia lexical minima ademas de similitud para reducir falsos positivos.
+- Se anadio test de flujo API: subir varios PDFs, listar documentos y preguntar por plazos/penalizaciones mediante `/api/query`.
+- Se anadio test de `insufficient_context` para preguntas documentales sin evidencia.
+- Se documento el checklist de validacion manual con comandos exactos en `docs/MANUAL_VALIDATION.md`.
+- Se actualizo el modelo Gemini por defecto a `gemini-2.0-flash` porque `gemini-1.5-flash` puede devolver 404 en la Gemini API actual.
+- Se configuro `ChatGoogleGenerativeAI` con `request_timeout` y `retries=0` para evitar bloqueos largos ante modelos invalidos o errores del proveedor.
+
+Pruebas:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Pruebas reales con Gemini:
+
+```powershell
+$env:GEMINI_API_KEY="..."
+$env:LLM_PROVIDER="gemini"
+$env:GEMINI_MODEL="gemini-2.0-flash"
+```
+
+Pruebas reales con OpenAI si manana se cambia de proveedor:
+
+```powershell
+$env:OPENAI_API_KEY="..."
+$env:LLM_PROVIDER="openai"
+$env:OPENAI_MODEL="gpt-4o-mini"
+$env:EMBEDDING_PROVIDER="openai"
+$env:OPENAI_EMBEDDING_MODEL="text-embedding-3-small"
+```
+
+La API key real solo debe existir en `.env` o variables de entorno locales. Nunca debe aparecer en Git, logs, tests ni capturas.
+
+Criterio de aceptacion:
+
+- Las preguntas obligatorias devuelven respuestas correctas con `sources`, `reasoning`, `tool_calls`, `status` y `data`.
+- Las respuestas documentales citan documentos/chunks usados.
+- Si no hay evidencia documental, devuelve `insufficient_context`.
+- Las preguntas encadenadas usan memoria conversacional.
+- Los tests no requieren llamadas reales a Gemini.
+- Existe al menos una prueba manual real con Gemini documentada.
+
+#### Fase P10 - Docker Compose completo
+
+Objetivo: empaquetar la POC producto con backend, produccion mock, Chainlit y vector store.
+
+Tareas:
+
+- [ ] Crear `Dockerfile`.
+- [ ] Crear `docker-compose.yml`.
+- [ ] Incluir backend FastAPI.
+- [ ] Incluir production mock.
+- [ ] Incluir Chainlit.
+- [ ] Incluir ChromaDB con volumen.
+- [ ] Documentar variables y secretos.
+- [ ] Validar `docker compose up --build`.
+
+#### Fase P11 - Cierre, README, diagramas C4 y demo
+
+Objetivo: preparar entrega defendible.
+
+Tareas:
+
+- [ ] README final con arquitectura, decisiones y comandos.
+- [ ] Diagramas C4 contexto/contenedores/componentes.
+- [ ] Guion demo 3-5 minutos.
+- [ ] Checklist de casos obligatorios.
+- [ ] Video opcional.
 
 ### Bloque A - MVP minimo
 
@@ -973,7 +1146,13 @@ La POC se considera terminada cuando:
 - [ ] `docker compose up --build` levanta backend, Postgres, ChromaDB, produccion y Chainlit.
 - [ ] `POST /api/query` responde con `answer`, `sources`, `reasoning`, `tool_calls`, `confidence`, `status` y `data` cuando aplique.
 - [ ] Los 4 casos ERP/produccion del PDF funcionan.
-- [ ] Se puede subir un PDF y preguntar sobre su contenido.
+- [ ] Se pueden subir 3-5 PDFs y preguntar sobre su contenido.
+- [ ] Las respuestas RAG incluyen citas/metadatos de documento, pagina/chunk y evidencia recuperada.
+- [ ] La abstraccion LLM permite usar Gemini u OpenAI mediante variables de entorno, sin secretos en Git.
+- [ ] Existe fallback determinista cuando no hay API key para el proveedor configurado.
+- [ ] Las pruebas automatizadas mockean LLM y no requieren llamadas pagadas.
+- [ ] Hay al menos una prueba manual real documentada con Gemini.
+- [ ] La memoria conversacional mantiene al menos las ultimas 5 interacciones por conversacion.
 - [ ] La UI permite ejecutar la demo completa.
 - [ ] Hay tests unitarios e integracion para piezas principales.
 - [ ] Hay README con arquitectura, decisiones, dependencias y ejemplos.
@@ -984,25 +1163,25 @@ La POC se considera terminada cuando:
 
 ## 18. Proxima accion sugerida
 
-Empezar por el Bloque A, Fase 0 y Fase 1:
+El Bloque A ya esta superado en el repositorio actual. La proxima accion real es la **Fase P9 - Funcionalidad evaluable con abstraccion LLM, RAG multi-documento y memoria**.
 
-- Crear estructura base.
-- Crear `README.md`.
-- Crear `.env.example`.
-- Crear requirements.
-- Implementar FastAPI minimo.
-- Implementar Docker Compose minimo.
-- Dejar `GET /health` testeado.
+Primer hito visible de P9:
 
-Primer hito visible:
-
-```bash
-docker compose up --build
-curl http://localhost:8000/health
-pytest
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+$env:GEMINI_API_KEY="..."
+$env:LLM_PROVIDER="gemini"
+$env:GEMINI_MODEL="gemini-2.0-flash"
 ```
 
-Cuando ese hito funcione, seguir con ERP y produccion antes de tocar RAG o Chainlit. Esa secuencia reduce riesgo y permite tener algo demostrable pronto.
+Despues, validar en Chainlit:
+
+1. Subir 3-5 PDFs de prueba.
+2. Preguntar por plazos, penalizaciones y resumen de contrato.
+3. Preguntar por ALFKI, bloqueados, retrasados y resumen mensual.
+4. Hacer una pregunta encadenada usando memoria.
+
+No avanzar a Docker final hasta que estos casos funcionen con trazabilidad clara.
 
 ## 19. Referencias tecnicas
 

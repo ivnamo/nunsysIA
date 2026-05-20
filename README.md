@@ -38,7 +38,7 @@ Este repositorio contiene por ahora:
 - cliente HTTP de produccion;
 - tests unitarios de tools.
 - `AgentState` compartido para LangGraph;
-- Planner determinista con plan estructurado;
+- Planner hibrido con LLM opcional, plan estructurado y fallback determinista;
 - Reasoner/Executor que ejecuta tools ERP y produccion;
 - Validator con replanning limitado por `MAX_REPLANS = 2`;
 - FinalResponseBuilder con `QueryResponse` estructurada;
@@ -66,7 +66,9 @@ Disponible para ejecutar actualmente:
 - grafo LangGraph invocable desde API, tests y codigo Python;
 - RAG documental invocable como tool y desde endpoints documentales.
 - trazabilidad normalizada y sanitizada en `/api/query`.
+- soporte configurable para Gemini u OpenAI sin cambiar grafo, agents ni tools.
 - payload de demo `query.json` para probar `/api/query`.
+- PDFs mock realistas en `data/sample_docs/` para probar RAG multi-documento.
 
 Pendiente todavia:
 
@@ -127,8 +129,18 @@ La guia principal esta en:
 - `docs/API_CONTRACT.md`
 - `docs/TRACEABILITY.md`
 - `docs/DEVELOPMENT_GUIDE.md`
+- `docs/MANUAL_VALIDATION.md`
 
 Antes de implementar una fase, leer tambien `.cursor/rules/`.
+
+## Validacion manual
+
+Los comandos exactos para arrancar servicios, subir PDFs de demo, consultar API,
+probar Chainlit y revisar que no hay secretos estan en:
+
+```text
+docs/MANUAL_VALIDATION.md
+```
 
 ## Preparacion local
 
@@ -158,6 +170,26 @@ Instalar ChromaDB local solo si lo necesitas:
 
 ```bash
 pip install -r requirements-chroma.txt
+```
+
+Configurar proveedor LLM en `.env`:
+
+```env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=tu_key
+GEMINI_MODEL=gemini-2.0-flash
+EMBEDDING_PROVIDER=gemini
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+```
+
+La arquitectura tambien permite OpenAI sin tocar el grafo ni las tools:
+
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=tu_key
+OPENAI_MODEL=gpt-4o-mini
+EMBEDDING_PROVIDER=openai
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 ```
 
 Ejecutar tests:
@@ -191,6 +223,20 @@ curl -X POST http://localhost:8000/api/documents/upload \
   -F "file=@ruta/al/documento.pdf;type=application/pdf"
 ```
 
+Generar de nuevo los PDFs mock de demo:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\generate_sample_pdfs.py
+```
+
+Documentos disponibles:
+
+- `data/sample_docs/contrato_marco_logistica_2026.pdf`
+- `data/sample_docs/anexo_penalizaciones_sla.pdf`
+- `data/sample_docs/procedimiento_produccion_bloqueos.pdf`
+- `data/sample_docs/politica_calidad_entregas.pdf`
+- `data/sample_docs/condiciones_comerciales_northwind.pdf`
+
 Listar documentos indexados:
 
 ```bash
@@ -214,6 +260,14 @@ python -m chainlit run chainlit_app/main.py -w --port 8002
 
 La UI queda disponible en `http://localhost:8002`.
 
+En Chainlit puedes adjuntar hasta 5 PDFs por mensaje. Los documentos se indexan
+en el espacio documental del backend y quedan disponibles para las siguientes
+preguntas RAG. Para listar el espacio documental desde la UI, envia:
+
+```text
+/documentos
+```
+
 ## API mock de produccion
 
 Ejecutar manualmente:
@@ -232,9 +286,10 @@ Endpoints del mock:
 
 ## Siguiente fase
 
-Fase 9:
+La fase actual sigue siendo P9: funcionalidad evaluable de producto.
 
-- preparar Dockerfile;
-- preparar docker-compose;
-- levantar backend, mock de produccion y Chainlit;
+- mejorar respuesta final con LLM controlado;
+- anadir citas documentales visibles con `filename`, `page`, `chunk_id` y `score`;
+- implementar memoria conversacional de ultimas 5 interacciones;
+- despues cerrar Docker Compose y README final.
 - documentar variables y comandos de ejecucion.

@@ -1,12 +1,30 @@
+import json
 import re
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from app.agents.state import AgentIntent, AgentState
+from app.core.llm import ChatModel
 
 
 PlanTool = Literal["ERPTool", "ProductionAPITool", "DocumentRAGTool", "MemoryTool"]
+
+_ALLOWED_TOOL_ACTIONS: dict[str, set[str]] = {
+    "ERPTool": {
+        "get_pending_orders_by_customer",
+        "get_orders_by_month",
+        "get_customers_for_production_orders",
+    },
+    "ProductionAPITool": {
+        "list_orders",
+        "get_status_for_erp_orders",
+    },
+    "DocumentRAGTool": {"query"},
+}
+_ALLOWED_SOURCES = {"ERP", "Produccion", "Documentos", "Memoria"}
+_PRODUCTION_STATUSES = {"in_progress", "blocked", "delayed", "finished"}
 
 
 class PlanStep(BaseModel):
@@ -25,10 +43,18 @@ class ExecutionPlan(BaseModel):
 
 
 class PlannerAgent:
+    def __init__(
+        self,
+        chat_model: ChatModel | None = None,
+        llm_timeout_seconds: float = 8.0,
+    ) -> None:
+        self._chat_model = chat_model
+        self._llm_timeout_seconds = llm_timeout_seconds
+
     def __call__(self, state: AgentState) -> AgentState:
         question = state["question"]
         normalized = question.lower()
-        plan = self._build_plan(question, normalized)
+        plan = self._build_plan(question, normalized, state)
         return {
             **state,
             "intent": plan.intent,
@@ -37,8 +63,149 @@ class PlannerAgent:
             "attempts": state.get("attempts", 0),
         }
 
-    def _build_plan(self, question: str, normalized: str) -> ExecutionPlan:
-        if "document" in normalized or "pdf" in normalized or "contrato" in normalized:
+    def _build_plan(
+        self,
+        question: str,
+        normalized: str,
+        state: AgentState,
+    ) -> ExecutionPlan:
+        if self._chat_model is not None:
+            llm_plan = self._build_llm_plan(question, state)
+            if llm_plan is not None:
+                return llm_plan
+
+        return self._build_rule_based_plan(question, normalized)
+
+    def _build_llm_plan(
+        self,
+        question: str,
+        state: AgentState,
+    ) -> ExecutionPlan | None:
+        try:
+            response = self._invoke_chat_model(self._planner_prompt(question, state))
+            payload = _extract_json_payload(_message_content(response))
+            plan = ExecutionPlan.model_validate(payload)
+            return self._normalize_plan(plan, question)
+        except Exception:
+            return None
+
+    def _normalize_plan(
+        self,
+        plan: ExecutionPlan,
+        question: str,
+    ) -> ExecutionPlan | None:
+        if plan.intent == "unsupported":
+            return ExecutionPlan(
+                intent="unsupported",
+                steps=[],
+                expected_sources=[],
+                answer_requirements=plan.answer_requirements
+                or ["Explicar que la pregunta esta fuera del alcance actual."],
+            )
+
+        normalized_steps = []
+        for index, step in enumerate(plan.steps, start=1):
+            if not _is_allowed_step(step):
+                return None
+            normalized_steps.append(
+                PlanStep(
+                    step_id=index,
+                    tool=step.tool,
+                    action=step.action,
+                    args=_normalize_step_args(step, question),
+                    required=step.required,
+                )
+            )
+
+        if not normalized_steps:
+            return None
+
+        expected_sources = _expected_sources_for_steps(normalized_steps)
+        requested_sources = [
+            source for source in plan.expected_sources if source in _ALLOWED_SOURCES
+        ]
+        for source in requested_sources:
+            if source not in expected_sources:
+                expected_sources.append(source)
+
+        return ExecutionPlan(
+            intent=plan.intent,
+            steps=normalized_steps,
+            expected_sources=expected_sources,
+            answer_requirements=plan.answer_requirements,
+        )
+
+    @staticmethod
+    def _planner_prompt(question: str, state: AgentState) -> str:
+        failure_reason = state.get("failure_reason") or "none"
+        return f"""
+You are the Planner Agent for a controlled business POC.
+Return only valid JSON. Do not include markdown, explanations, or chain-of-thought.
+
+Goal:
+- Classify the user question.
+- Build a serializable execution plan using only the allowed tools and actions.
+- The executor has deterministic tools; never invent data.
+- If the question is outside ERP, production, RAG documents, or short conversation, return unsupported.
+
+Allowed intents:
+erp, production, erp_production, rag, mixed, conversation, unsupported
+
+Allowed tool actions:
+- ERPTool.get_pending_orders_by_customer(args: {{"customer_id": "ALFKI"}})
+- ERPTool.get_orders_by_month(args: {{"year": 2026, "month": 5}})
+- ERPTool.get_customers_for_production_orders(args: {{}})
+- ProductionAPITool.list_orders(args: {{"status": "blocked|delayed|in_progress|finished"}})
+- ProductionAPITool.get_status_for_erp_orders(args: {{}})
+- DocumentRAGTool.query(args: {{"query": "<question>", "top_k": 5}})
+
+Source names:
+ERP, Produccion, Documentos, Memoria
+
+Business examples:
+- Pending orders for a customer: ERPTool.get_pending_orders_by_customer.
+- Pending orders plus production status: ERP first, then ProductionAPITool.get_status_for_erp_orders.
+- Blocked orders and reason: ProductionAPITool.list_orders(status=blocked), then ERPTool.get_customers_for_production_orders.
+- Delayed orders and affected customers: ProductionAPITool.list_orders(status=delayed), then ERPTool.get_customers_for_production_orders.
+- This month summary: ERPTool.get_orders_by_month(year=2026, month=5), then ProductionAPITool.get_status_for_erp_orders.
+- PDF, contract, delivery terms, penalties, clauses, documents: DocumentRAGTool.query.
+
+Output schema:
+{{
+  "intent": "erp|production|erp_production|rag|mixed|conversation|unsupported",
+  "steps": [
+    {{
+      "step_id": 1,
+      "tool": "ERPTool|ProductionAPITool|DocumentRAGTool|MemoryTool",
+      "action": "allowed_action",
+      "args": {{}},
+      "required": true
+    }}
+  ],
+  "expected_sources": ["ERP"],
+  "answer_requirements": ["short auditable requirement"]
+}}
+
+Previous failure reason: {failure_reason}
+User question: {question}
+""".strip()
+
+    def _invoke_chat_model(self, prompt: str) -> Any:
+        if self._chat_model is None:
+            raise RuntimeError("Planner LLM no configurado.")
+
+        executor = ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(self._chat_model.invoke, prompt)
+        try:
+            return future.result(timeout=self._llm_timeout_seconds)
+        except FutureTimeoutError as exc:
+            future.cancel()
+            raise TimeoutError("Planner LLM timeout.") from exc
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+    def _build_rule_based_plan(self, question: str, normalized: str) -> ExecutionPlan:
+        if _is_document_query(normalized):
             return ExecutionPlan(
                 intent="rag",
                 steps=[
@@ -46,7 +213,7 @@ class PlannerAgent:
                         step_id=1,
                         tool="DocumentRAGTool",
                         action="query",
-                        args={"query": question, "top_k": 3},
+                        args={"query": question, "top_k": 5},
                     )
                 ],
                 expected_sources=["Documentos"],
@@ -71,6 +238,28 @@ class PlannerAgent:
                 ],
                 expected_sources=["Produccion", "ERP"],
                 answer_requirements=["Devolver pedido, cliente y motivo de bloqueo."],
+            )
+
+        if "retrasad" in normalized or "demor" in normalized:
+            return ExecutionPlan(
+                intent="erp_production",
+                steps=[
+                    PlanStep(
+                        step_id=1,
+                        tool="ProductionAPITool",
+                        action="list_orders",
+                        args={"status": "delayed"},
+                    ),
+                    PlanStep(
+                        step_id=2,
+                        tool="ERPTool",
+                        action="get_customers_for_production_orders",
+                    ),
+                ],
+                expected_sources=["Produccion", "ERP"],
+                answer_requirements=[
+                    "Devolver pedidos retrasados, clientes afectados y motivo del retraso."
+                ],
             )
 
         if "mes" in normalized or "resumen" in normalized:
@@ -104,7 +293,7 @@ class PlannerAgent:
                 )
             ]
             expected_sources = ["ERP"]
-            if "produccion" in normalized or "producción" in normalized or "estado" in normalized:
+            if "producci" in normalized or "estado" in normalized:
                 steps.append(
                     PlanStep(
                         step_id=2,
@@ -135,3 +324,121 @@ class PlannerAgent:
     def _extract_customer_id(question: str) -> str | None:
         matches = re.findall(r"\b[A-Z]{5}\b", question)
         return matches[0] if matches else None
+
+
+def _message_content(response: Any) -> str:
+    content = getattr(response, "content", response)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and isinstance(item.get("text"), str):
+                parts.append(item["text"])
+        return "\n".join(parts)
+    return str(content)
+
+
+def _extract_json_payload(content: str) -> dict[str, Any]:
+    cleaned = content.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?", "", cleaned, flags=re.IGNORECASE).strip()
+        cleaned = re.sub(r"```$", "", cleaned).strip()
+
+    match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
+    if not match:
+        raise ValueError("Planner LLM response did not include JSON.")
+    payload = json.loads(match.group(0))
+    if not isinstance(payload, dict):
+        raise ValueError("Planner LLM response JSON must be an object.")
+    return payload
+
+
+def _is_allowed_step(step: PlanStep) -> bool:
+    return step.action in _ALLOWED_TOOL_ACTIONS.get(step.tool, set())
+
+
+def _normalize_step_args(step: PlanStep, question: str) -> dict[str, Any]:
+    if step.tool == "ERPTool" and step.action == "get_pending_orders_by_customer":
+        customer_id = str(step.args.get("customer_id") or "").upper()
+        if not re.fullmatch(r"[A-Z]{5}", customer_id):
+            customer_id = PlannerAgent._extract_customer_id(question) or "ALFKI"
+        return {"customer_id": customer_id}
+
+    if step.tool == "ERPTool" and step.action == "get_orders_by_month":
+        return {
+            "year": _bounded_int(step.args.get("year"), default=2026, minimum=2000, maximum=2100),
+            "month": _bounded_int(step.args.get("month"), default=5, minimum=1, maximum=12),
+        }
+
+    if step.tool == "ProductionAPITool" and step.action == "list_orders":
+        status = step.args.get("status")
+        return {"status": status if status in _PRODUCTION_STATUSES else None}
+
+    if step.tool == "DocumentRAGTool" and step.action == "query":
+        args: dict[str, Any] = {
+            "query": str(step.args.get("query") or question),
+            "top_k": _bounded_int(step.args.get("top_k"), default=5, minimum=1, maximum=10),
+        }
+        if "min_score" in step.args:
+            args["min_score"] = _bounded_float(
+                step.args.get("min_score"),
+                default=0.2,
+                minimum=0,
+                maximum=1,
+            )
+        return args
+
+    return {}
+
+
+def _expected_sources_for_steps(steps: list[PlanStep]) -> list[str]:
+    sources = []
+    for step in steps:
+        source = _source_for_tool(step.tool)
+        if source and source not in sources:
+            sources.append(source)
+    return sources
+
+
+def _source_for_tool(tool: str) -> str | None:
+    return {
+        "ERPTool": "ERP",
+        "ProductionAPITool": "Produccion",
+        "DocumentRAGTool": "Documentos",
+        "MemoryTool": "Memoria",
+    }.get(tool)
+
+
+def _bounded_int(value: Any, default: int, minimum: int, maximum: int) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, number))
+
+
+def _bounded_float(value: Any, default: float, minimum: float, maximum: float) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, number))
+
+
+def _is_document_query(normalized: str) -> bool:
+    return any(
+        marker in normalized
+        for marker in (
+            "document",
+            "pdf",
+            "contrato",
+            "plazo",
+            "penalizacion",
+            "penalizaci",
+            "clausula",
+            "entrega",
+        )
+    )

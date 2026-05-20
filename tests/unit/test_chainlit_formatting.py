@@ -1,7 +1,10 @@
 from app.core.tracing import ToolCallTrace
-from app.schemas.documents import DocumentUploadResponse
+from datetime import UTC, datetime
+
+from app.schemas.documents import DocumentListResponse, DocumentUploadResponse, IndexedDocument
 from app.schemas.query import QueryResponse
 from chainlit_app.formatting import (
+    format_document_list,
     format_error,
     format_query_response,
     format_upload_response,
@@ -43,6 +46,28 @@ def test_format_upload_response_summarizes_indexing() -> None:
     )
 
     assert format_upload_response(response) == "Documento indexado: `contrato.pdf` (3 chunks)."
+
+
+def test_format_document_list_summarizes_document_space() -> None:
+    response = DocumentListResponse(
+        documents=[
+            IndexedDocument(
+                document_id="doc_123",
+                filename="contrato.pdf",
+                uploaded_at=datetime(2026, 5, 20, tzinfo=UTC),
+                chunks_indexed=3,
+            )
+        ]
+    )
+
+    content = format_document_list(response)
+
+    assert "**Espacio documental**" in content
+    assert "`contrato.pdf` (3 chunks)" in content
+
+
+def test_format_document_list_handles_empty_space() -> None:
+    assert format_document_list(DocumentListResponse(documents=[])) == "Espacio documental vacio."
 
 
 def test_format_error_returns_controlled_message() -> None:

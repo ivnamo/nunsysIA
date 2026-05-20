@@ -74,6 +74,39 @@ def test_backend_client_uploads_pdf() -> None:
     asyncio.run(run())
 
 
+def test_backend_client_lists_documents() -> None:
+    async def run() -> None:
+        client = BackendClient(
+            base_url="http://backend.test",
+            transport=httpx.MockTransport(handler),
+        )
+
+        response = await client.list_documents()
+
+        assert len(response.documents) == 1
+        assert response.documents[0].filename == "contrato.pdf"
+        assert response.documents[0].chunks_indexed == 3
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/documents"
+        return httpx.Response(
+            200,
+            json={
+                "documents": [
+                    {
+                        "document_id": "doc_123",
+                        "filename": "contrato.pdf",
+                        "uploaded_at": "2026-05-20T10:00:00Z",
+                        "chunks_indexed": 3,
+                    }
+                ]
+            },
+        )
+
+    asyncio.run(run())
+
+
 def test_backend_client_raises_controlled_error() -> None:
     async def run() -> None:
         client = BackendClient(

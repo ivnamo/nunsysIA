@@ -3,7 +3,7 @@ from typing import Any
 
 import httpx
 
-from app.schemas.documents import DocumentUploadResponse
+from app.schemas.documents import DocumentListResponse, DocumentUploadResponse
 from app.schemas.query import QueryResponse
 
 
@@ -59,6 +59,13 @@ class BackendClient:
 
         self._raise_for_status(response, "No se pudo indexar el documento.")
         return DocumentUploadResponse.model_validate(response.json())
+
+    async def list_documents(self) -> DocumentListResponse:
+        async with self._client() as client:
+            response = await client.get("/api/documents")
+
+        self._raise_for_status(response, "No se pudo listar el espacio documental.")
+        return DocumentListResponse.model_validate(response.json())
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(

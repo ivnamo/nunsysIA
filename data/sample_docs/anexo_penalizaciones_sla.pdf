@@ -1,0 +1,66 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [4 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >> endobj
+5 0 obj << /Length 1154 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Anexo de penalizaciones y SLA) Tj
+T*
+() Tj
+T*
+(Alcance:) Tj
+T*
+(Este anexo complementa el contrato marco de logistica 2026 y define penalizaciones) Tj
+T*
+(por incumplimiento de plazos de entrega cuando existe evidencia suficiente.) Tj
+T*
+() Tj
+T*
+(Penalizacion por retrasos:) Tj
+T*
+(Si un pedido standard se entrega mas de 2 dias laborables tarde por causa imputable) Tj
+T*
+(al operador logistico, se aplica una penalizacion del 2 por ciento del importe del) Tj
+T*
+(pedido. Si el retraso supera 5 dias laborables, la penalizacion sube al 5 por ciento.) Tj
+T*
+(Los pedidos urgentes tienen penalizacion del 3 por ciento desde el primer dia de) Tj
+T*
+(retraso imputable.) Tj
+T*
+() Tj
+T*
+(No aplicacion:) Tj
+T*
+(No se aplican penalizaciones cuando el retraso procede de bloqueo de produccion,) Tj
+T*
+(falta de material, falta de capacidad, averia de linea o cambios de prioridad) Tj
+T*
+(aprobados por direccion comercial.) Tj
+T*
+() Tj
+T*
+(Evidencia necesaria:) Tj
+T*
+(Para aplicar una penalizacion deben constar order_id, cliente, fecha prometida,) Tj
+T*
+(fecha real de entrega, causa del retraso y fuente responsable.) Tj
+T*
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000185 00000 n 
+0000000311 00000 n 
+trailer << /Root 1 0 R /Size 6 >>
+startxref
+1517
+%%EOF

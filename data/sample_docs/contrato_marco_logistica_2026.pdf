@@ -1,0 +1,68 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [4 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >> endobj
+5 0 obj << /Length 1258 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Contrato marco de logistica 2026) Tj
+T*
+() Tj
+T*
+(Objeto del contrato:) Tj
+T*
+(Este contrato regula la preparacion, expedicion y entrega de pedidos comerciales) Tj
+T*
+(para clientes ERP durante el ejercicio 2026. El operador logistico debe coordinar) Tj
+T*
+(su actividad con el estado de produccion y con la fecha requerida del pedido.) Tj
+T*
+() Tj
+T*
+(Plazos de entrega:) Tj
+T*
+(Los pedidos standard deben entregarse en un plazo maximo de 5 dias laborables) Tj
+T*
+(desde la liberacion de produccion. Los pedidos urgentes deben entregarse en un) Tj
+T*
+(plazo maximo de 48 horas desde la liberacion. Si el pedido esta bloqueado por) Tj
+T*
+(falta de material, el plazo no empieza a contar hasta que produccion desbloquee) Tj
+T*
+(la orden.) Tj
+T*
+() Tj
+T*
+(Trazabilidad:) Tj
+T*
+(Cada expedicion debe conservar referencia a order_id, cliente, fecha de salida,) Tj
+T*
+(transportista y estado final de entrega. El informe mensual debe separar pedidos) Tj
+T*
+(en curso, pedidos bloqueados, pedidos retrasados y pedidos finalizados.) Tj
+T*
+() Tj
+T*
+(Exclusiones:) Tj
+T*
+(El proveedor logistico no sera responsable de retrasos causados por fuerza mayor,) Tj
+T*
+(averia critica comunicada por produccion o datos ERP incompletos.) Tj
+T*
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000185 00000 n 
+0000000311 00000 n 
+trailer << /Root 1 0 R /Size 6 >>
+startxref
+1621
+%%EOF

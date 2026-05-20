@@ -1,11 +1,37 @@
+import re
 from time import perf_counter
 
 from pydantic import BaseModel, Field
 
 from app.core.tracing import ToolCallTrace, ToolResult
-from app.rag.embeddings import DeterministicEmbeddingModel
+from app.rag.embeddings import DeterministicEmbeddingModel, EmbeddingModel
 from app.rag.vector_store import DocumentVectorStore, VectorStoreError
 from app.schemas.documents import DocumentRAGAnswer
+
+_RAG_STOPWORDS = {
+    "a",
+    "al",
+    "alguna",
+    "con",
+    "de",
+    "del",
+    "dice",
+    "documento",
+    "el",
+    "en",
+    "hay",
+    "la",
+    "las",
+    "los",
+    "pdf",
+    "por",
+    "que",
+    "recomienda",
+    "segun",
+    "sobre",
+    "un",
+    "una",
+}
 
 
 class DocumentRAGInput(BaseModel):
@@ -20,7 +46,7 @@ class DocumentRAGTool:
     def __init__(
         self,
         vector_store: DocumentVectorStore,
-        embedding_model: DeterministicEmbeddingModel | None = None,
+        embedding_model: EmbeddingModel | None = None,
     ) -> None:
         self._vector_store = vector_store
         self._embedding_model = embedding_model or DeterministicEmbeddingModel()
@@ -47,7 +73,12 @@ class DocumentRAGTool:
                 ),
             )
 
-        relevant_chunks = [chunk for chunk in chunks if chunk.score >= tool_input.min_score]
+        relevant_chunks = [
+            chunk
+            for chunk in chunks
+            if chunk.score >= tool_input.min_score
+            and _has_query_evidence(tool_input.query, chunk.text)
+        ]
         if not relevant_chunks:
             data = DocumentRAGAnswer(
                 answer="No hay contexto documental suficiente para responder sin inventar.",
@@ -95,3 +126,19 @@ class DocumentRAGTool:
     @staticmethod
     def _duration_ms(started_at: float) -> int:
         return round((perf_counter() - started_at) * 1000)
+
+
+def _has_query_evidence(query: str, text: str) -> bool:
+    query_tokens = _meaningful_tokens(query)
+    if not query_tokens:
+        return False
+    text_tokens = _meaningful_tokens(text)
+    return bool(query_tokens & text_tokens)
+
+
+def _meaningful_tokens(text: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-zA-Z0-9]+", text.lower())
+        if len(token) > 2 and token not in _RAG_STOPWORDS
+    }

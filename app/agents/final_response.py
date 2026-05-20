@@ -53,8 +53,8 @@ class FinalResponseBuilder:
         if data.get("rag"):
             return data["rag"]["answer"]
 
-        if plan.intent == "erp_production" and data.get("production_orders"):
-            return self._answer_blocked_orders(data)
+        if data.get("production_orders"):
+            return self._answer_production_orders(data)
 
         if data.get("period"):
             return self._answer_monthly_summary(data)
@@ -108,11 +108,11 @@ class FinalResponseBuilder:
         return f"Pedidos del cliente {customer}: " + "; ".join(lines) + "."
 
     @staticmethod
-    def _answer_blocked_orders(data: dict[str, Any]) -> str:
+    def _answer_production_orders(data: dict[str, Any]) -> str:
         production_orders = data.get("production_orders", [])
         customers_by_order = data.get("customers_by_order", {})
         if not production_orders:
-            return "No se encontraron pedidos bloqueados en produccion."
+            return "No se encontraron pedidos de produccion con los criterios solicitados."
 
         lines = []
         for production_order in production_orders:
@@ -125,10 +125,22 @@ class FinalResponseBuilder:
                 if customer
                 else "cliente no encontrado en ERP"
             )
-            reason = production_order.get("blocked_reason") or "sin motivo informado"
-            lines.append(f"{order_id} ({customer_label}): {reason}")
+            status = production_order["production_status"]
+            reason = (
+                production_order.get("blocked_reason")
+                or production_order.get("delay_reason")
+                or "sin motivo informado"
+            )
+            lines.append(f"{order_id} ({customer_label}): {status}, {reason}")
 
-        return "Pedidos bloqueados en produccion: " + "; ".join(lines) + "."
+        statuses = {order["production_status"] for order in production_orders}
+        if statuses == {"blocked"}:
+            prefix = "Pedidos bloqueados en produccion"
+        elif statuses == {"delayed"}:
+            prefix = "Pedidos retrasados en produccion"
+        else:
+            prefix = "Pedidos de produccion"
+        return prefix + ": " + "; ".join(lines) + "."
 
     @staticmethod
     def _answer_monthly_summary(data: dict[str, Any]) -> str:

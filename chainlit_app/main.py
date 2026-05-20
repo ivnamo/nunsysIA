@@ -6,10 +6,13 @@ import chainlit as cl
 from chainlit_app.client import BackendClient, BackendClientError
 from chainlit_app.config import get_chainlit_settings
 from chainlit_app.formatting import (
+    format_document_list,
     format_error,
     format_query_response,
     format_upload_response,
 )
+
+_DOCUMENT_LIST_REQUESTS = {"/documentos", "documentos", "listar documentos"}
 
 
 @cl.on_chat_start
@@ -23,7 +26,7 @@ async def on_chat_start() -> None:
             timeout=settings.backend_api_timeout_seconds,
         ),
     )
-    await cl.Message(content="Listo para consultar la POC.").send()
+    await cl.Message(content="Listo para consultar la POC. Puedes adjuntar PDFs al espacio documental.").send()
 
 
 @cl.on_message
@@ -33,6 +36,10 @@ async def on_message(message: cl.Message) -> None:
 
     question = message.content.strip()
     if not question:
+        return
+
+    if question.lower() in _DOCUMENT_LIST_REQUESTS:
+        await _send_document_list(client)
         return
 
     response_message = cl.Message(content="Procesando consulta...")
@@ -80,6 +87,15 @@ async def _upload_pdf_attachments(
             await cl.Message(content=format_error(str(exc))).send()
         else:
             await cl.Message(content=format_upload_response(response)).send()
+
+
+async def _send_document_list(client: BackendClient) -> None:
+    try:
+        documents = await client.list_documents()
+    except BackendClientError as exc:
+        await cl.Message(content=format_error(str(exc))).send()
+    else:
+        await cl.Message(content=format_document_list(documents)).send()
 
 
 def _is_pdf(name: str, mime: str | None) -> bool:

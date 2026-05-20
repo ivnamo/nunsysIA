@@ -1,4 +1,4 @@
-from app.schemas.documents import DocumentUploadResponse
+from app.schemas.documents import DocumentListResponse, DocumentUploadResponse
 from app.schemas.query import QueryResponse
 
 
@@ -37,6 +37,17 @@ def format_upload_response(response: DocumentUploadResponse) -> str:
         f"Documento indexado: `{response.filename}` "
         f"({response.chunks_indexed} chunks)."
     )
+
+
+def format_document_list(response: DocumentListResponse) -> str:
+    if not response.documents:
+        return "Espacio documental vacio."
+
+    lines = [
+        f"- `{document.filename}` ({document.chunks_indexed} chunks)"
+        for document in response.documents
+    ]
+    return "**Espacio documental**\n" + "\n".join(lines)
 
 
 def format_error(message: str) -> str:

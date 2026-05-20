@@ -21,6 +21,8 @@ build/
 .vscode/*
 !.vscode/settings.json
 *.log
+.files/
+docs/image/
 
 # Sistema
 .DS_Store

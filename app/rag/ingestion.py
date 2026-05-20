@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from app.rag.embeddings import DeterministicEmbeddingModel
+from app.rag.embeddings import DeterministicEmbeddingModel, EmbeddingModel
 from app.rag.loader import PDFExtractionError, PDFLoader
 from app.rag.splitter import RecursiveTextSplitter
 from app.rag.vector_store import DocumentVectorStore
@@ -22,7 +22,7 @@ class DocumentIngestionService:
         vector_store: DocumentVectorStore,
         loader: PDFLoader | None = None,
         splitter: RecursiveTextSplitter | None = None,
-        embedding_model: DeterministicEmbeddingModel | None = None,
+        embedding_model: EmbeddingModel | None = None,
     ) -> None:
         self._vector_store = vector_store
         self._loader = loader or PDFLoader()
@@ -34,7 +34,7 @@ class DocumentIngestionService:
         return self._vector_store
 
     @property
-    def embedding_model(self) -> DeterministicEmbeddingModel:
+    def embedding_model(self) -> EmbeddingModel:
         return self._embedding_model
 
     def ingest_pdf(self, content: bytes, filename: str) -> DocumentUploadResponse:

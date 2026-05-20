@@ -1,0 +1,64 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [4 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >> endobj
+5 0 obj << /Length 1047 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Politica de calidad para entregas a cliente) Tj
+T*
+() Tj
+T*
+(Objetivo:) Tj
+T*
+(Garantizar que los pedidos enviados al cliente cumplen calidad documental, calidad) Tj
+T*
+(de preparacion y trazabilidad de lote. La politica aplica a todos los pedidos ERP) Tj
+T*
+(con salida desde almacen central.) Tj
+T*
+() Tj
+T*
+(Control previo:) Tj
+T*
+(Antes de liberar un pedido, calidad valida lote, cantidad, documentacion y etiquetado.) Tj
+T*
+(Si aparece una incidencia de calidad, el pedido debe quedar bloqueado hasta que) Tj
+T*
+(produccion o calidad registren una resolucion.) Tj
+T*
+() Tj
+T*
+(Entrega y documentacion:) Tj
+T*
+(Cada entrega debe incluir albaran, referencia order_id y nombre de cliente. Las) Tj
+T*
+(entregas parciales requieren aprobacion comercial previa y deben quedar explicadas) Tj
+T*
+(en la traza de la respuesta.) Tj
+T*
+() Tj
+T*
+(Indicadores:) Tj
+T*
+(Los indicadores mensuales separan pedidos entregados a tiempo, pedidos retrasados,) Tj
+T*
+(pedidos bloqueados y pedidos con incidencia de calidad.) Tj
+T*
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000185 00000 n 
+0000000311 00000 n 
+trailer << /Root 1 0 R /Size 6 >>
+startxref
+1410
+%%EOF

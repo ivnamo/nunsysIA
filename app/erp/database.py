@@ -5,8 +5,14 @@ from pathlib import Path
 DEFAULT_SEED_PATH = Path("data/northwind_seed.sql")
 
 
-def create_sqlite_connection(database_path: str = ":memory:") -> sqlite3.Connection:
-    connection = sqlite3.connect(database_path)
+def create_sqlite_connection(
+    database_path: str = ":memory:",
+    check_same_thread: bool = True,
+) -> sqlite3.Connection:
+    connection = sqlite3.connect(
+        database_path,
+        check_same_thread=check_same_thread,
+    )
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection

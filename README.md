@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Fase actual: **Fase 6 - RAG con subida de PDFs**.
+Fase actual: **Fase puente - API de consulta**.
 
 Este repositorio contiene por ahora:
 
@@ -53,15 +53,14 @@ Disponible para ejecutar actualmente:
 
 - backend FastAPI con `GET /health`;
 - endpoints documentales para subir y listar PDFs;
+- endpoint `POST /api/query`;
 - API mock de produccion;
 - tests automatizados;
-- grafo LangGraph invocable desde tests y codigo Python;
+- grafo LangGraph invocable desde API, tests y codigo Python;
 - RAG documental invocable como tool y desde endpoints documentales.
 
 Pendiente todavia:
 
-- endpoint `POST /api/query`;
-- integracion del grafo en el backend principal;
 - interfaz Chainlit;
 - Docker Compose.
 
@@ -155,6 +154,12 @@ Ejecutar backend principal:
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
+Si vas a probar consultas que llamen a produccion fuera de Docker, en PowerShell apunta el backend al mock local antes de arrancarlo:
+
+```powershell
+$env:PRODUCTION_API_BASE_URL="http://localhost:8001"
+```
+
 Comprobar health:
 
 ```bash
@@ -172,6 +177,14 @@ Listar documentos indexados:
 
 ```bash
 curl http://localhost:8000/api/documents
+```
+
+Consultar el workflow agentic:
+
+```bash
+curl -X POST http://localhost:8000/api/query \
+  -H "Content-Type: application/json" \
+  -d "{\"question\":\"Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?\"}"
 ```
 
 ## API mock de produccion
@@ -196,7 +209,5 @@ Fase 7:
 
 - preparar interfaz Chainlit para demo;
 - mostrar respuesta, fuentes, reasoning visible y tool calls;
-- conectar con el backend cuando exista `/api/query`;
+- conectar con el backend mediante `/api/query`;
 - mantener UI ligera y orientada a la prueba tecnica.
-
-Antes de Chainlit puede ser conveniente implementar `POST /api/query` si se decide priorizar una demo end-to-end desde API.

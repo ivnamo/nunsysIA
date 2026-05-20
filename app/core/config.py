@@ -9,6 +9,8 @@ class Settings(BaseModel):
     app_env: str = "development"
     log_level: str = "INFO"
     database_url: str = "postgresql+psycopg://postgres:postgres@postgres:5432/northwind"
+    production_api_base_url: str = "http://production-api:8001"
+    production_api_timeout_seconds: float = 5.0
     chroma_host: str = "chromadb"
     chroma_port: int = 8000
     chroma_collection: str = "documents"
@@ -27,6 +29,13 @@ def get_settings() -> Settings:
         database_url=os.getenv(
             "DATABASE_URL",
             "postgresql+psycopg://postgres:postgres@postgres:5432/northwind",
+        ),
+        production_api_base_url=os.getenv(
+            "PRODUCTION_API_BASE_URL",
+            "http://production-api:8001",
+        ),
+        production_api_timeout_seconds=float(
+            os.getenv("PRODUCTION_API_TIMEOUT_SECONDS", "5.0")
         ),
         chroma_host=os.getenv("CHROMA_HOST", "chromadb"),
         chroma_port=int(os.getenv("CHROMA_PORT", "8000")),

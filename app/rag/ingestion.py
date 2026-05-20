@@ -29,6 +29,14 @@ class DocumentIngestionService:
         self._splitter = splitter or RecursiveTextSplitter()
         self._embedding_model = embedding_model or DeterministicEmbeddingModel()
 
+    @property
+    def vector_store(self) -> DocumentVectorStore:
+        return self._vector_store
+
+    @property
+    def embedding_model(self) -> DeterministicEmbeddingModel:
+        return self._embedding_model
+
     def ingest_pdf(self, content: bytes, filename: str) -> DocumentUploadResponse:
         if not filename.lower().endswith(".pdf"):
             raise InvalidDocumentError("Solo se permiten archivos PDF.")

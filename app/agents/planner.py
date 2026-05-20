@@ -74,6 +74,9 @@ class PlannerAgent:
         normalized: str,
         state: AgentState,
     ) -> tuple[ExecutionPlan, str | None]:
+        if _is_order_penalty_query(normalized):
+            return self._build_rule_based_plan(question, normalized), None
+
         if self._chat_model is None:
             return (
                 self._build_rule_based_plan(question, normalized),
@@ -184,6 +187,7 @@ Business examples:
 - Blocked orders and reason: ProductionAPITool.list_orders(status=blocked), then ERPTool.get_customers_for_production_orders.
 - Delayed orders and affected customers: ProductionAPITool.list_orders(status=delayed), then ERPTool.get_customers_for_production_orders.
 - This month summary: ERPTool.get_orders_by_month(year=2026, month=5), then ProductionAPITool.get_status_for_erp_orders.
+- Penalties by order based on current order state: ERPTool.get_orders_by_month(year=2026, month=5), then ProductionAPITool.get_status_for_erp_orders, then DocumentRAGTool.query.
 - PDF, contract, delivery terms, penalties, clauses, documents: DocumentRAGTool.query.
 
 Output schema:
@@ -221,6 +225,40 @@ User question: {question}
             executor.shutdown(wait=False, cancel_futures=True)
 
     def _build_rule_based_plan(self, question: str, normalized: str) -> ExecutionPlan:
+        if _is_order_penalty_query(normalized):
+            return ExecutionPlan(
+                intent="mixed",
+                steps=[
+                    PlanStep(
+                        step_id=1,
+                        tool="ERPTool",
+                        action="get_orders_by_month",
+                        args={"year": 2026, "month": 5},
+                    ),
+                    PlanStep(
+                        step_id=2,
+                        tool="ProductionAPITool",
+                        action="get_status_for_erp_orders",
+                    ),
+                    PlanStep(
+                        step_id=3,
+                        tool="DocumentRAGTool",
+                        action="query",
+                        args={
+                            "query": (
+                                "penalizaciones por retrasos no aplicacion bloqueo "
+                                "produccion falta material falta capacidad averia linea"
+                            ),
+                            "top_k": 5,
+                        },
+                    ),
+                ],
+                expected_sources=["ERP", "Produccion", "Documentos"],
+                answer_requirements=[
+                    "Devolver penalizacion aplicable por pedido usando ERP, produccion y normativa documental.",
+                ],
+            )
+
         if _is_document_query(normalized):
             return ExecutionPlan(
                 intent="rag",
@@ -468,5 +506,22 @@ def _is_document_query(normalized: str) -> bool:
             "penalizaci",
             "clausula",
             "entrega",
+        )
+    )
+
+
+def _is_order_penalty_query(normalized: str) -> bool:
+    if "penaliz" not in normalized:
+        return False
+    if "pedido" not in normalized and "order" not in normalized:
+        return False
+    return any(
+        marker in normalized
+        for marker in (
+            "estado",
+            "produccion",
+            "cada uno",
+            "cada pedido",
+            "en cada uno",
         )
     )

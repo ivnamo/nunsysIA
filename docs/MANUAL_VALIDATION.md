@@ -233,6 +233,30 @@ Checks esperados:
 - `data.period`: `year=2026`, `month=5`
 - `answer`: agrupa estados de produccion.
 
+### Penalizaciones por pedido segun estado
+
+```powershell
+$body = @{
+  question = "en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno"
+  conversation_id = "manual-mixed-penalties-001"
+} | ConvertTo-Json
+
+$response = Invoke-RestMethod -Uri "http://localhost:8000/api/query" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $body
+
+$response | ConvertTo-Json -Depth 10
+```
+
+Checks esperados:
+
+- `status`: `completed`
+- `sources`: incluye `ERP`, `Produccion` y `Documentos`
+- `tool_calls`: incluye `ERPTool`, `ProductionAPITool` y `DocumentRAGTool`
+- `answer`: menciona cada pedido del mes y si aplica o no penalizacion segun estado y motivo.
+- `answer`: para `10252`, `10301` y `10312` indica que no aplica penalizacion por exclusion documental.
+
 ## 4. Validar RAG por API
 
 ### Penalizaciones por retrasos
@@ -257,6 +281,7 @@ Checks esperados:
 - `sources`: `Documentos`
 - `answer`: menciona `penalizacion`
 - `data.rag.documents`: incluye `anexo_penalizaciones_sla.pdf`
+- `data.rag.citations`: incluye `filename`, `page`, `chunk_id` y `score`.
 
 ### Plazos de entrega
 
@@ -280,6 +305,7 @@ Checks esperados:
 - `sources`: `Documentos`
 - `answer`: menciona `5 dias laborables`
 - `data.rag.documents`: incluye `contrato_marco_logistica_2026.pdf`
+- `data.rag.citations`: incluye `filename`, `page`, `chunk_id` y `score`.
 
 ### Resumen del contrato
 
@@ -302,6 +328,7 @@ Checks esperados:
 - `status`: `completed`
 - `sources`: `Documentos`
 - `tool_calls[0].tool`: `DocumentRAGTool`
+- `data.rag.citations`: incluye al menos una cita documental.
 
 ### Pregunta sin evidencia documental
 
@@ -374,6 +401,7 @@ Checks esperados en UI:
 - respuesta clara;
 - `Estado: completed` o `insufficient_context` cuando corresponda;
 - fuentes visibles;
+- citas documentales visibles en respuestas RAG;
 - pasos ejecutados;
 - tool calls visibles;
 - seccion `FALLBACKS` visible cuando se usa planner por reglas, respuesta determinista, vector store en memoria o embeddings deterministas;
@@ -501,11 +529,11 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/query" `
   ConvertTo-Json -Depth 10
 ```
 
-Si tambien se queda esperando, revisa que el backend se haya reiniciado tras cambios de `.env` y usa un timeout LLM corto:
+Si tambien se queda esperando, revisa que el backend se haya reiniciado tras cambios de `.env` y usa un timeout LLM suficiente para Gemini:
 
 ```powershell
 $env:PRODUCTION_API_BASE_URL="http://localhost:8001"
-$env:LLM_TIMEOUT_SECONDS="8"
+$env:LLM_TIMEOUT_SECONDS="45"
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
 ```
 
@@ -539,7 +567,7 @@ Solucion recomendada:
 ```powershell
 $env:GEMINI_MODEL="gemini-2.5-flash"
 $env:GEMINI_API_TRANSPORT="rest"
-$env:LLM_TIMEOUT_SECONDS="8"
+$env:LLM_TIMEOUT_SECONDS="45"
 ```
 
 Comprueba tambien que `.env` contiene:
@@ -547,7 +575,7 @@ Comprueba tambien que `.env` contiene:
 ```env
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_API_TRANSPORT=rest
-LLM_TIMEOUT_SECONDS=8
+LLM_TIMEOUT_SECONDS=45
 ```
 
 Despues reinicia backend y Chainlit. El factory del LLM esta configurado con `retries=0` para que un modelo invalido falle rapido y el Planner pueda caer al fallback determinista.

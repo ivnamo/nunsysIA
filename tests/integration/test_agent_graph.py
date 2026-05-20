@@ -135,7 +135,56 @@ def test_agent_graph_answers_rag_query_when_document_tool_is_configured(
     assert response.status == "completed"
     assert response.sources == ["Documentos"]
     assert "penalizacion" in response.answer
+    citation = response.data["rag"]["citations"][0]
+    assert citation["filename"] == "contrato.pdf"
+    assert citation["page"] == 1
+    assert citation["chunk_id"].endswith("_p1_c1")
+    assert isinstance(citation["score"], float)
     assert response.tool_calls[0].tool == "DocumentRAGTool"
+
+
+def test_agent_graph_answers_order_penalties_with_erp_production_and_documents(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Penalizaciones por retrasos. No aplicacion por bloqueo de produccion, "
+            "falta de material, falta de capacidad o averia en linea."
+        ),
+        filename="anexo_penalizaciones_sla.pdf",
+    )
+
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        rag_tool=DocumentRAGTool(
+            vector_store=vector_store,
+            embedding_model=DeterministicEmbeddingModel(),
+        ),
+        question="en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno",
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["ERP", "Produccion", "Documentos"]
+    assert "Penalizaciones estimadas por pedido" in response.answer
+    assert "10252" in response.answer
+    assert "Falta de material" in response.answer
+    assert "10301" in response.answer
+    assert "Averia en linea de produccion" in response.answer
+    assert "sin penalizacion aplicable" in response.answer
+    assert [call.tool for call in response.tool_calls] == [
+        "ERPTool",
+        "ProductionAPITool",
+        "ProductionAPITool",
+        "ProductionAPITool",
+        "ProductionAPITool",
+        "ProductionAPITool",
+        "DocumentRAGTool",
+    ]
+    assert response.data["rag"]["documents"] == ["anexo_penalizaciones_sla.pdf"]
 
 
 def test_agent_graph_returns_tool_error_when_rag_embedding_fails(

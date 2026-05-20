@@ -59,6 +59,7 @@ Este repositorio contiene por ahora:
 - Planner hibrido: LLM opcional + schema Pydantic + lista cerrada de tools/actions;
 - PDFs mock realistas en `data/sample_docs/`;
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
+- citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
 
 Disponible para ejecutar actualmente:
 
@@ -79,7 +80,6 @@ Disponible para ejecutar actualmente:
 
 Pendiente todavia:
 
-- citas documentales visibles con `filename`, `page`, `chunk_id` y `score`;
 - memoria conversacional de ultimas 5 interacciones;
 - Docker Compose.
 
@@ -188,6 +188,7 @@ LLM_PROVIDER=gemini
 GEMINI_API_KEY=tu_key
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_API_TRANSPORT=rest
+LLM_TIMEOUT_SECONDS=45
 EMBEDDING_PROVIDER=gemini
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
@@ -303,7 +304,6 @@ Endpoints del mock:
 
 La fase actual sigue siendo P9: funcionalidad evaluable de producto.
 
-- anadir citas documentales visibles con `filename`, `page`, `chunk_id` y `score`;
 - implementar memoria conversacional de ultimas 5 interacciones;
 - despues cerrar Docker Compose y README final.
 - documentar variables y comandos de ejecucion.

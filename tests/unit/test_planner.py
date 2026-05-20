@@ -69,6 +69,47 @@ def test_planner_marks_documental_query_as_rag_with_document_tool_step() -> None
     assert state["plan"]["expected_sources"] == ["Documentos"]
 
 
+def test_planner_routes_order_penalty_question_as_mixed_without_llm() -> None:
+    chat_model = _FakeChatModel(
+        """
+        {
+          "intent": "rag",
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "DocumentRAGTool",
+              "action": "query",
+              "args": {"query": "penalizaciones", "top_k": 5},
+              "required": true
+            }
+          ],
+          "expected_sources": ["Documentos"],
+          "answer_requirements": []
+        }
+        """
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner(
+        {
+            "question": "en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno",
+            "attempts": 0,
+        }
+    )
+
+    assert chat_model.calls == 0
+    assert state["intent"] == "mixed"
+    assert state["plan"]["expected_sources"] == ["ERP", "Produccion", "Documentos"]
+    assert [step["tool"] for step in state["plan"]["steps"]] == [
+        "ERPTool",
+        "ProductionAPITool",
+        "DocumentRAGTool",
+    ]
+    assert state["plan"]["steps"][0]["action"] == "get_orders_by_month"
+    assert state["plan"]["steps"][1]["action"] == "get_status_for_erp_orders"
+    assert state["plan"]["steps"][2]["action"] == "query"
+
+
 def test_planner_marks_out_of_scope_query_as_unsupported() -> None:
     planner = PlannerAgent()
 

@@ -2,6 +2,7 @@ import json
 import re
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from datetime import date
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
@@ -94,6 +95,11 @@ class FinalResponseBuilder:
             return "No se pudo completar la consulta de forma fiable."
 
         data = state.get("data", {})
+        if _is_order_penalty_plan(plan, state) and data.get("erp_orders") and data.get(
+            "production_by_order"
+        ):
+            return self._answer_order_penalties(data)
+
         if data.get("rag"):
             return data["rag"]["answer"]
 
@@ -288,6 +294,35 @@ class FinalResponseBuilder:
         )
 
     @staticmethod
+    def _answer_order_penalties(data: dict[str, Any]) -> str:
+        orders = data.get("erp_orders", [])
+        production_by_order = data.get("production_by_order", {})
+        if not orders:
+            return "No se encontraron pedidos ERP para estimar penalizaciones."
+
+        lines = []
+        for order in orders:
+            order_id = order["order_id"]
+            production = production_by_order.get(order_id)
+            if production is None:
+                production = production_by_order.get(str(order_id))
+
+            customer = order.get("customer_name") or order.get("customer_id")
+            status = (
+                _production_status_label(production["production_status"])
+                if production
+                else "sin informacion de produccion"
+            )
+            reason = None
+            if production:
+                reason = production.get("blocked_reason") or production.get("delay_reason")
+            status_detail = f"{status} ({reason})" if reason else status
+            penalty = _penalty_assessment(order, production)
+            lines.append(f"{order_id} ({customer}): {status_detail}; {penalty}")
+
+        return "Penalizaciones estimadas por pedido: " + "; ".join(lines) + "."
+
+    @staticmethod
     def _confidence(status: QueryStatus) -> float | None:
         if status == "completed":
             return 0.9
@@ -331,6 +366,71 @@ def _production_status_label(status: str) -> str:
 def _sources(values: list[str]) -> list[SourceName]:
     allowed = {"ERP", "Produccion", "Documentos", "Memoria"}
     return [value for value in values if value in allowed]
+
+
+def _is_order_penalty_plan(plan: ExecutionPlan, state: AgentState) -> bool:
+    if plan.intent != "mixed":
+        return False
+    question = str(state.get("question") or "").lower()
+    return "penaliz" in question and ("pedido" in question or "order" in question)
+
+
+def _penalty_assessment(
+    order: dict[str, Any],
+    production: dict[str, Any] | None,
+) -> str:
+    if production is None:
+        return "no calculable porque falta estado de produccion"
+
+    status = str(production.get("production_status") or "")
+    reason = str(production.get("blocked_reason") or production.get("delay_reason") or "")
+
+    if status == "blocked" or _is_penalty_exclusion_reason(reason):
+        return "sin penalizacion aplicable segun la evidencia actual por exclusion documental"
+
+    required_date = _parse_date(order.get("required_date"))
+    shipped_date = _parse_date(order.get("shipped_date"))
+
+    if shipped_date and required_date:
+        if shipped_date <= required_date:
+            return "sin penalizacion aplicable porque consta enviado antes del plazo requerido"
+        return (
+            "requiere calcular dias laborables de retraso e imputabilidad logistica "
+            "antes de aplicar 2%, 5% o 3% si era urgente"
+        )
+
+    if status == "delayed":
+        return (
+            "pendiente de fecha real de entrega e imputabilidad; no se puede aplicar "
+            "penalizacion todavia"
+        )
+
+    return "sin penalizacion aplicable con la evidencia actual"
+
+
+def _is_penalty_exclusion_reason(reason: str) -> bool:
+    normalized = reason.lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "falta de material",
+            "falta de capacidad",
+            "averia",
+            "bloqueo",
+            "cambio de prioridad",
+        )
+    )
+
+
+def _parse_date(value: Any) -> date | None:
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError:
+        return None
 
 
 def _tool_calls(values: list[ToolCallTrace]) -> list[ToolCallTrace]:

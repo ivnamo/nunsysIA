@@ -4,6 +4,12 @@ from typing import Any
 from app.agents.planner import ExecutionPlan
 from app.agents.state import AgentState
 from app.core.tracing import SourceName, ToolCallTrace
+from app.core.traceability import (
+    build_public_data_summary,
+    sanitize_failure_reason,
+    sanitize_reasoning,
+    sanitize_tool_calls,
+)
 from app.schemas.query import QueryResponse, QueryStatus
 
 
@@ -15,12 +21,12 @@ class FinalResponseBuilder:
         response = QueryResponse(
             answer=answer,
             sources=_sources(state.get("sources", [])),
-            reasoning=state.get("reasoning", []),
+            reasoning=sanitize_reasoning(state.get("reasoning", [])),
             tool_calls=_tool_calls(state.get("tool_calls", [])),
             confidence=self._confidence(status),
             status=status,
-            data=state.get("data", {}),
-            failure_reason=state.get("failure_reason"),
+            data=build_public_data_summary(state.get("data", {})),
+            failure_reason=sanitize_failure_reason(state.get("failure_reason")),
         )
         return {
             **state,
@@ -172,4 +178,4 @@ def _sources(values: list[str]) -> list[SourceName]:
 
 
 def _tool_calls(values: list[ToolCallTrace]) -> list[ToolCallTrace]:
-    return [ToolCallTrace.model_validate(value) for value in values]
+    return sanitize_tool_calls([ToolCallTrace.model_validate(value) for value in values])

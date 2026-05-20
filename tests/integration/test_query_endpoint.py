@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -38,15 +41,15 @@ def client() -> TestClient:
 
 
 def test_query_endpoint_answers_erp_production_question(client: TestClient) -> None:
+    request_payload = json.loads(
+        (Path(__file__).resolve().parents[2] / "query.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
     response = client.post(
         "/api/query",
-        json={
-            "question": (
-                "Que pedidos pendientes tiene el cliente ALFKI y en que estado "
-                "de produccion estan?"
-            ),
-            "conversation_id": "demo-001",
-        },
+        json=request_payload,
     )
 
     assert response.status_code == 200
@@ -60,6 +63,13 @@ def test_query_endpoint_answers_erp_production_question(client: TestClient) -> N
         "ProductionAPITool",
         "ProductionAPITool",
     ]
+    assert payload["data"] == {
+        "erp_orders_count": 2,
+        "erp_order_ids": [10248, 10252],
+        "production_statuses_count": 2,
+    }
+    assert "amount" not in str(payload["data"])
+    assert all("error" in call for call in payload["tool_calls"])
 
 
 def test_query_endpoint_answers_document_question_after_upload(
@@ -89,6 +99,9 @@ def test_query_endpoint_answers_document_question_after_upload(
     assert payload["sources"] == ["Documentos"]
     assert "penalizacion" in payload["answer"]
     assert payload["tool_calls"][0]["tool"] == "DocumentRAGTool"
+    assert payload["data"]["rag"]["status"] == "completed"
+    assert payload["data"]["rag"]["chunks_count"] >= 1
+    assert payload["data"]["rag"]["documents"] == ["contrato.pdf"]
 
 
 def test_query_endpoint_rejects_blank_question(client: TestClient) -> None:

@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Fase actual: **Fase 7 - Chainlit**.
+Fase actual: **Fase 8 - Trazabilidad y respuesta estructurada**.
 
 Este repositorio contiene por ahora:
 
@@ -51,6 +51,9 @@ Este repositorio contiene por ahora:
 - app Chainlit conectada a `POST /api/query`;
 - cliente HTTP de Chainlit testeable;
 - renderizado de respuesta, fuentes, pasos y tool calls en UI.
+- normalizacion de trazas publicas;
+- sanitizacion de argumentos, errores y failure reasons;
+- resumen publico de evidencias en `data` sin filas raw ni objetos internos.
 
 Disponible para ejecutar actualmente:
 
@@ -62,6 +65,8 @@ Disponible para ejecutar actualmente:
 - tests automatizados;
 - grafo LangGraph invocable desde API, tests y codigo Python;
 - RAG documental invocable como tool y desde endpoints documentales.
+- trazabilidad normalizada y sanitizada en `/api/query`.
+- payload de demo `query.json` para probar `/api/query`.
 
 Pendiente todavia:
 
@@ -197,7 +202,7 @@ Consultar el workflow agentic:
 ```bash
 curl -X POST http://localhost:8000/api/query \
   -H "Content-Type: application/json" \
-  -d "{\"question\":\"Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?\"}"
+  --data @query.json
 ```
 
 Ejecutar interfaz Chainlit:
@@ -227,9 +232,9 @@ Endpoints del mock:
 
 ## Siguiente fase
 
-Fase 8:
+Fase 9:
 
-- endurecer trazabilidad y respuesta estructurada;
-- revisar estados de error y respuestas parciales;
-- asegurar que no se expone razonamiento interno sensible;
-- dejar el contrato listo para Docker y demo final.
+- preparar Dockerfile;
+- preparar docker-compose;
+- levantar backend, mock de produccion y Chainlit;
+- documentar variables y comandos de ejecucion.

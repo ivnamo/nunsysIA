@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 ToolCallStatus = Literal["success", "error", "skipped"]
@@ -8,12 +8,14 @@ SourceName = Literal["ERP", "Produccion", "Documentos", "Memoria"]
 
 
 class ToolCallTrace(BaseModel):
-    tool: str
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    tool: str = Field(min_length=1)
     args: dict[str, Any] = Field(default_factory=dict)
     status: ToolCallStatus
     output_summary: str | None = None
     error: str | None = None
-    duration_ms: int | None = None
+    duration_ms: int | None = Field(default=None, ge=0)
     source: SourceName
 
 

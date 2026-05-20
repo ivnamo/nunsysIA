@@ -28,6 +28,7 @@ La API debe devolver:
 - `tool_calls`
 - `status`
 - `confidence` cuando sea posible
+- `data` opcional como resumen publico de evidencias, nunca como volcado raw de filas internas
 
 ## Reasoning Visible vs Razonamiento Interno
 
@@ -114,3 +115,21 @@ El razonamiento interno no debe devolverse al usuario.
 - No incluir connection strings.
 - No incluir prompts internos.
 - No incluir chain-of-thought.
+- No devolver filas raw, objetos internos de LangChain/LangGraph/ChromaDB ni respuestas completas de servicios internos en `data`.
+- Limitar `reasoning` a pasos visibles auditables: fuente consultada, accion ejecutada y criterio de combinacion de datos.
+
+## Resumen Publico de Evidencias
+
+El campo `data` puede usarse para facilitar demo y auditoria, pero debe contener solo contadores e identificadores no sensibles. Ejemplos permitidos:
+
+- `erp_orders_count`
+- `erp_order_ids`
+- `production_statuses_count`
+- `production_order_ids`
+- `customers_resolved_count`
+- `period`
+- `rag.status`
+- `rag.chunks_count`
+- `rag.documents`
+
+No debe contener importes detallados, textos completos de chunks, connection strings, errores raw, prompts ni objetos internos.

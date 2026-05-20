@@ -60,6 +60,14 @@ class ValidatorNode:
                 status="failed",
             )
 
+        if plan.steps and not state.get("reasoning"):
+            return self._fail_or_replan(
+                state,
+                attempts,
+                "El plan tenia pasos pero no se registraron pasos visibles de trazabilidad.",
+                status="failed",
+            )
+
         return {
             **state,
             "status": "completed",

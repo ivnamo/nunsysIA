@@ -33,6 +33,8 @@ Request:
 }
 ```
 
+El repositorio mantiene este request de demo en `query.json`.
+
 Response `200`:
 
 ```json
@@ -55,7 +57,13 @@ Response `200`:
     }
   ],
   "confidence": 0.86,
-  "status": "completed"
+  "status": "completed",
+  "data": {
+    "erp_orders_count": 3,
+    "erp_order_ids": [10248, 10252, 10301],
+    "production_statuses_count": 3
+  },
+  "failure_reason": null
 }
 ```
 
@@ -66,6 +74,7 @@ Estados posibles:
 - `insufficient_context`
 - `tool_error`
 - `failed`
+- `unsupported`
 
 Errores posibles:
 
@@ -129,6 +138,8 @@ Errores posibles:
 ## Reglas Generales
 
 - No devolver objetos internos de LangChain, LangGraph o ChromaDB.
+- No devolver filas raw de ERP, respuestas raw de produccion ni chunks completos en `data`.
+- `data` debe ser un resumen publico de evidencias para auditoria y demo.
 - No devolver secretos.
 - Mantener respuestas compatibles con Pydantic.
 - Los errores deben ser comprensibles y trazables.

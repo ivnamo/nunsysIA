@@ -29,5 +29,8 @@ class QueryResponse(BaseModel):
     tool_calls: list[ToolCallTrace] = Field(default_factory=list)
     confidence: float | None = Field(default=None, ge=0, le=1)
     status: QueryStatus
-    data: dict | None = None
+    data: dict | None = Field(
+        default=None,
+        description="Resumen publico de evidencias; no debe incluir filas raw ni objetos internos.",
+    )
     failure_reason: str | None = None

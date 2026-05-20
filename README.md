@@ -1,6 +1,6 @@
 # nunsysIA
 
-POC tecnica de sistema agentic empresarial para responder preguntas de negocio en lenguaje natural combinando:
+POC tecnica de sistema agentic empresarial. El objetivo final es responder preguntas de negocio en lenguaje natural combinando:
 
 - ERP basado en Northwind.
 - API REST mock de produccion.
@@ -44,7 +44,20 @@ Este repositorio contiene por ahora:
 - FinalResponseBuilder con `QueryResponse` estructurada;
 - tests unitarios e integracion del grafo basico.
 
-No hay todavia `/api/query`, Chainlit, RAG ni integracion del grafo en el backend principal.
+Disponible para ejecutar actualmente:
+
+- backend FastAPI con `GET /health`;
+- API mock de produccion;
+- tests automatizados;
+- grafo LangGraph invocable desde tests y codigo Python.
+
+Pendiente todavia:
+
+- endpoint `POST /api/query`;
+- integracion del grafo en el backend principal;
+- RAG documental;
+- interfaz Chainlit;
+- Docker Compose.
 
 ## Arquitectura decidida
 
@@ -55,7 +68,7 @@ No hay todavia `/api/query`, Chainlit, RAG ni integracion del grafo en el backen
 - Vector store inicial: ChromaDB.
 - Schemas: Pydantic.
 - Tests: pytest.
-- Runtime: Docker Compose.
+- Runtime objetivo: Docker Compose.
 
 Flujo objetivo:
 
@@ -128,6 +141,18 @@ Ejecutar tests:
 
 ```bash
 pytest
+```
+
+Ejecutar backend principal:
+
+```bash
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Comprobar health:
+
+```bash
+curl http://localhost:8000/health
 ```
 
 ## API mock de produccion

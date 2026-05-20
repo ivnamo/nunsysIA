@@ -18,7 +18,8 @@ build/
 .cursor/*
 !.cursor/rules/
 !.cursor/rules/*.mdc
-.vscode/
+.vscode/*
+!.vscode/settings.json
 *.log
 
 # Sistema

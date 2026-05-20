@@ -1,0 +1,1 @@
+"""Chainlit demo application package."""

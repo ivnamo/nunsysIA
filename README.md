@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Fase actual: **Fase puente - API de consulta**.
+Fase actual: **Fase 7 - Chainlit**.
 
 Este repositorio contiene por ahora:
 
@@ -48,12 +48,16 @@ Este repositorio contiene por ahora:
 - `DocumentRAGTool` con trazabilidad y `insufficient_context`;
 - endpoints `POST /api/documents/upload` y `GET /api/documents`;
 - tests de ingestion, retrieval, tool RAG y endpoints documentales.
+- app Chainlit conectada a `POST /api/query`;
+- cliente HTTP de Chainlit testeable;
+- renderizado de respuesta, fuentes, pasos y tool calls en UI.
 
 Disponible para ejecutar actualmente:
 
 - backend FastAPI con `GET /health`;
 - endpoints documentales para subir y listar PDFs;
 - endpoint `POST /api/query`;
+- interfaz Chainlit;
 - API mock de produccion;
 - tests automatizados;
 - grafo LangGraph invocable desde API, tests y codigo Python;
@@ -61,7 +65,6 @@ Disponible para ejecutar actualmente:
 
 Pendiente todavia:
 
-- interfaz Chainlit;
 - Docker Compose.
 
 ## Arquitectura decidida
@@ -136,10 +139,20 @@ Activar entorno en PowerShell:
 .\.venv\Scripts\Activate.ps1
 ```
 
+En Cursor o VS Code, con la extension Python instalada, las terminales integradas activan `.venv` automaticamente gracias a `.vscode/settings.json`. Si no ocurre en PowerShell, revisa la politica de ejecucion (`Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`) o abre una terminal nueva tras recargar la ventana.
+
 Instalar dependencias:
 
 ```bash
 pip install -r requirements-dev.txt
+```
+
+En local, `requirements-dev.txt` no instala ChromaDB nativo para evitar errores de compilacion de `chroma-hnswlib` en Windows. La POC usa fallback en memoria si Chroma no esta disponible.
+
+Instalar ChromaDB local solo si lo necesitas:
+
+```bash
+pip install -r requirements-chroma.txt
 ```
 
 Ejecutar tests:
@@ -187,6 +200,15 @@ curl -X POST http://localhost:8000/api/query \
   -d "{\"question\":\"Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?\"}"
 ```
 
+Ejecutar interfaz Chainlit:
+
+```powershell
+$env:BACKEND_API_BASE_URL="http://localhost:8000"
+python -m chainlit run chainlit_app/main.py -w --port 8002
+```
+
+La UI queda disponible en `http://localhost:8002`.
+
 ## API mock de produccion
 
 Ejecutar manualmente:
@@ -205,9 +227,9 @@ Endpoints del mock:
 
 ## Siguiente fase
 
-Fase 7:
+Fase 8:
 
-- preparar interfaz Chainlit para demo;
-- mostrar respuesta, fuentes, reasoning visible y tool calls;
-- conectar con el backend mediante `/api/query`;
-- mantener UI ligera y orientada a la prueba tecnica.
+- endurecer trazabilidad y respuesta estructurada;
+- revisar estados de error y respuestas parciales;
+- asegurar que no se expone razonamiento interno sensible;
+- dejar el contrato listo para Docker y demo final.

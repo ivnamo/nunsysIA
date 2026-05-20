@@ -74,7 +74,7 @@ El foco de evaluacion no es que el chat "hable bonito". El foco es demostrar que
 - FastAPI para APIs.
 - Chainlit para UI conversacional.
 - Docker Compose para levantar todo.
-- PostgreSQL como base empresarial principal.
+- SQLite local con seed Northwind reducido para la POC actual; PostgreSQL queda como objetivo empresarial para Docker Compose si se endurece persistencia.
 - Northwind reducido como simulacion de ERP.
 - API mock de produccion con FastAPI.
 - LangGraph como orquestador principal del flujo agentic.
@@ -232,7 +232,7 @@ El Validator puede ser un nodo determinista, no necesariamente otro agente LLM. 
 | D04 | Planner + Reasoner/Executor + Validator | Separa planificacion, ejecucion y control de calidad | Evita mezclar razonamiento y llamadas externas | Decidida |
 | D05 | Validator determinista inicialmente | Reduce coste y variabilidad | Menos "agentic", mas robusto para POC | Decidida |
 | D06 | Pydantic para contratos | Hace planes y respuestas testeables | Menos riesgo de JSON libre roto | Decidida |
-| D07 | PostgreSQL + Northwind reducido para ERP | Realista y controlable | Datos previsibles para demo | Decidida |
+| D07 | Northwind reducido con SQLite local y posible PostgreSQL en Docker | Realista, rapido y controlable en local; PostgreSQL queda como endurecimiento empresarial | Datos previsibles para demo | Decidida |
 | D08 | ChromaDB como vector store inicial | Rapido de montar y suficiente para POC documental | Requiere servicio o persistencia en Docker | Decidida |
 | D09 | No introducir vector stores alternativos sin permiso | Evita bifurcar arquitectura | Mantiene foco en entrega | Decidida |
 | D10 | Guardrails eticos y de seguridad | Evita alucinaciones y exposicion de datos | Requiere validator y prompts estrictos | Decidida |
@@ -285,7 +285,7 @@ LangGraph Agentic Workflow
 
 Tools
   |
-  +-- ERPTool              -> PostgreSQL / Northwind
+  +-- ERPTool              -> Northwind reducido local / futuro PostgreSQL
   +-- ProductionAPITool    -> FastAPI mock produccion
   +-- DocumentRAGTool      -> PDF chunks + ChromaDB
   +-- MemoryTool           -> ultimas 5 interacciones
@@ -326,7 +326,7 @@ class AgentState(TypedDict):
     reasoning_trace: list[str]
     tool_calls: list[dict]
     attempts: int
-    status: Literal["planning", "executing", "validating", "completed", "partial", "failed"]
+    status: Literal["planning", "executing", "validating", "completed", "partial_answer", "insufficient_context", "tool_error", "failed", "unsupported"]
     final_answer: str | None
     failure_reason: str | None
     confidence: float | None
@@ -470,7 +470,7 @@ Antes de responder sobre documentos:
 Guardrails minimos:
 
 - No inventar clientes, pedidos, importes, estados ni clausulas documentales.
-- Si falta evidencia, responder con `insufficient_context` o `partial`.
+- Si falta evidencia, responder con `insufficient_context` o `partial_answer`.
 - No exponer variables de entorno, credenciales ni cadenas de conexion.
 - No devolver chain-of-thought interno; devolver `reasoning` resumido y auditable.
 - No ejecutar tools fuera de la lista permitida.
@@ -517,28 +517,36 @@ Response recomendada:
   "sources": ["ERP", "Produccion"],
   "reasoning": [
     "Consulta ERP para pedidos pendientes del cliente ALFKI.",
-    "Consulta API de produccion usando los order_ids recuperados.",
-    "Fusion de resultados ERP + produccion."
+    "Consulta API de produccion para pedido 10248.",
+    "Consulta API de produccion para pedido 10252."
   ],
   "tool_calls": [
     {
       "tool": "ERPTool",
-      "action": "get_pending_orders_by_customer",
       "args": {"customer_id": "ALFKI"},
       "status": "success",
       "duration_ms": 35,
-      "output_summary": "2 pedidos pendientes"
+      "output_summary": "2 pedidos pendientes encontrados",
+      "source": "ERP"
     },
     {
       "tool": "ProductionAPITool",
-      "action": "get_orders_status",
-      "args": {"order_ids": ["10248", "10252"]},
+      "args": {"order_id": 10248},
       "status": "success",
       "duration_ms": 48,
-      "output_summary": "1 en fabricacion, 1 bloqueado"
+      "output_summary": "Estado de produccion in_progress",
+      "source": "Produccion"
+    },
+    {
+      "tool": "ProductionAPITool",
+      "args": {"order_id": 10252},
+      "status": "success",
+      "duration_ms": 48,
+      "output_summary": "Estado de produccion blocked",
+      "source": "Produccion"
     }
   ],
-  "confidence": 0.86,
+  "confidence": 0.9,
   "status": "completed",
   "data": {
     "erp_orders_count": 2,
@@ -554,7 +562,7 @@ Nota: `data` debe ser un resumen publico de evidencias. No debe devolver filas r
 Estados permitidos:
 
 - `completed`
-- `partial`
+- `partial_answer`
 - `failed`
 - `insufficient_context`
 - `unsupported`
@@ -986,7 +994,7 @@ Tareas:
 
 Pruebas manuales:
 
-- [ ] Abrir `http://localhost:8501`.
+- [ ] Abrir `http://localhost:8002`.
 - [ ] Preguntar por ALFKI.
 - [ ] Preguntar por bloqueados.
 - [ ] Subir PDF.

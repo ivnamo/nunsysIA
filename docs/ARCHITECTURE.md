@@ -42,11 +42,11 @@ Las rutas deben ser finas y delegar la logica en servicios, tools o el grafo.
 
 ### Chainlit
 
-Interfaz conversacional para demo y pruebas manuales. Debe mostrar respuesta, fuentes, reasoning visible, tool calls y estado.
+Interfaz conversacional para demo y pruebas manuales. Muestra respuesta, fuentes, reasoning visible, tool calls y estado. Permite adjuntar PDFs al espacio documental del backend y listar documentos con `/documentos`.
 
 ### Planner Agent
 
-Clasifica la intencion de la pregunta y genera un plan estructurado. No ejecuta tools ni inventa datos.
+Clasifica la intencion de la pregunta y genera un plan estructurado. En la fase actual es hibrido: puede usar Gemini/OpenAI si estan configurados, pero solo acepta planes que cumplan el schema Pydantic y una lista cerrada de tools/actions. Si el LLM falla, tarda demasiado o propone una accion no permitida, cae al planner determinista. No ejecuta tools ni inventa datos.
 
 ### Reasoner / Executor Agent
 
@@ -60,14 +60,16 @@ Comprueba si hay datos suficientes, fuentes requeridas, schema valido y trazabil
 
 Construye la respuesta final con `answer`, `sources`, `reasoning`, `tool_calls`, `status` y `confidence` cuando sea posible.
 
+En el estado actual la redaccion final es mayoritariamente determinista. La mejora pendiente es usar LLM controlado solo para redactar sobre datos ya devueltos por tools.
+
 ## Tools
 
 Las tools son deterministas y devuelven datos estructurados:
 
 - `ERPTool`: consulta Northwind.
 - `ProductionAPITool`: consulta la API mock de produccion.
-- `DocumentRAGTool`: consulta documentos indexados en ChromaDB.
-- `MemoryTool`: recupera las ultimas interacciones si existe memoria.
+- `DocumentRAGTool`: consulta documentos indexados en el vector store documental.
+- `MemoryTool`: previsto para recuperar las ultimas interacciones; todavia no esta implementado como memoria conversacional completa.
 
 ## RAG
 
@@ -76,12 +78,24 @@ RAG se implementa como tool, no como agente autonomo.
 Pipeline:
 
 ```text
-PDF -> texto -> chunks -> embeddings -> ChromaDB -> retrieval -> respuesta con fuentes
+PDF -> texto -> chunks -> embeddings -> vector store -> retrieval -> respuesta con fuentes
 ```
 
 Cada chunk debe conservar `document_id`, `filename`, `page`, `chunk_id` y `uploaded_at`.
 
 Si no hay contexto documental suficiente, el sistema debe devolver `insufficient_context`.
+
+El vector store objetivo es ChromaDB. En local, si ChromaDB no esta instalado o no responde, la app usa un fallback en memoria para que la POC siga siendo validable sin Docker.
+
+La fase actual devuelve documentos usados en `data.rag.documents`; las citas visibles por chunk con `filename`, `page`, `chunk_id` y `score` son la siguiente mejora P9.
+
+## LLM y proveedores
+
+- Proveedor por defecto para pruebas reales: Gemini.
+- Modelo Gemini actual configurado: `gemini-2.0-flash`.
+- OpenAI queda soportado por variables de entorno sin cambiar el grafo ni las tools.
+- Los tests basicos no dependen de llamadas pagadas.
+- El Planner tiene timeout y retries desactivados para evitar bloqueos largos por modelos invalidos.
 
 ## Trazabilidad
 
@@ -104,6 +118,26 @@ No se debe exponer chain-of-thought interno.
 - Pydantic para contratos estables.
 - pytest para pruebas deterministas.
 - Docker Compose para reproducibilidad.
+
+## Estado Actual de Implementacion
+
+Implementado y validado manualmente:
+
+- FastAPI con endpoints principales.
+- Mock API de produccion.
+- ERP Northwind reducido con SQLite local y seed controlado.
+- LangGraph con Planner, Reasoner/Executor, Validator y FinalResponseBuilder.
+- RAG PDF con documentos mock de demo.
+- Chainlit con subida de PDFs.
+- Trazabilidad estructurada y sanitizada.
+- Planner hibrido con LLM opcional.
+
+Pendiente para cierre de producto:
+
+- memoria conversacional de 5 interacciones;
+- citas documentales visibles por chunk;
+- respuesta final con LLM controlado;
+- Docker Compose completo.
 
 ## Por Que Encaja con una POC Senior
 

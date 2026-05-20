@@ -39,12 +39,12 @@ Response `200`:
 
 ```json
 {
-  "answer": "El cliente ALFKI tiene 3 pedidos pendientes...",
+  "answer": "Pedidos del cliente ALFKI: 10248: ERP pending, produccion in_progress; 10252: ERP pending, produccion blocked (Falta de material).",
   "sources": ["ERP", "Produccion"],
   "reasoning": [
-    "Consulta ERP para pedidos pendientes",
-    "Consulta API de produccion usando order_ids",
-    "Fusion de resultados ERP + produccion"
+    "Consulta ERP de pedidos pendientes",
+    "Consulta API de produccion para pedido 10248",
+    "Consulta API de produccion para pedido 10252"
   ],
   "tool_calls": [
     {
@@ -53,15 +53,40 @@ Response `200`:
         "customer_id": "ALFKI"
       },
       "status": "success",
-      "output_summary": "3 pedidos encontrados"
+      "output_summary": "2 pedidos pendientes encontrados",
+      "error": null,
+      "duration_ms": 0,
+      "source": "ERP"
+    },
+    {
+      "tool": "ProductionAPITool",
+      "args": {
+        "order_id": 10248
+      },
+      "status": "success",
+      "output_summary": "Estado de produccion in_progress",
+      "error": null,
+      "duration_ms": 0,
+      "source": "Produccion"
+    },
+    {
+      "tool": "ProductionAPITool",
+      "args": {
+        "order_id": 10252
+      },
+      "status": "success",
+      "output_summary": "Estado de produccion blocked",
+      "error": null,
+      "duration_ms": 0,
+      "source": "Produccion"
     }
   ],
-  "confidence": 0.86,
+  "confidence": 0.9,
   "status": "completed",
   "data": {
-    "erp_orders_count": 3,
-    "erp_order_ids": [10248, 10252, 10301],
-    "production_statuses_count": 3
+    "erp_orders_count": 2,
+    "erp_order_ids": [10248, 10252],
+    "production_statuses_count": 2
   },
   "failure_reason": null
 }
@@ -78,13 +103,12 @@ Estados posibles:
 
 Errores posibles:
 
-- `400`: request invalido.
 - `422`: validacion Pydantic.
 - `500`: error interno controlado.
 
 ## `POST /api/documents/upload`
 
-Descripcion: sube un PDF para indexarlo en ChromaDB.
+Descripcion: sube un PDF para indexarlo en el vector store documental. En local puede usarse el fallback en memoria si ChromaDB no esta instalado o disponible.
 
 Request: `multipart/form-data`.
 
@@ -140,6 +164,7 @@ Errores posibles:
 - No devolver objetos internos de LangChain, LangGraph o ChromaDB.
 - No devolver filas raw de ERP, respuestas raw de produccion ni chunks completos en `data`.
 - `data` debe ser un resumen publico de evidencias para auditoria y demo.
+- En respuestas RAG, `data.rag.documents` resume los documentos usados. Las citas completas por chunk quedan pendientes de la siguiente iteracion P9.
 - No devolver secretos.
 - Mantener respuestas compatibles con Pydantic.
 - Los errores deben ser comprensibles y trazables.

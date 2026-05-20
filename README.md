@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Fase actual: **Fase 8 - Trazabilidad y respuesta estructurada**.
+Fase actual: **P9 - funcionalidad evaluable de producto**.
 
 Este repositorio contiene por ahora:
 
@@ -54,6 +54,10 @@ Este repositorio contiene por ahora:
 - normalizacion de trazas publicas;
 - sanitizacion de argumentos, errores y failure reasons;
 - resumen publico de evidencias en `data` sin filas raw ni objetos internos.
+- abstraccion LLM para Gemini/OpenAI con fallback determinista;
+- Planner hibrido: LLM opcional + schema Pydantic + lista cerrada de tools/actions;
+- PDFs mock realistas en `data/sample_docs/`;
+- validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
 
 Disponible para ejecutar actualmente:
 
@@ -72,6 +76,9 @@ Disponible para ejecutar actualmente:
 
 Pendiente todavia:
 
+- respuesta final redactada con LLM controlado, solo sobre datos de tools;
+- citas documentales visibles con `filename`, `page`, `chunk_id` y `score`;
+- memoria conversacional de ultimas 5 interacciones;
 - Docker Compose.
 
 ## Arquitectura decidida
@@ -200,14 +207,16 @@ pytest
 
 Ejecutar backend principal:
 
-```bash
-python -m uvicorn app.main:app --reload --port 8000
+```powershell
+$env:PRODUCTION_API_BASE_URL="http://localhost:8001"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
 ```
 
-Si vas a probar consultas que llamen a produccion fuera de Docker, en PowerShell apunta el backend al mock local antes de arrancarlo:
+Para desarrollo con reload en Windows, limita el directorio observado para no vigilar `.venv`:
 
 ```powershell
 $env:PRODUCTION_API_BASE_URL="http://localhost:8001"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --reload-dir app --port 8000
 ```
 
 Comprobar health:
@@ -255,7 +264,7 @@ Ejecutar interfaz Chainlit:
 
 ```powershell
 $env:BACKEND_API_BASE_URL="http://localhost:8000"
-python -m chainlit run chainlit_app/main.py -w --port 8002
+.\.venv\Scripts\python.exe -m chainlit run chainlit_app/main.py -w --port 8002
 ```
 
 La UI queda disponible en `http://localhost:8002`.
@@ -272,8 +281,8 @@ preguntas RAG. Para listar el espacio documental desde la UI, envia:
 
 Ejecutar manualmente:
 
-```bash
-python -m uvicorn production_mock.main:app --reload --port 8001
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn production_mock.main:app --port 8001
 ```
 
 Endpoints del mock:

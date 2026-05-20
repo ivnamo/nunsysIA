@@ -56,7 +56,7 @@ El razonamiento interno no debe devolverse al usuario.
   "reasoning": [
     "Se consulto ERP para obtener pedidos pendientes del cliente ALFKI.",
     "Se consulto produccion para obtener el estado de esos pedidos.",
-    "Se fusionaron importes ERP con estados productivos."
+    "Se fusionaron pedidos ERP con estados productivos."
   ],
   "tool_calls": [
     {
@@ -68,9 +68,16 @@ El razonamiento interno no debe devolverse al usuario.
     },
     {
       "tool": "ProductionAPITool",
-      "args": {"order_ids": ["10248", "10252"]},
+      "args": {"order_id": 10248},
       "status": "success",
-      "output_summary": "1 pedido en fabricacion, 1 bloqueado",
+      "output_summary": "Estado de produccion in_progress",
+      "source": "Produccion"
+    },
+    {
+      "tool": "ProductionAPITool",
+      "args": {"order_id": 10252},
+      "status": "success",
+      "output_summary": "Estado de produccion blocked",
       "source": "Produccion"
     }
   ],
@@ -107,6 +114,7 @@ El razonamiento interno no debe devolverse al usuario.
 - `insufficient_context`: no hay contexto suficiente para responder sin inventar.
 - `tool_error`: fallo controlado de una tool.
 - `failed`: fallo no recuperable.
+- `unsupported`: pregunta fuera del alcance de la POC actual.
 
 ## Reglas de Seguridad
 
@@ -133,3 +141,5 @@ El campo `data` puede usarse para facilitar demo y auditoria, pero debe contener
 - `rag.documents`
 
 No debe contener importes detallados, textos completos de chunks, connection strings, errores raw, prompts ni objetos internos.
+
+Las citas documentales completas por chunk (`filename`, `page`, `chunk_id`, `score`) estan previstas como mejora P9. Hasta entonces `data.rag.documents` permite auditar que documentos participaron sin exponer chunks completos.

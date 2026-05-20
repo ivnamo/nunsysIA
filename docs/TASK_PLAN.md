@@ -2,7 +2,27 @@
 
 Este plan guia la implementacion por fases. No se debe avanzar a la siguiente fase si la actual no tiene criterio de aceptacion cumplido o documentado como pendiente.
 
+## Estado actual
+
+El repositorio ya ha superado las fases 0 a 8 y se encuentra en **P9 - funcionalidad evaluable de producto**. La prioridad actual no es Docker todavia, sino cerrar los comportamientos que se van a evaluar en la demo:
+
+- Planner hibrido con LLM opcional y fallback determinista.
+- RAG multi-documento con PDFs mock realistas.
+- Chainlit con subida de documentos al espacio documental.
+- Validacion manual reproducible.
+- Guardrails para no inventar y devolver `insufficient_context`.
+
+Pendiente antes del cierre:
+
+- respuesta final con LLM controlado solo sobre datos de tools;
+- citas documentales visibles por chunk;
+- memoria conversacional de ultimas 5 interacciones;
+- Docker Compose completo;
+- README final y guion demo.
+
 ## Fase 0: Setup y estructura
+
+Estado: completada.
 
 Objetivo: preparar el repositorio sin logica funcional.
 
@@ -27,6 +47,8 @@ Riesgos:
 
 ## Fase 1: FastAPI base + schemas + health
 
+Estado: completada.
+
 Objetivo: tener backend minimo ejecutable.
 
 Tareas:
@@ -46,6 +68,8 @@ Riesgos:
 - Meter logica de negocio en rutas.
 
 ## Fase 2: ERP Northwind
+
+Estado: completada con Northwind reducido y SQLite local para tests/demo. PostgreSQL queda como objetivo de Docker Compose si se decide endurecer persistencia.
 
 Objetivo: preparar ERP simulado con datos controlados.
 
@@ -67,6 +91,8 @@ Riesgos:
 
 ## Fase 3: API mock de produccion
 
+Estado: completada.
+
 Objetivo: simular sistema externo de produccion.
 
 Tareas:
@@ -86,6 +112,8 @@ Riesgos:
 - Acoplar produccion directamente a la base ERP.
 
 ## Fase 4: Tools ERP y produccion
+
+Estado: completada.
 
 Objetivo: encapsular integraciones como tools deterministas.
 
@@ -107,6 +135,8 @@ Riesgos:
 - Permitir que el LLM invente datos de tool.
 
 ## Fase 5: LangGraph basico con Planner/Reasoner/Validator
+
+Estado: completada. El Planner se ha reforzado en P9 como hibrido LLM + fallback determinista.
 
 Objetivo: montar el workflow agentic minimo.
 
@@ -131,6 +161,8 @@ Riesgos:
 
 ## Fase 6: RAG con subida de PDFs
 
+Estado: completada en version funcional. Pendiente P9: citas visibles por chunk y mejora de retrieval/evidencias.
+
 Objetivo: permitir consultas documentales.
 
 Tareas:
@@ -139,7 +171,7 @@ Tareas:
 - Extraer texto.
 - Crear chunks.
 - Crear embeddings.
-- Guardar en ChromaDB.
+- Guardar en vector store documental. ChromaDB es el objetivo; en local existe fallback en memoria si ChromaDB no esta instalado o disponible.
 - Crear `DocumentRAGTool`.
 - Crear tests de ingestion y retrieval.
 
@@ -155,6 +187,8 @@ Riesgos:
 
 ## Fase 7: Chainlit
 
+Estado: completada en version funcional.
+
 Objetivo: preparar interfaz de demo.
 
 Tareas:
@@ -162,7 +196,7 @@ Tareas:
 - Crear app Chainlit.
 - Conectar con `/api/query`.
 - Mostrar respuesta, fuentes, reasoning y tool calls.
-- Permitir upload PDF si el tiempo lo permite.
+- Permitir upload PDF al espacio documental.
 
 Criterio de aceptacion:
 
@@ -173,6 +207,8 @@ Riesgos:
 - Dedicar demasiado tiempo a UI antes de estabilizar API.
 
 ## Fase 8: Trazabilidad y respuesta estructurada
+
+Estado: completada.
 
 Objetivo: endurecer contrato de salida.
 
@@ -192,7 +228,38 @@ Riesgos:
 
 - Exponer chain-of-thought o secretos.
 
-## Fase 9: Docker Compose
+## Fase P9: Funcionalidad evaluable de producto
+
+Estado: en curso.
+
+Objetivo: convertir la POC en una demo funcional y defendible, no solo una arquitectura minima.
+
+Tareas:
+
+- Integrar proveedor LLM real con Gemini y soporte alternativo OpenAI.
+- Mantener fallback determinista para tests y demo sin proveedor.
+- Endurecer Planner con schema Pydantic, timeout y lista cerrada de actions.
+- Crear PDFs mock realistas para RAG.
+- Probar upload + query documental desde API y Chainlit.
+- Documentar validacion manual exacta.
+- Mejorar respuesta final con LLM controlado.
+- Incluir citas documentales visibles por chunk.
+- Implementar memoria conversacional simple.
+
+Criterio de aceptacion:
+
+- Las preguntas obligatorias ERP/produccion/documentos funcionan en API y Chainlit.
+- `pytest` pasa sin llamadas pagadas.
+- Las respuestas incluyen trazabilidad.
+- Las consultas sin evidencia documental devuelven `insufficient_context`.
+
+Riesgos:
+
+- LLM lento o modelo invalido bloqueando la demo.
+- RAG con falsos positivos.
+- Redaccion final demasiado tecnica.
+
+## Fase P10: Docker Compose
 
 Objetivo: levantar la POC completa.
 
@@ -211,7 +278,7 @@ Riesgos:
 
 - Problemas de red entre servicios.
 
-## Fase 10: Tests minimos
+## Fase P11: Tests minimos y hardening
 
 Objetivo: asegurar comportamiento clave.
 
@@ -232,7 +299,7 @@ Riesgos:
 
 - Tests fragiles dependientes del LLM.
 
-## Fase 11: README y demo
+## Fase P12: README y demo final
 
 Objetivo: dejar entrega defendible.
 

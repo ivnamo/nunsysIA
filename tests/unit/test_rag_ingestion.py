@@ -1,5 +1,15 @@
+import pytest
+
 from app.rag.ingestion import DocumentIngestionService
-from app.rag.vector_store import InMemoryDocumentVectorStore
+from app.rag.vector_store import InMemoryDocumentVectorStore, VectorStoreError
+
+
+class _FailingEmbeddingModel:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        raise RuntimeError("embedding provider unavailable")
+
+    def embed_query(self, text: str) -> list[float]:
+        raise RuntimeError("embedding provider unavailable")
 
 
 def test_document_ingestion_indexes_pdf_chunks_with_required_metadata() -> None:
@@ -16,8 +26,25 @@ def test_document_ingestion_indexes_pdf_chunks_with_required_metadata() -> None:
     assert response.status == "indexed"
     assert response.filename == "contrato.pdf"
     assert response.chunks_indexed == 1
+    assert any("FALLBACK_VECTOR_STORE_IN_MEMORY" in fallback for fallback in response.fallbacks)
+    assert any("FALLBACK_EMBEDDINGS_DETERMINISTIC" in fallback for fallback in response.fallbacks)
     assert documents[0].document_id == response.document_id
     assert documents[0].chunks_indexed == 1
+
+
+def test_document_ingestion_returns_controlled_error_when_embedding_fails() -> None:
+    service = DocumentIngestionService(
+        vector_store=InMemoryDocumentVectorStore(),
+        embedding_model=_FailingEmbeddingModel(),
+    )
+
+    with pytest.raises(VectorStoreError) as exc_info:
+        service.ingest_pdf(
+            content=_pdf_bytes("Contrato marco con penalizacion por retrasos."),
+            filename="contrato.pdf",
+        )
+
+    assert "embeddings" in str(exc_info.value)
 
 
 def _pdf_bytes(text: str) -> bytes:

@@ -14,7 +14,6 @@ El repositorio ya ha superado las fases 0 a 8 y se encuentra en **P9 - funcional
 
 Pendiente antes del cierre:
 
-- respuesta final con LLM controlado solo sobre datos de tools;
 - citas documentales visibles por chunk;
 - memoria conversacional de ultimas 5 interacciones;
 - Docker Compose completo;
@@ -214,7 +213,7 @@ Objetivo: endurecer contrato de salida.
 
 Tareas:
 
-- Estandarizar `tool_calls`.
+- Estandarizar `tool_calls` y `fallbacks`.
 - Estandarizar estados.
 - Sanitizar errores.
 - Documentar trazas.
@@ -237,12 +236,12 @@ Objetivo: convertir la POC en una demo funcional y defendible, no solo una arqui
 Tareas:
 
 - Integrar proveedor LLM real con Gemini y soporte alternativo OpenAI.
-- Mantener fallback determinista para tests y demo sin proveedor.
+- Mantener fallback determinista para tests y demo sin proveedor, siempre marcado con `FALLBACK_*`.
 - Endurecer Planner con schema Pydantic, timeout y lista cerrada de actions.
 - Crear PDFs mock realistas para RAG.
 - Probar upload + query documental desde API y Chainlit.
 - Documentar validacion manual exacta.
-- Mejorar respuesta final con LLM controlado.
+- Mejorar respuesta final con LLM controlado. Estado: completada.
 - Incluir citas documentales visibles por chunk.
 - Implementar memoria conversacional simple.
 

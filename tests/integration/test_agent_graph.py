@@ -13,6 +13,14 @@ from app.tools.production_tool import ProductionAPITool
 from app.tools.rag_tool import DocumentRAGTool
 
 
+class _FailingEmbeddingModel:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        raise RuntimeError("embedding provider unavailable")
+
+    def embed_query(self, text: str) -> list[float]:
+        raise RuntimeError("embedding provider unavailable")
+
+
 @pytest.fixture()
 def erp_tool() -> ERPTool:
     connection = create_sqlite_connection()
@@ -128,6 +136,26 @@ def test_agent_graph_answers_rag_query_when_document_tool_is_configured(
     assert response.sources == ["Documentos"]
     assert "penalizacion" in response.answer
     assert response.tool_calls[0].tool == "DocumentRAGTool"
+
+
+def test_agent_graph_returns_tool_error_when_rag_embedding_fails(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        rag_tool=DocumentRAGTool(
+            vector_store=InMemoryDocumentVectorStore(),
+            embedding_model=_FailingEmbeddingModel(),
+        ),
+        question="Que dice el PDF del contrato sobre penalizacion por retrasos?",
+    )
+
+    assert response.status == "tool_error"
+    assert response.sources == ["Documentos"]
+    assert response.tool_calls[0].status == "error"
+    assert "fiable" in response.answer
 
 
 def _production_transport() -> httpx.MockTransport:

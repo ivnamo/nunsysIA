@@ -41,6 +41,10 @@ class ReasonerExecutorAgent:
             "tool_calls": execution.tool_calls,
             "sources": execution.sources,
             "reasoning": execution.reasoning,
+            "fallbacks": _merge_fallbacks(
+                state.get("fallbacks", []),
+                execution.fallbacks,
+            ),
             "data": execution.data,
             "status": "executing",
         }
@@ -190,12 +194,14 @@ class _ExecutionContext:
         self.tool_calls: list[ToolCallTrace] = []
         self.sources: list[SourceName] = []
         self.reasoning: list[str] = []
+        self.fallbacks: list[str] = []
         self.data: dict[str, Any] = {}
 
     def add_result(self, result: ToolResult, reasoning_step: str) -> None:
         self.tool_results.append(result.model_dump(mode="json"))
         self.tool_calls.append(result.tool_call)
         self._add_source(result.tool_call.source)
+        self._add_fallbacks_from_result(result)
         self.reasoning.append(reasoning_step)
 
     def add_skipped(
@@ -216,8 +222,30 @@ class _ExecutionContext:
             ToolResult(data=None, tool_call=tool_call).model_dump(mode="json")
         )
         self.tool_calls.append(tool_call)
+        if "FALLBACK" in summary:
+            self._add_fallback(summary)
         self.reasoning.append(summary)
 
     def _add_source(self, source: SourceName) -> None:
         if source not in self.sources:
             self.sources.append(source)
+
+    def _add_fallbacks_from_result(self, result: ToolResult) -> None:
+        if result.tool_call.output_summary and "FALLBACK" in result.tool_call.output_summary:
+            self._add_fallback(result.tool_call.output_summary)
+
+        if isinstance(result.data, dict):
+            for fallback in result.data.get("fallbacks", []):
+                self._add_fallback(str(fallback))
+
+    def _add_fallback(self, fallback: str) -> None:
+        if fallback not in self.fallbacks:
+            self.fallbacks.append(fallback)
+
+
+def _merge_fallbacks(left: list[str], right: list[str]) -> list[str]:
+    fallbacks = []
+    for fallback in [*left, *right]:
+        if fallback not in fallbacks:
+            fallbacks.append(fallback)
+    return fallbacks

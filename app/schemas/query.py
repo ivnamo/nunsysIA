@@ -27,6 +27,10 @@ class QueryResponse(BaseModel):
     sources: list[SourceName] = Field(default_factory=list)
     reasoning: list[str] = Field(default_factory=list)
     tool_calls: list[ToolCallTrace] = Field(default_factory=list)
+    fallbacks: list[str] = Field(
+        default_factory=list,
+        description="Mecanismos FALLBACK usados durante la ejecucion, visibles para auditoria.",
+    )
     confidence: float | None = Field(default=None, ge=0, le=1)
     status: QueryStatus
     data: dict | None = Field(

@@ -41,6 +41,7 @@ class AgentState(TypedDict, total=False):
     sources: list[str]
     reasoning: list[str]
     tool_calls: list[ToolCallTrace]
+    fallbacks: list[str]
     attempts: int
     status: WorkflowStatus
     final_answer: str | None

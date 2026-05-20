@@ -24,6 +24,8 @@ Errores posibles:
 
 Descripcion: recibe una pregunta en lenguaje natural y la procesa mediante el workflow agentic.
 
+La respuesta puede estar redactada por el `FinalResponseBuilder` con LLM controlado, pero siempre debe respetar el mismo schema y usar solo evidencias devueltas por tools. Si el LLM no es seguro, se devuelve la respuesta determinista y el campo `fallbacks` debe indicar `FALLBACK`.
+
 Request:
 
 ```json
@@ -39,7 +41,7 @@ Response `200`:
 
 ```json
 {
-  "answer": "Pedidos del cliente ALFKI: 10248: ERP pending, produccion in_progress; 10252: ERP pending, produccion blocked (Falta de material).",
+  "answer": "Pedidos del cliente ALFKI: 10248: ERP pendiente, produccion en curso; 10252: ERP pendiente, produccion bloqueado (Falta de material).",
   "sources": ["ERP", "Produccion"],
   "reasoning": [
     "Consulta ERP de pedidos pendientes",
@@ -80,6 +82,10 @@ Response `200`:
       "duration_ms": 0,
       "source": "Produccion"
     }
+  ],
+  "fallbacks": [
+    "FALLBACK_PLANNER_RULE_BASED: LLM planner no configurado; plan creado por reglas.",
+    "FALLBACK_FINAL_RESPONSE_DETERMINISTIC: LLM final no configurado; respuesta construida por reglas."
   ],
   "confidence": 0.9,
   "status": "completed",
@@ -123,7 +129,10 @@ Response `201`:
   "document_id": "doc_123",
   "filename": "contrato.pdf",
   "status": "indexed",
-  "chunks_indexed": 24
+  "chunks_indexed": 24,
+  "fallbacks": [
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; documentos en memoria del proceso."
+  ]
 }
 ```
 
@@ -151,6 +160,9 @@ Response `200`:
       "uploaded_at": "2026-05-19T10:30:00Z",
       "chunks_indexed": 24
     }
+  ],
+  "fallbacks": [
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; documentos en memoria del proceso."
   ]
 }
 ```
@@ -164,6 +176,7 @@ Errores posibles:
 - No devolver objetos internos de LangChain, LangGraph o ChromaDB.
 - No devolver filas raw de ERP, respuestas raw de produccion ni chunks completos en `data`.
 - `data` debe ser un resumen publico de evidencias para auditoria y demo.
+- `fallbacks` debe listar cualquier ruta alternativa usada: planner por reglas, respuesta determinista, embeddings deterministas o vector store en memoria.
 - En respuestas RAG, `data.rag.documents` resume los documentos usados. Las citas completas por chunk quedan pendientes de la siguiente iteracion P9.
 - No devolver secretos.
 - Mantener respuestas compatibles con Pydantic.

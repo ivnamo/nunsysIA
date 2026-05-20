@@ -5,7 +5,11 @@ from pydantic import BaseModel, Field
 
 from app.core.tracing import ToolCallTrace, ToolResult
 from app.rag.embeddings import DeterministicEmbeddingModel, EmbeddingModel
-from app.rag.vector_store import DocumentVectorStore, VectorStoreError
+from app.rag.vector_store import (
+    DocumentVectorStore,
+    InMemoryDocumentVectorStore,
+    VectorStoreError,
+)
 from app.schemas.documents import DocumentRAGAnswer
 
 _RAG_STOPWORDS = {
@@ -50,6 +54,15 @@ class DocumentRAGTool:
     ) -> None:
         self._vector_store = vector_store
         self._embedding_model = embedding_model or DeterministicEmbeddingModel()
+        self._fallbacks: list[str] = []
+        if isinstance(self._vector_store, InMemoryDocumentVectorStore):
+            self._add_fallback(
+                "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso."
+            )
+        if isinstance(self._embedding_model, DeterministicEmbeddingModel):
+            self._add_fallback(
+                "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+            )
 
     def query(self, tool_input: DocumentRAGInput) -> ToolResult:
         started_at = perf_counter()
@@ -60,17 +73,16 @@ class DocumentRAGTool:
                 top_k=tool_input.top_k,
             )
         except VectorStoreError as exc:
-            return ToolResult(
-                data=None,
-                tool_call=ToolCallTrace(
-                    tool=self.name,
-                    args=tool_input.model_dump(),
-                    status="error",
-                    output_summary="Error al consultar documentos",
-                    error=str(exc),
-                    duration_ms=self._duration_ms(started_at),
-                    source="Documentos",
-                ),
+            return self._error_result(
+                tool_input=tool_input,
+                started_at=started_at,
+                error=str(exc),
+            )
+        except Exception:
+            return self._error_result(
+                tool_input=tool_input,
+                started_at=started_at,
+                error="Error al generar embeddings o consultar documentos.",
             )
 
         relevant_chunks = [
@@ -84,6 +96,7 @@ class DocumentRAGTool:
                 answer="No hay contexto documental suficiente para responder sin inventar.",
                 status="insufficient_context",
                 chunks=[],
+                fallbacks=self._fallbacks,
             )
             return ToolResult(
                 data=data.model_dump(mode="json"),
@@ -101,8 +114,10 @@ class DocumentRAGTool:
             answer=self._build_grounded_answer(relevant_chunks),
             status="completed",
             chunks=relevant_chunks,
+            fallbacks=self._fallbacks,
         )
         filenames = sorted({chunk.metadata.filename for chunk in relevant_chunks})
+        fallback_marker = " [FALLBACK]" if self._fallbacks else ""
         return ToolResult(
             data=data.model_dump(mode="json"),
             tool_call=ToolCallTrace(
@@ -110,9 +125,28 @@ class DocumentRAGTool:
                 args=tool_input.model_dump(),
                 status="success",
                 output_summary=(
-                    f"{len(relevant_chunks)} chunks recuperados de "
+                    f"{fallback_marker} {len(relevant_chunks)} chunks recuperados de "
                     f"{', '.join(filenames)}"
-                ),
+                ).strip(),
+                duration_ms=self._duration_ms(started_at),
+                source="Documentos",
+            ),
+        )
+
+    def _error_result(
+        self,
+        tool_input: DocumentRAGInput,
+        started_at: float,
+        error: str,
+    ) -> ToolResult:
+        return ToolResult(
+            data=None,
+            tool_call=ToolCallTrace(
+                tool=self.name,
+                args=tool_input.model_dump(),
+                status="error",
+                output_summary="Error al consultar documentos",
+                error=error,
                 duration_ms=self._duration_ms(started_at),
                 source="Documentos",
             ),
@@ -126,6 +160,10 @@ class DocumentRAGTool:
     @staticmethod
     def _duration_ms(started_at: float) -> int:
         return round((perf_counter() - started_at) * 1000)
+
+    def _add_fallback(self, fallback: str) -> None:
+        if fallback not in self._fallbacks:
+            self._fallbacks.append(fallback)
 
 
 def _has_query_evidence(query: str, text: str) -> bool:

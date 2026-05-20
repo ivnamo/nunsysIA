@@ -47,6 +47,7 @@ def _create_gemini_chat_model(settings: Settings) -> ChatModel | None:
         google_api_key=settings.gemini_api_key,
         temperature=settings.llm_temperature,
         request_timeout=settings.llm_timeout_seconds,
+        api_transport=settings.gemini_api_transport,
         retries=0,
     )
 
@@ -85,6 +86,7 @@ def _create_gemini_embeddings(settings: Settings) -> EmbeddingModel:
     return GoogleGenerativeAIEmbeddings(
         model=settings.gemini_embedding_model,
         google_api_key=settings.gemini_api_key,
+        transport=settings.gemini_api_transport,
     )
 
 

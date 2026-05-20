@@ -96,7 +96,7 @@ Nunca se debe commitear una API key real. La configuracion prevista es:
 ```env
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 LLM_TEMPERATURE=0
@@ -105,9 +105,12 @@ EMBEDDING_PROVIDER=gemini
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_MODEL=gemini-embedding-001
+ERP_DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/northwind
 ```
 
 El proveedor por defecto sera Gemini porque es la API key disponible ahora, pero la arquitectura debe permitir cambiar a OpenAI por variables de entorno sin tocar grafo, agents ni tools.
+
+Nota operativa: no usar `DATABASE_URL` para el ERP en local, porque Chainlit la interpreta como su propia configuracion de persistencia con `asyncpg`. El backend lee `ERP_DATABASE_URL` y mantiene `DATABASE_URL` solo como fallback legacy.
 
 ### Stack de arquitectura y control
 
@@ -178,7 +181,7 @@ El Validator puede ser un nodo determinista, no necesariamente otro agente LLM. 
 - Mantener las tools deterministas.
 - Usar `MAX_REPLANS` para evitar bucles infinitos.
 - Tratar RAG como `DocumentRAGTool`, no como tercer agente autonomo.
-- Devolver `tool_calls`, `sources`, `reasoning`, `confidence` y `status`.
+- Devolver `tool_calls`, `sources`, `reasoning`, `fallbacks`, `confidence` y `status`.
 - Incluir memoria como capability acotada, no como requisito central del MVP.
 - Dejar FastAPI como frontera estable entre UI, tests y orquestador.
 
@@ -693,8 +696,8 @@ Tareas:
 - [x] Mantener fallback determinista cuando no exista API key o dependencia opcional disponible.
 - [x] Instalar `langchain-google-genai` en `.venv` para pruebas reales con Gemini.
 - [x] Convertir Planner en hibrido: LLM configurado + schema Pydantic + fallback por reglas.
-- [ ] Mejorar FinalResponseBuilder para redactar con LLM solo a partir de datos de tools.
-- [x] Impedir que el LLM invente clientes, pedidos, importes, estados o clausulas desde el Planner mediante lista cerrada de tools/actions y fallback determinista.
+- [x] Mejorar FinalResponseBuilder para redactar con LLM solo a partir de datos de tools.
+- [x] Impedir que el LLM invente clientes, pedidos, importes, estados o clausulas desde Planner/FinalResponseBuilder mediante lista cerrada de actions, evidencias y fallback determinista.
 - [ ] Mejorar RAG para 3-5 documentos: top-k configurable, metadata, citas y scores.
 - [ ] Incluir citas documentales visibles: filename, page, chunk_id, score.
 - [ ] Implementar memoria conversacional simple con ultimas 5 interacciones por `conversation_id`.
@@ -704,8 +707,8 @@ Tareas:
 
 Casos obligatorios que deben funcionar antes de pasar a Docker:
 
-- [ ] "Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?"
-- [ ] "Que pedidos estan bloqueados y cual es el motivo?"
+- [x] "Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?"
+- [x] "Que pedidos estan bloqueados y cual es el motivo?"
 - [x] "Que clientes tienen pedidos retrasados por problemas de produccion?"
 - [ ] "Dame un resumen del estado de los pedidos de este mes"
 - [x] "Que dice este documento sobre plazos de entrega?"
@@ -721,6 +724,8 @@ Decision implementada:
 - Los argumentos se normalizan antes de ejecutar: no se aceptan actions arbitrarias ni campos extra sensibles.
 - Si el LLM falla, devuelve markdown roto, propone una accion no soportada o no hay API key, se usa el planner determinista.
 - El caso de pedidos retrasados queda soportado con `ProductionAPITool.list_orders(status="delayed")` y cruce posterior con ERP.
+- El FinalResponseBuilder puede usar LLM para redactar respuestas mas naturales, pero solo con evidencias del estado y con fallback determinista.
+- La respuesta final descarta salidas del LLM que introduzcan identificadores o numeros no presentes en las evidencias.
 
 Avance RAG/UI implementado:
 
@@ -734,8 +739,9 @@ Avance RAG/UI implementado:
 - Se anadio test de flujo API: subir varios PDFs, listar documentos y preguntar por plazos/penalizaciones mediante `/api/query`.
 - Se anadio test de `insufficient_context` para preguntas documentales sin evidencia.
 - Se documento el checklist de validacion manual con comandos exactos en `docs/MANUAL_VALIDATION.md`.
-- Se actualizo el modelo Gemini por defecto a `gemini-2.0-flash` porque `gemini-1.5-flash` puede devolver 404 en la Gemini API actual.
+- Se actualizo el modelo Gemini por defecto a `gemini-2.5-flash` porque `gemini-1.5-flash` puede devolver 404 y `gemini-2.0-flash` puede no estar disponible para usuarios nuevos en la Gemini API actual.
 - Se configuro `ChatGoogleGenerativeAI` con `request_timeout` y `retries=0` para evitar bloqueos largos ante modelos invalidos o errores del proveedor.
+- Se anadieron tests unitarios para respuesta final LLM grounded, fallback por invencion y fallback por timeout.
 
 Pruebas:
 
@@ -748,7 +754,8 @@ Pruebas reales con Gemini:
 ```powershell
 $env:GEMINI_API_KEY="..."
 $env:LLM_PROVIDER="gemini"
-$env:GEMINI_MODEL="gemini-2.0-flash"
+$env:GEMINI_MODEL="gemini-2.5-flash"
+$env:GEMINI_API_TRANSPORT="rest"
 ```
 
 Pruebas reales con OpenAI si manana se cambia de proveedor:
@@ -927,7 +934,7 @@ Tareas:
 - [ ] Crear Reasoner/Executor con ERPTool y ProductionAPITool.
 - [ ] Crear Validator determinista.
 - [ ] Implementar `POST /api/query`.
-- [ ] Devolver `answer`, `sources`, `reasoning`, `tool_calls`, `confidence`, `status`.
+- [ ] Devolver `answer`, `sources`, `reasoning`, `tool_calls`, `fallbacks`, `confidence`, `status`.
 - [ ] Modo test con planner determinista o LLM mock.
 
 Pruebas:
@@ -987,7 +994,7 @@ Tareas:
 
 - [ ] Crear `chainlit_app/app.py`.
 - [ ] Conectar preguntas con `POST /api/query`.
-- [ ] Mostrar respuesta, sources, reasoning, tool calls y status.
+- [ ] Mostrar respuesta, sources, reasoning, tool calls, fallbacks y status.
 - [ ] Permitir upload PDF desde UI.
 - [ ] Conectar upload con `/api/documents/upload`.
 - [ ] Anadir servicio Chainlit a Compose.
@@ -1152,7 +1159,7 @@ Lo que hay que destacar:
 La POC se considera terminada cuando:
 
 - [ ] `docker compose up --build` levanta backend, Postgres, ChromaDB, produccion y Chainlit.
-- [ ] `POST /api/query` responde con `answer`, `sources`, `reasoning`, `tool_calls`, `confidence`, `status` y `data` cuando aplique.
+- [ ] `POST /api/query` responde con `answer`, `sources`, `reasoning`, `tool_calls`, `fallbacks`, `confidence`, `status` y `data` cuando aplique.
 - [ ] Los 4 casos ERP/produccion del PDF funcionan.
 - [ ] Se pueden subir 3-5 PDFs y preguntar sobre su contenido.
 - [ ] Las respuestas RAG incluyen citas/metadatos de documento, pagina/chunk y evidencia recuperada.
@@ -1179,7 +1186,7 @@ Primer hito visible de P9:
 .\.venv\Scripts\python.exe -m pytest
 $env:GEMINI_API_KEY="..."
 $env:LLM_PROVIDER="gemini"
-$env:GEMINI_MODEL="gemini-2.0-flash"
+$env:GEMINI_MODEL="gemini-2.5-flash"
 ```
 
 Despues, validar en Chainlit:

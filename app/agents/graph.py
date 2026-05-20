@@ -29,7 +29,10 @@ def build_agent_graph(
         rag_tool=rag_tool,
     )
     validator = ValidatorNode()
-    final_response = FinalResponseBuilder()
+    final_response = FinalResponseBuilder(
+        chat_model=chat_model,
+        llm_timeout_seconds=llm_timeout_seconds,
+    )
 
     workflow = StateGraph(AgentState)
     workflow.add_node("planner", planner)
@@ -79,6 +82,7 @@ def run_agent_graph(
             "sources": [],
             "reasoning": [],
             "tool_calls": [],
+            "fallbacks": [],
             "data": {},
         }
     )

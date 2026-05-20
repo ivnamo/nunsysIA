@@ -58,9 +58,9 @@ Comprueba si hay datos suficientes, fuentes requeridas, schema valido y trazabil
 
 ### FinalResponseBuilder
 
-Construye la respuesta final con `answer`, `sources`, `reasoning`, `tool_calls`, `status` y `confidence` cuando sea posible.
+Construye la respuesta final con `answer`, `sources`, `reasoning`, `tool_calls`, `fallbacks`, `status` y `confidence` cuando sea posible. Los fallbacks no deben ocultarse: si el planner cae a reglas, si la respuesta final cae a determinista, si ChromaDB no esta disponible o si se usan embeddings deterministas, debe quedar visible.
 
-En el estado actual la redaccion final es mayoritariamente determinista. La mejora pendiente es usar LLM controlado solo para redactar sobre datos ya devueltos por tools.
+En el estado actual puede usar LLM controlado para redactar en espanol de negocio solo sobre datos ya devueltos por tools. Si el LLM falla, tarda demasiado o introduce identificadores/numeros que no aparecen en las evidencias, se descarta y se usa la respuesta determinista.
 
 ## Tools
 
@@ -92,10 +92,16 @@ La fase actual devuelve documentos usados en `data.rag.documents`; las citas vis
 ## LLM y proveedores
 
 - Proveedor por defecto para pruebas reales: Gemini.
-- Modelo Gemini actual configurado: `gemini-2.0-flash`.
+- Modelo Gemini actual configurado: `gemini-2.5-flash`.
 - OpenAI queda soportado por variables de entorno sin cambiar el grafo ni las tools.
 - Los tests basicos no dependen de llamadas pagadas.
-- El Planner tiene timeout y retries desactivados para evitar bloqueos largos por modelos invalidos.
+- El Planner y el FinalResponseBuilder tienen timeout y retries desactivados para evitar bloqueos largos por modelos invalidos.
+
+## Configuracion de base de datos
+
+- El backend lee `ERP_DATABASE_URL` para la base ERP.
+- `DATABASE_URL` no debe usarse para el ERP en local, porque Chainlit la reserva para su propio data layer con `asyncpg`.
+- `DATABASE_URL` queda soportada solo como fallback legacy en `app.core.config`.
 
 ## Trazabilidad
 
@@ -131,12 +137,12 @@ Implementado y validado manualmente:
 - Chainlit con subida de PDFs.
 - Trazabilidad estructurada y sanitizada.
 - Planner hibrido con LLM opcional.
+- Respuesta final con LLM controlado y fallback determinista.
 
 Pendiente para cierre de producto:
 
 - memoria conversacional de 5 interacciones;
 - citas documentales visibles por chunk;
-- respuesta final con LLM controlado;
 - Docker Compose completo.
 
 ## Por Que Encaja con una POC Senior

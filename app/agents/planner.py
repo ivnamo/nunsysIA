@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.agents.state import AgentIntent, AgentState
 from app.core.llm import ChatModel
+from app.core.traceability import sanitize_exception
 
 
 PlanTool = Literal["ERPTool", "ProductionAPITool", "DocumentRAGTool", "MemoryTool"]
@@ -54,13 +55,17 @@ class PlannerAgent:
     def __call__(self, state: AgentState) -> AgentState:
         question = state["question"]
         normalized = question.lower()
-        plan = self._build_plan(question, normalized, state)
+        plan, fallback = self._build_plan(question, normalized, state)
+        fallbacks = list(state.get("fallbacks", []))
+        if fallback and fallback not in fallbacks:
+            fallbacks.append(fallback)
         return {
             **state,
             "intent": plan.intent,
             "plan": plan.model_dump(),
             "status": "planning",
             "attempts": state.get("attempts", 0),
+            "fallbacks": fallbacks,
         }
 
     def _build_plan(
@@ -68,26 +73,37 @@ class PlannerAgent:
         question: str,
         normalized: str,
         state: AgentState,
-    ) -> ExecutionPlan:
-        if self._chat_model is not None:
-            llm_plan = self._build_llm_plan(question, state)
-            if llm_plan is not None:
-                return llm_plan
+    ) -> tuple[ExecutionPlan, str | None]:
+        if self._chat_model is None:
+            return (
+                self._build_rule_based_plan(question, normalized),
+                "FALLBACK_PLANNER_RULE_BASED: LLM planner no configurado; plan creado por reglas.",
+            )
 
-        return self._build_rule_based_plan(question, normalized)
+        llm_plan, llm_error = self._build_llm_plan(question, state)
+        if llm_plan is not None:
+            return llm_plan, None
+
+        return (
+            self._build_rule_based_plan(question, normalized),
+            _planner_fallback(llm_error),
+        )
 
     def _build_llm_plan(
         self,
         question: str,
         state: AgentState,
-    ) -> ExecutionPlan | None:
+    ) -> tuple[ExecutionPlan | None, str | None]:
         try:
             response = self._invoke_chat_model(self._planner_prompt(question, state))
             payload = _extract_json_payload(_message_content(response))
             plan = ExecutionPlan.model_validate(payload)
-            return self._normalize_plan(plan, question)
-        except Exception:
-            return None
+            normalized_plan = self._normalize_plan(plan, question)
+            if normalized_plan is None:
+                return None, "plan no valido o accion no permitida"
+            return normalized_plan, None
+        except Exception as exc:
+            return None, sanitize_exception(exc)
 
     def _normalize_plan(
         self,
@@ -410,6 +426,18 @@ def _source_for_tool(tool: str) -> str | None:
         "DocumentRAGTool": "Documentos",
         "MemoryTool": "Memoria",
     }.get(tool)
+
+
+def _planner_fallback(error: str | None) -> str:
+    if error:
+        return (
+            "FALLBACK_PLANNER_RULE_BASED: LLM planner fallo "
+            f"({error}); plan creado por reglas."
+        )
+    return (
+        "FALLBACK_PLANNER_RULE_BASED: LLM planner no genero un plan valido; "
+        "plan creado por reglas."
+    )
 
 
 def _bounded_int(value: Any, default: int, minimum: int, maximum: int) -> int:

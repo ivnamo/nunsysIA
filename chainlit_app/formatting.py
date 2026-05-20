@@ -26,6 +26,12 @@ def format_query_response(response: QueryResponse) -> str:
             )
         )
 
+    if response.fallbacks:
+        sections.append(
+            "**FALLBACKS**\n"
+            + "\n".join(f"- `{fallback}`" for fallback in response.fallbacks)
+        )
+
     if response.failure_reason:
         sections.append(f"**Motivo**\n{response.failure_reason}")
 
@@ -33,10 +39,15 @@ def format_query_response(response: QueryResponse) -> str:
 
 
 def format_upload_response(response: DocumentUploadResponse) -> str:
-    return (
+    content = (
         f"Documento indexado: `{response.filename}` "
         f"({response.chunks_indexed} chunks)."
     )
+    if response.fallbacks:
+        content += "\n\n**FALLBACKS**\n" + "\n".join(
+            f"- `{fallback}`" for fallback in response.fallbacks
+        )
+    return content
 
 
 def format_document_list(response: DocumentListResponse) -> str:
@@ -47,7 +58,12 @@ def format_document_list(response: DocumentListResponse) -> str:
         f"- `{document.filename}` ({document.chunks_indexed} chunks)"
         for document in response.documents
     ]
-    return "**Espacio documental**\n" + "\n".join(lines)
+    content = "**Espacio documental**\n" + "\n".join(lines)
+    if response.fallbacks:
+        content += "\n\n**FALLBACKS**\n" + "\n".join(
+            f"- `{fallback}`" for fallback in response.fallbacks
+        )
+    return content
 
 
 def format_error(message: str) -> str:

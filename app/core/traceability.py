@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from app.core.tracing import ToolCallTrace
@@ -51,6 +52,11 @@ def sanitize_failure_reason(reason: str | None) -> str | None:
     return _short_text(_sanitize_error(reason), max_length=240)
 
 
+def sanitize_exception(exc: BaseException, max_length: int = 240) -> str:
+    detail = f"{exc.__class__.__name__}: {exc}"
+    return _short_text(_sanitize_error(detail), max_length=max_length) or exc.__class__.__name__
+
+
 def build_public_data_summary(data: dict[str, Any]) -> dict[str, Any] | None:
     summary: dict[str, Any] = {}
 
@@ -85,6 +91,10 @@ def build_public_data_summary(data: dict[str, Any]) -> dict[str, Any] | None:
             "chunks_count": len(chunks),
             "documents": _document_names(chunks),
         }
+        if rag.get("fallbacks"):
+            summary["rag"]["fallbacks"] = [
+                str(fallback) for fallback in rag.get("fallbacks", [])
+            ]
 
     return summary or None
 
@@ -115,6 +125,7 @@ def _sanitize_error(error: str | None) -> str | None:
 
 
 def _sanitize_string(value: str) -> str:
+    value = re.sub(r"AIza[0-9A-Za-z_-]{20,}", _REDACTED, value)
     lower = value.lower()
     if any(marker in lower for marker in _SENSITIVE_VALUE_MARKERS):
         return _REDACTED

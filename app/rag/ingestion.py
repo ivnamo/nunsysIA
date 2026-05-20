@@ -4,7 +4,11 @@ from uuid import uuid4
 from app.rag.embeddings import DeterministicEmbeddingModel, EmbeddingModel
 from app.rag.loader import PDFExtractionError, PDFLoader
 from app.rag.splitter import RecursiveTextSplitter
-from app.rag.vector_store import DocumentVectorStore
+from app.rag.vector_store import (
+    DocumentVectorStore,
+    InMemoryDocumentVectorStore,
+    VectorStoreError,
+)
 from app.schemas.documents import DocumentListResponse, DocumentUploadResponse
 
 
@@ -23,11 +27,21 @@ class DocumentIngestionService:
         loader: PDFLoader | None = None,
         splitter: RecursiveTextSplitter | None = None,
         embedding_model: EmbeddingModel | None = None,
+        fallbacks: list[str] | None = None,
     ) -> None:
         self._vector_store = vector_store
         self._loader = loader or PDFLoader()
         self._splitter = splitter or RecursiveTextSplitter()
         self._embedding_model = embedding_model or DeterministicEmbeddingModel()
+        self._fallbacks = list(fallbacks or [])
+        if isinstance(self._vector_store, InMemoryDocumentVectorStore):
+            self._add_fallback(
+                "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; documentos en memoria del proceso."
+            )
+        if isinstance(self._embedding_model, DeterministicEmbeddingModel):
+            self._add_fallback(
+                "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+            )
 
     @property
     def vector_store(self) -> DocumentVectorStore:
@@ -36,6 +50,10 @@ class DocumentIngestionService:
     @property
     def embedding_model(self) -> EmbeddingModel:
         return self._embedding_model
+
+    @property
+    def fallbacks(self) -> list[str]:
+        return list(self._fallbacks)
 
     def ingest_pdf(self, content: bytes, filename: str) -> DocumentUploadResponse:
         if not filename.lower().endswith(".pdf"):
@@ -60,14 +78,29 @@ class DocumentIngestionService:
         if not chunks:
             raise EmptyDocumentError("El PDF no genero chunks utiles.")
 
-        embeddings = self._embedding_model.embed_documents([chunk.text for chunk in chunks])
-        self._vector_store.add_chunks(chunks=chunks, embeddings=embeddings)
+        try:
+            embeddings = self._embedding_model.embed_documents([chunk.text for chunk in chunks])
+            self._vector_store.add_chunks(chunks=chunks, embeddings=embeddings)
+        except VectorStoreError:
+            raise
+        except Exception as exc:
+            raise VectorStoreError(
+                "No se pudieron generar embeddings o indexar el documento."
+            ) from exc
 
         return DocumentUploadResponse(
             document_id=document_id,
             filename=filename,
             chunks_indexed=len(chunks),
+            fallbacks=self.fallbacks,
         )
 
     def list_documents(self) -> DocumentListResponse:
-        return DocumentListResponse(documents=self._vector_store.list_documents())
+        return DocumentListResponse(
+            documents=self._vector_store.list_documents(),
+            fallbacks=self.fallbacks,
+        )
+
+    def _add_fallback(self, fallback: str) -> None:
+        if fallback not in self._fallbacks:
+            self._fallbacks.append(fallback)

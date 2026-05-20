@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,6 +10,7 @@ from app.schemas.query import QueryRequest, QueryResponse
 
 
 router = APIRouter(prefix="/api", tags=["query"])
+logger = logging.getLogger(__name__)
 
 
 @lru_cache
@@ -27,6 +29,7 @@ def query(
     try:
         return service.run(request)
     except Exception as exc:
+        logger.exception("Query workflow failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="No se pudo procesar la consulta de forma controlada.",

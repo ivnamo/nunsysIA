@@ -38,6 +38,21 @@ def test_format_query_response_includes_traceability_sections() -> None:
     assert "`ERPTool` [success]: 2 pedidos encontrados" in content
 
 
+def test_format_query_response_shows_fallbacks() -> None:
+    response = QueryResponse(
+        answer="Respuesta determinista.",
+        status="completed",
+        fallbacks=[
+            "FALLBACK_PLANNER_RULE_BASED: LLM planner no configurado; plan creado por reglas."
+        ],
+    )
+
+    content = format_query_response(response)
+
+    assert "**FALLBACKS**" in content
+    assert "FALLBACK_PLANNER_RULE_BASED" in content
+
+
 def test_format_upload_response_summarizes_indexing() -> None:
     response = DocumentUploadResponse(
         document_id="doc_123",
@@ -46,6 +61,20 @@ def test_format_upload_response_summarizes_indexing() -> None:
     )
 
     assert format_upload_response(response) == "Documento indexado: `contrato.pdf` (3 chunks)."
+
+
+def test_format_upload_response_shows_fallbacks() -> None:
+    response = DocumentUploadResponse(
+        document_id="doc_123",
+        filename="contrato.pdf",
+        chunks_indexed=3,
+        fallbacks=["FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no usado."],
+    )
+
+    content = format_upload_response(response)
+
+    assert "Documento indexado: `contrato.pdf` (3 chunks)." in content
+    assert "FALLBACK_VECTOR_STORE_IN_MEMORY" in content
 
 
 def test_format_document_list_summarizes_document_space() -> None:

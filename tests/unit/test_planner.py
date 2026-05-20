@@ -41,6 +41,9 @@ def test_planner_creates_erp_production_plan_for_pending_orders() -> None:
         "ProductionAPITool",
     ]
     assert state["plan"]["steps"][0]["args"] == {"customer_id": "ALFKI"}
+    assert state["fallbacks"] == [
+        "FALLBACK_PLANNER_RULE_BASED: LLM planner no configurado; plan creado por reglas."
+    ]
 
 
 def test_planner_creates_blocked_orders_plan() -> None:
@@ -112,6 +115,7 @@ def test_planner_uses_llm_plan_when_it_matches_allowed_contract() -> None:
 
     assert chat_model.calls == 1
     assert state["intent"] == "erp_production"
+    assert state.get("fallbacks") == []
     assert state["plan"]["expected_sources"] == ["Produccion", "ERP"]
     assert [step["step_id"] for step in state["plan"]["steps"]] == [1, 2]
     assert state["plan"]["steps"][0]["args"] == {"status": "delayed"}
@@ -181,6 +185,11 @@ def test_planner_falls_back_to_rules_when_llm_plan_uses_disallowed_action() -> N
         "ERPTool",
         "ProductionAPITool",
     ]
+    assert len(state["fallbacks"]) == 1
+    assert state["fallbacks"][0].startswith(
+        "FALLBACK_PLANNER_RULE_BASED: LLM planner fallo"
+    )
+    assert "plan no valido" in state["fallbacks"][0]
 
 
 def test_planner_falls_back_to_rules_when_llm_times_out() -> None:
@@ -199,3 +208,8 @@ def test_planner_falls_back_to_rules_when_llm_times_out() -> None:
     assert state["intent"] == "erp_production"
     assert state["plan"]["steps"][0]["tool"] == "ProductionAPITool"
     assert state["plan"]["steps"][0]["args"] == {"status": "blocked"}
+    assert len(state["fallbacks"]) == 1
+    assert state["fallbacks"][0].startswith(
+        "FALLBACK_PLANNER_RULE_BASED: LLM planner fallo"
+    )
+    assert "TimeoutError" in state["fallbacks"][0]

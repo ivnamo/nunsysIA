@@ -26,6 +26,7 @@ La API debe devolver:
 - `sources`
 - `reasoning`
 - `tool_calls`
+- `fallbacks`: lista explicita de rutas `FALLBACK_*` usadas durante la ejecucion
 - `status`
 - `confidence` cuando sea posible
 - `data` opcional como resumen publico de evidencias, nunca como volcado raw de filas internas
@@ -81,6 +82,10 @@ El razonamiento interno no debe devolverse al usuario.
       "source": "Produccion"
     }
   ],
+  "fallbacks": [
+    "FALLBACK_PLANNER_RULE_BASED: LLM planner no configurado; plan creado por reglas.",
+    "FALLBACK_FINAL_RESPONSE_DETERMINISTIC: LLM final no configurado; respuesta construida por reglas."
+  ],
   "status": "completed"
 }
 ```
@@ -103,6 +108,10 @@ El razonamiento interno no debe devolverse al usuario.
       "source": "Documentos"
     }
   ],
+  "fallbacks": [
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
   "status": "completed"
 }
 ```
@@ -118,6 +127,7 @@ El razonamiento interno no debe devolverse al usuario.
 
 ## Reglas de Seguridad
 
+- No ocultar fallbacks: si se usa una ruta alternativa, debe aparecer en `fallbacks` o en la salida visible de Chainlit.
 - Sanitizar argumentos y errores.
 - No incluir credenciales.
 - No incluir connection strings.
@@ -139,6 +149,7 @@ El campo `data` puede usarse para facilitar demo y auditoria, pero debe contener
 - `rag.status`
 - `rag.chunks_count`
 - `rag.documents`
+- `rag.fallbacks`
 
 No debe contener importes detallados, textos completos de chunks, connection strings, errores raw, prompts ni objetos internos.
 

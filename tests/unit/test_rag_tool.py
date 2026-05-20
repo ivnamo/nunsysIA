@@ -4,6 +4,14 @@ from app.rag.vector_store import InMemoryDocumentVectorStore
 from app.tools.rag_tool import DocumentRAGInput, DocumentRAGTool
 
 
+class _FailingEmbeddingModel:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        raise RuntimeError("embedding provider unavailable")
+
+    def embed_query(self, text: str) -> list[float]:
+        raise RuntimeError("embedding provider unavailable")
+
+
 def test_document_rag_tool_returns_grounded_answer_and_trace() -> None:
     vector_store = InMemoryDocumentVectorStore()
     service = DocumentIngestionService(vector_store=vector_store)
@@ -23,9 +31,14 @@ def test_document_rag_tool_returns_grounded_answer_and_trace() -> None:
     assert result.data["status"] == "completed"
     assert "penalizacion" in result.data["answer"]
     assert result.data["chunks"][0]["metadata"]["filename"] == "contrato.pdf"
+    assert any(
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC" in fallback
+        for fallback in result.data["fallbacks"]
+    )
     assert result.tool_call.tool == "DocumentRAGTool"
     assert result.tool_call.source == "Documentos"
     assert result.tool_call.status == "success"
+    assert "FALLBACK" in result.tool_call.output_summary
 
 
 def test_document_rag_tool_returns_insufficient_context_without_relevant_chunks() -> None:
@@ -43,7 +56,22 @@ def test_document_rag_tool_returns_insufficient_context_without_relevant_chunks(
 
     assert result.data["status"] == "insufficient_context"
     assert result.data["chunks"] == []
+    assert any("FALLBACK" in fallback for fallback in result.data["fallbacks"])
     assert result.tool_call.output_summary == "0 chunks relevantes recuperados"
+
+
+def test_document_rag_tool_returns_tool_error_when_embedding_fails() -> None:
+    tool = DocumentRAGTool(
+        vector_store=InMemoryDocumentVectorStore(),
+        embedding_model=_FailingEmbeddingModel(),
+    )
+
+    result = tool.query(DocumentRAGInput(query="penalizacion retrasos"))
+
+    assert result.data is None
+    assert result.tool_call.status == "error"
+    assert result.tool_call.source == "Documentos"
+    assert "embeddings" in result.tool_call.error
 
 
 def _pdf_bytes(text: str) -> bytes:

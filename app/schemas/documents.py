@@ -32,6 +32,7 @@ class DocumentUploadResponse(BaseModel):
     filename: str
     status: DocumentStatus = "indexed"
     chunks_indexed: int
+    fallbacks: list[str] = Field(default_factory=list)
 
 
 class IndexedDocument(BaseModel):
@@ -43,9 +44,11 @@ class IndexedDocument(BaseModel):
 
 class DocumentListResponse(BaseModel):
     documents: list[IndexedDocument]
+    fallbacks: list[str] = Field(default_factory=list)
 
 
 class DocumentRAGAnswer(BaseModel):
     answer: str
     status: RAGStatus
     chunks: list[RetrievedDocumentChunk] = Field(default_factory=list)
+    fallbacks: list[str] = Field(default_factory=list)

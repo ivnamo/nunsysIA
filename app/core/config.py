@@ -21,7 +21,8 @@ class Settings(BaseModel):
     max_document_upload_bytes: int = 10 * 1024 * 1024
     llm_provider: str = "deterministic"
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_api_transport: str = "rest"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     llm_temperature: float = 0.0
@@ -39,7 +40,8 @@ def get_settings() -> Settings:
         app_name=os.getenv("APP_NAME", "nunsysIA"),
         app_env=os.getenv("APP_ENV", "development"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
-        database_url=os.getenv(
+        database_url=os.getenv("ERP_DATABASE_URL")
+        or os.getenv(
             "DATABASE_URL",
             "postgresql+psycopg://postgres:postgres@postgres:5432/northwind",
         ),
@@ -61,7 +63,8 @@ def get_settings() -> Settings:
         ),
         llm_provider=os.getenv("LLM_PROVIDER", "deterministic").lower(),
         gemini_api_key=_empty_to_none(os.getenv("GEMINI_API_KEY")),
-        gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+        gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        gemini_api_transport=os.getenv("GEMINI_API_TRANSPORT", "rest"),
         openai_api_key=_empty_to_none(os.getenv("OPENAI_API_KEY")),
         openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0")),

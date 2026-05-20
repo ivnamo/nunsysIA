@@ -42,6 +42,7 @@ Este repositorio contiene por ahora:
 - Reasoner/Executor que ejecuta tools ERP y produccion;
 - Validator con replanning limitado por `MAX_REPLANS = 2`;
 - FinalResponseBuilder con `QueryResponse` estructurada;
+- `fallbacks` visibles en API y Chainlit para auditar rutas alternativas;
 - tests unitarios e integracion del grafo basico.
 - pipeline RAG PDF -> texto -> chunks -> embeddings -> vector store;
 - adaptador ChromaDB con fallback local en memoria si Chroma no esta disponible;
@@ -71,12 +72,13 @@ Disponible para ejecutar actualmente:
 - RAG documental invocable como tool y desde endpoints documentales.
 - trazabilidad normalizada y sanitizada en `/api/query`.
 - soporte configurable para Gemini u OpenAI sin cambiar grafo, agents ni tools.
+- respuesta final con LLM controlado y fallback determinista;
+- marcadores `FALLBACK_*` cuando se usa planner por reglas, respuesta determinista, embeddings deterministas o vector store en memoria;
 - payload de demo `query.json` para probar `/api/query`.
 - PDFs mock realistas en `data/sample_docs/` para probar RAG multi-documento.
 
 Pendiente todavia:
 
-- respuesta final redactada con LLM controlado, solo sobre datos de tools;
 - citas documentales visibles con `filename`, `page`, `chunk_id` y `score`;
 - memoria conversacional de ultimas 5 interacciones;
 - Docker Compose.
@@ -184,10 +186,13 @@ Configurar proveedor LLM en `.env`:
 ```env
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=tu_key
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_API_TRANSPORT=rest
 EMBEDDING_PROVIDER=gemini
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
+
+Para el ERP usa `ERP_DATABASE_URL`, no `DATABASE_URL`. Chainlit reserva `DATABASE_URL` para su propia persistencia interna con `asyncpg`.
 
 La arquitectura tambien permite OpenAI sin tocar el grafo ni las tools:
 
@@ -264,6 +269,7 @@ Ejecutar interfaz Chainlit:
 
 ```powershell
 $env:BACKEND_API_BASE_URL="http://localhost:8000"
+Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
 .\.venv\Scripts\python.exe -m chainlit run chainlit_app/main.py -w --port 8002
 ```
 
@@ -297,7 +303,6 @@ Endpoints del mock:
 
 La fase actual sigue siendo P9: funcionalidad evaluable de producto.
 
-- mejorar respuesta final con LLM controlado;
 - anadir citas documentales visibles con `filename`, `page`, `chunk_id` y `score`;
 - implementar memoria conversacional de ultimas 5 interacciones;
 - despues cerrar Docker Compose y README final.

@@ -572,7 +572,7 @@ def _response_constraints(question: str) -> dict[str, Any]:
 
     if any(
         marker in normalized
-        for marker in ("resume", "resumen", "resumeme", "sintetiza")
+        for marker in ("resume", "resumir", "resumen", "resumeme", "sintetiza")
     ):
         return {
             "max_chars": 900,

@@ -83,6 +83,33 @@ def test_document_rag_tool_summarizes_named_pdf_without_mixing_documents() -> No
     assert filenames == {"procedimiento_produccion_bloqueos.pdf"}
 
 
+def test_document_rag_tool_accepts_planner_rewritten_summary_query() -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Procedimiento operativo de produccion. "
+            "Una orden puede estar en in_progress, blocked, delayed o finished. "
+            "Un pedido bloqueado mas de 72 horas debe escalarse a operaciones."
+        ),
+        filename="procedimiento_produccion_bloqueos.pdf",
+    )
+    tool = DocumentRAGTool(vector_store=vector_store)
+
+    result = tool.query(
+        DocumentRAGInput(
+            query="Resumir en dos frases el documento: procedimiento_produccion_bloqueos.pdf",
+            top_k=5,
+            min_score=0,
+        )
+    )
+
+    assert result.data["status"] == "completed"
+    assert result.data["chunks"][0]["metadata"]["filename"] == (
+        "procedimiento_produccion_bloqueos.pdf"
+    )
+
+
 def test_document_rag_tool_returns_insufficient_context_without_relevant_chunks() -> None:
     vector_store = InMemoryDocumentVectorStore()
     service = DocumentIngestionService(vector_store=vector_store)

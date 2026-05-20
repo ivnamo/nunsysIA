@@ -39,6 +39,7 @@ _RAG_STOPWORDS = {
     "que",
     "recomienda",
     "resume",
+    "resumir",
     "resumen",
     "resumeme",
     "segun",
@@ -272,6 +273,7 @@ def _is_document_wide_query(query: str) -> bool:
             marker in normalized
             for marker in (
                 "resume",
+                "resumir",
                 "resumen",
                 "resumeme",
                 "sintetiza",
@@ -281,6 +283,7 @@ def _is_document_wide_query(query: str) -> bool:
         marker in normalized
         for marker in (
             "resume",
+            "resumir",
             "resumen",
             "resumeme",
             "sintetiza",

@@ -1,5 +1,6 @@
 import math
 from collections import defaultdict
+from pathlib import Path
 from typing import Protocol
 
 from app.schemas.documents import DocumentChunk, IndexedDocument, RetrievedDocumentChunk
@@ -81,14 +82,27 @@ class ChromaDocumentVectorStore:
         host: str,
         port: int,
         collection_name: str,
+        mode: str = "http",
+        persist_directory: str = "data/chroma",
     ) -> None:
+        normalized_mode = mode.strip().lower()
+        if normalized_mode not in {"http", "persistent"}:
+            raise VectorStoreError(
+                "Modo ChromaDB no soportado. Usa CHROMA_MODE=http o CHROMA_MODE=persistent."
+            )
+
         try:
             import chromadb
         except ImportError as exc:
             raise VectorStoreError("chromadb no esta instalado.") from exc
 
         try:
-            self._client = chromadb.HttpClient(host=host, port=port)
+            if normalized_mode == "persistent":
+                persist_path = Path(persist_directory).resolve()
+                persist_path.mkdir(parents=True, exist_ok=True)
+                self._client = chromadb.PersistentClient(path=str(persist_path))
+            else:
+                self._client = chromadb.HttpClient(host=host, port=port)
             self._collection = self._client.get_or_create_collection(
                 name=collection_name,
                 metadata={"hnsw:space": "cosine"},

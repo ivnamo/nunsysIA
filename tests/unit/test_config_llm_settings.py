@@ -33,6 +33,19 @@ def test_settings_load_llm_and_embedding_provider_env(
     get_settings.cache_clear()
 
 
+def test_settings_loads_chroma_local_persistent_env(monkeypatch) -> None:
+    get_settings.cache_clear()
+    monkeypatch.setenv("CHROMA_MODE", "persistent")
+    monkeypatch.setenv("CHROMA_PERSIST_DIRECTORY", "data/test-chroma")
+
+    settings = get_settings()
+
+    assert settings.chroma_mode == "persistent"
+    assert settings.chroma_persist_directory == "data/test-chroma"
+
+    get_settings.cache_clear()
+
+
 def test_settings_convert_empty_api_keys_to_none(monkeypatch) -> None:
     get_settings.cache_clear()
     monkeypatch.setenv("GEMINI_API_KEY", "")

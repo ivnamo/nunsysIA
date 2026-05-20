@@ -50,7 +50,7 @@ Clasifica la intencion de la pregunta y genera un plan estructurado. En la fase 
 
 ### Reasoner / Executor Agent
 
-Ejecuta el plan usando tools deterministas. Fusiona resultados de ERP, produccion y RAG.
+Ejecuta el plan usando tools deterministas. Fusiona resultados de ERP, produccion y RAG. En el estado actual el ERP se instancia con SQLite en memoria y `data/northwind_seed.sql`, de modo que tests y demo no requieren una base externa.
 
 ### Validator Node
 
@@ -69,7 +69,7 @@ Las tools son deterministas y devuelven datos estructurados:
 - `ERPTool`: consulta Northwind.
 - `ProductionAPITool`: consulta la API mock de produccion.
 - `DocumentRAGTool`: consulta documentos indexados en el vector store documental.
-- `MemoryTool`: previsto para recuperar las ultimas interacciones; todavia no esta implementado como memoria conversacional completa.
+- `MemoryTool`: previsto para recuperar las ultimas interacciones; todavia no esta implementado ni se usa en planes deterministas. Si apareciera en un plan, el executor lo marcaria como `skipped`.
 
 ## RAG
 
@@ -85,7 +85,7 @@ Cada chunk debe conservar `document_id`, `filename`, `page`, `chunk_id` y `uploa
 
 Si no hay contexto documental suficiente, el sistema debe devolver `insufficient_context`.
 
-El vector store objetivo es ChromaDB. En local, si ChromaDB no esta instalado o no responde, la app usa un fallback en memoria para que la POC siga siendo validable sin Docker.
+El vector store objetivo es ChromaDB. El codigo actual soporta `CHROMA_MODE=persistent` con `chromadb.PersistentClient` y `CHROMA_MODE=http` con `chromadb.HttpClient`. Si el cliente Python no esta instalado o Chroma no se puede abrir/conectar, la app usa un fallback en memoria para que la POC siga siendo validable.
 
 La respuesta publica devuelve documentos usados en `data.rag.documents` y citas visibles por chunk en `data.rag.citations` con `filename`, `page`, `chunk_id` y `score`. No expone textos completos de chunks en `data`.
 
@@ -99,7 +99,8 @@ La respuesta publica devuelve documentos usados en `data.rag.documents` y citas 
 
 ## Configuracion de base de datos
 
-- El backend lee `ERP_DATABASE_URL` para la base ERP.
+- El workflow actual crea el ERP con SQLite en memoria y carga `data/northwind_seed.sql` en cada servicio de consulta.
+- `ERP_DATABASE_URL` se lee en `app.core.config` y queda reservado para el cierre con Postgres/Docker, pero aun no esta cableado al runtime ERP.
 - `DATABASE_URL` no debe usarse para el ERP en local, porque Chainlit la reserva para su propio data layer con `asyncpg`.
 - `DATABASE_URL` queda soportada solo como fallback legacy en `app.core.config`.
 
@@ -131,7 +132,7 @@ Implementado y validado manualmente:
 
 - FastAPI con endpoints principales.
 - Mock API de produccion.
-- ERP Northwind reducido con SQLite local y seed controlado.
+- ERP Northwind reducido con SQLite en memoria y seed controlado.
 - LangGraph con Planner, Reasoner/Executor, Validator y FinalResponseBuilder.
 - RAG PDF con documentos mock de demo.
 - Chainlit con subida de PDFs.

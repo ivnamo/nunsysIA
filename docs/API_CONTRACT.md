@@ -136,11 +136,13 @@ En respuestas RAG completadas, `data.rag` debe incluir citas documentales por ch
 
 Descripcion: sube un PDF para indexarlo en el vector store documental. En local puede usarse el fallback en memoria si ChromaDB no esta instalado o disponible.
 
-Request: `multipart/form-data`.
+Request principal: `multipart/form-data`.
 
 Campo esperado:
 
 - `file`: documento PDF.
+
+Tambien se acepta un upload directo con `Content-Type: application/pdf`; en ese caso el nombre se puede pasar con `?filename=contrato.pdf` y, si se omite, se usa `document.pdf`.
 
 Response `201`:
 
@@ -151,7 +153,8 @@ Response `201`:
   "status": "indexed",
   "chunks_indexed": 24,
   "fallbacks": [
-    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; documentos en memoria del proceso."
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; documentos en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
   ]
 }
 ```
@@ -182,7 +185,8 @@ Response `200`:
     }
   ],
   "fallbacks": [
-    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; documentos en memoria del proceso."
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; documentos en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
   ]
 }
 ```

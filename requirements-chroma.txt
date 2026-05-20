@@ -1,8 +1,6 @@
 -r requirements.txt
 
-# Optional local ChromaDB adapter.
-# On Windows this can require native build tooling because of chroma-hnswlib.
-# For the POC demo, the app falls back to the in-memory vector store when
-# chromadb is not installed or not reachable.
-chromadb>=0.5,<0.6
-langchain-chroma>=0.1,<0.2
+# Optional ChromaDB adapter.
+# Needed for CHROMA_MODE=persistent or for connecting to a Chroma HTTP server.
+# If chromadb is not installed or not reachable/openable, the app falls back to memory.
+chromadb>=1.5,<1.6

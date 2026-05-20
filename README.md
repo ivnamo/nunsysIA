@@ -27,7 +27,7 @@ Este repositorio contiene por ahora:
 - tests unitarios e integracion para health.
 - seed SQL Northwind minimo;
 - schemas Pydantic ERP;
-- repositorio ERP testeable sin Docker;
+- repositorio ERP con SQLite en memoria y seed Northwind reducido para tests/demo;
 - tests deterministas de consultas ERP.
 - API mock de produccion separada del backend principal;
 - seed JSON de estados productivos;
@@ -43,7 +43,7 @@ Este repositorio contiene por ahora:
 - Validator con replanning limitado por `MAX_REPLANS = 2`;
 - FinalResponseBuilder con `QueryResponse` estructurada;
 - `fallbacks` visibles en API y Chainlit para auditar rutas alternativas;
-- tests unitarios e integracion del grafo basico.
+- tests unitarios e integracion del grafo agentic.
 - pipeline RAG PDF -> texto -> chunks -> embeddings -> vector store;
 - adaptador ChromaDB con fallback local en memoria si Chroma no esta disponible;
 - `DocumentRAGTool` con trazabilidad y `insufficient_context`;
@@ -60,6 +60,7 @@ Este repositorio contiene por ahora:
 - PDFs mock realistas en `data/sample_docs/`;
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
 - citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
+- suite automatizada versionada actual: `96 passed, 1 warning`.
 
 Disponible para ejecutar actualmente:
 
@@ -125,7 +126,6 @@ data/
 tests/
   unit/
   integration/
-  e2e/
   fixtures/
 ```
 
@@ -173,13 +173,23 @@ Instalar dependencias:
 pip install -r requirements-dev.txt
 ```
 
-En local, `requirements-dev.txt` no instala ChromaDB nativo para evitar errores de compilacion de `chroma-hnswlib` en Windows. La POC usa fallback en memoria si Chroma no esta disponible.
+En local, `requirements-dev.txt` no instala ChromaDB. La POC usa fallback en memoria si Chroma no esta disponible.
 
-Instalar ChromaDB local solo si lo necesitas:
+Instalar ChromaDB local solo si necesitas persistencia real fuera del fallback en memoria:
 
 ```bash
 pip install -r requirements-chroma.txt
 ```
+
+Para persistencia local embebida:
+
+```env
+CHROMA_MODE=persistent
+CHROMA_PERSIST_DIRECTORY=data/chroma
+CHROMA_COLLECTION=documents
+```
+
+Para conectar contra un servidor Chroma HTTP, usa `CHROMA_MODE=http` con `CHROMA_HOST` y `CHROMA_PORT`. Si ChromaDB no esta instalado o no se puede abrir/conectar, el backend cae a memoria y lo marca en `fallbacks`.
 
 Configurar proveedor LLM en `.env`:
 
@@ -193,7 +203,7 @@ EMBEDDING_PROVIDER=gemini
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
 
-Para el ERP usa `ERP_DATABASE_URL`, no `DATABASE_URL`. Chainlit reserva `DATABASE_URL` para su propia persistencia interna con `asyncpg`.
+El ERP de la POC actual se crea en memoria con SQLite y el seed `data/northwind_seed.sql` al construir el workflow. `ERP_DATABASE_URL` existe en configuracion para el endurecimiento posterior con Postgres/Docker, pero no alimenta todavia el repositorio ERP runtime. No uses `DATABASE_URL` para el ERP: Chainlit reserva esa variable para su propia persistencia interna con `asyncpg`.
 
 La arquitectura tambien permite OpenAI sin tocar el grafo ni las tools:
 
@@ -305,5 +315,5 @@ Endpoints del mock:
 La fase actual sigue siendo P9: funcionalidad evaluable de producto.
 
 - implementar memoria conversacional de ultimas 5 interacciones;
-- despues cerrar Docker Compose y README final.
-- documentar variables y comandos de ejecucion.
+- despues cerrar Docker Compose.
+- preparar guion demo final y documentacion de entrega.

@@ -19,6 +19,7 @@ Leer siempre:
 - `docs/TASK_PLAN.md`
 - `docs/API_CONTRACT.md`
 - `docs/TRACEABILITY.md`
+- `docs/MANUAL_VALIDATION.md`
 
 ## Forma Correcta de Pedir Trabajo
 
@@ -48,6 +49,7 @@ Detalle completo en `.cursor/rules/git-workflow.mdc`.
 ## Despues de Cada Fase
 
 - Ejecutar tests relevantes.
+- Resultado actual de la suite versionada: `96 passed, 1 warning`.
 - Revisar archivos tocados.
 - Confirmar que no se agregaron frameworks alternativos.
 - Confirmar que no se mezclo logica de negocio en routes.

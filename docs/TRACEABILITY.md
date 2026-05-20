@@ -30,6 +30,7 @@ La API debe devolver:
 - `status`
 - `confidence` cuando sea posible
 - `data` opcional como resumen publico de evidencias, nunca como volcado raw de filas internas
+- `failure_reason` cuando el estado final explique una salida parcial, fallo o contexto insuficiente
 
 ## Reasoning Visible vs Razonamiento Interno
 

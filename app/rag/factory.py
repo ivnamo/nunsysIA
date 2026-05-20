@@ -13,9 +13,11 @@ from app.rag.vector_store import (
 def create_document_service(settings: Settings) -> DocumentIngestionService:
     try:
         vector_store = ChromaDocumentVectorStore(
+            mode=settings.chroma_mode,
             host=settings.chroma_host,
             port=settings.chroma_port,
             collection_name=settings.chroma_collection,
+            persist_directory=settings.chroma_persist_directory,
         )
     except VectorStoreError:
         vector_store = InMemoryDocumentVectorStore()

@@ -21,8 +21,11 @@ build/
 .vscode/*
 !.vscode/settings.json
 *.log
+.pytest-tmp/
 .files/
+tmp/pytest/
 docs/image/
+data/chroma/
 
 # Sistema
 .DS_Store

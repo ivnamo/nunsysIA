@@ -16,7 +16,7 @@ Pendiente antes del cierre:
 
 - memoria conversacional de ultimas 5 interacciones;
 - Docker Compose completo;
-- README final y guion demo.
+- guion demo final.
 
 ## Fase 0: Setup y estructura
 
@@ -67,7 +67,7 @@ Riesgos:
 
 ## Fase 2: ERP Northwind
 
-Estado: completada con Northwind reducido y SQLite local para tests/demo. PostgreSQL queda como objetivo de Docker Compose si se decide endurecer persistencia.
+Estado: completada con Northwind reducido y SQLite en memoria para tests/demo. PostgreSQL queda como objetivo de Docker Compose si se decide endurecer persistencia.
 
 Objetivo: preparar ERP simulado con datos controlados.
 
@@ -242,6 +242,7 @@ Tareas:
 - Documentar validacion manual exacta.
 - Mejorar respuesta final con LLM controlado. Estado: completada.
 - Incluir citas documentales visibles por chunk. Estado: completada.
+- Alinear documentacion principal con el estado real del repo. Estado: completada.
 - Implementar memoria conversacional simple.
 
 Criterio de aceptacion:
@@ -276,18 +277,16 @@ Riesgos:
 
 - Problemas de red entre servicios.
 
-## Fase P11: Tests minimos y hardening
+## Fase P11: Hardening final de tests
 
-Objetivo: asegurar comportamiento clave.
+Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Tests de health.
-- Tests de schemas.
-- Tests de Planner.
-- Tests de Validator.
-- Tests de tools.
-- Tests de RAG.
+- Mantener suite automatizada versionada actual (`96 passed, 1 warning`).
+- Agregar regresiones para cualquier ajuste de memoria o Docker.
+- Revisar casos de error de servicios externos.
+- Validar que los tests no requieren llamadas pagadas.
 
 Criterio de aceptacion:
 

@@ -12,9 +12,11 @@ class Settings(BaseModel):
     database_url: str = "postgresql+psycopg://postgres:postgres@postgres:5432/northwind"
     production_api_base_url: str = "http://production-api:8001"
     production_api_timeout_seconds: float = 5.0
+    chroma_mode: str = "http"
     chroma_host: str = "chromadb"
     chroma_port: int = 8000
     chroma_collection: str = "documents"
+    chroma_persist_directory: str = "data/chroma"
     rag_chunk_size: int = 900
     rag_chunk_overlap: int = 120
     rag_top_k: int = 3
@@ -52,9 +54,11 @@ def get_settings() -> Settings:
         production_api_timeout_seconds=float(
             os.getenv("PRODUCTION_API_TIMEOUT_SECONDS", "5.0")
         ),
+        chroma_mode=os.getenv("CHROMA_MODE", "http").strip().lower(),
         chroma_host=os.getenv("CHROMA_HOST", "chromadb"),
         chroma_port=int(os.getenv("CHROMA_PORT", "8000")),
         chroma_collection=os.getenv("CHROMA_COLLECTION", "documents"),
+        chroma_persist_directory=os.getenv("CHROMA_PERSIST_DIRECTORY", "data/chroma"),
         rag_chunk_size=int(os.getenv("RAG_CHUNK_SIZE", "900")),
         rag_chunk_overlap=int(os.getenv("RAG_CHUNK_OVERLAP", "120")),
         rag_top_k=int(os.getenv("RAG_TOP_K", "3")),

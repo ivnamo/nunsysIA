@@ -25,10 +25,10 @@ Ejecutar tests automatizados:
 Resultado esperado:
 
 ```text
-78 passed
+96 passed, 1 warning
 ```
 
-Puede aparecer una warning de LangGraph; no bloquea la validacion.
+La warning actual viene de LangGraph/LangChain (`allowed_objects`); no bloquea la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
 
 ## 1. Arrancar servicios
 
@@ -74,6 +74,8 @@ status
 ------
 ok
 ```
+
+Nota ERP: no necesitas levantar Postgres para esta POC. El backend crea un SQLite en memoria con `data/northwind_seed.sql` al iniciar el servicio de consultas. `ERP_DATABASE_URL` queda como configuracion reservada para el cierre Docker/Postgres.
 
 Nota para Windows: evita `--reload` durante la validacion manual. Uvicorn puede detectar cambios dentro de `.venv` por OneDrive, antivirus o paquetes como `pywin32`, y reiniciar el proceso aunque la aplicacion este bien. Si necesitas modo desarrollo con recarga, limita el watch:
 
@@ -640,22 +642,34 @@ Significado:
 Causas habituales:
 
 - `chromadb` no esta instalado en la `.venv`.
-- ChromaDB no esta levantado.
-- `CHROMA_HOST=chromadb` se esta usando fuera de Docker Compose. En local deberia apuntar al host donde este corriendo Chroma, normalmente `localhost`.
-- Docker no esta instalado o no esta disponible en PATH.
+- `CHROMA_MODE=http` apunta a un servidor Chroma que no esta levantado.
+- `CHROMA_HOST=chromadb` se esta usando fuera de Docker Compose. En local con HTTP deberia apuntar normalmente a `localhost`.
+- `CHROMA_MODE=persistent` no tiene permisos para escribir en `CHROMA_PERSIST_DIRECTORY`.
 
 Checks rapidos:
 
 ```powershell
 .\.venv\Scripts\python.exe -c "import importlib.util; print(importlib.util.find_spec('chromadb') is not None)"
-docker --version
 ```
 
 Resultado esperado actual si no hay Chroma:
 
 ```text
 False
-docker no reconocido o no disponible
 ```
 
-Para quitar este fallback hay que completar la fase Docker Compose con ChromaDB o instalar y levantar ChromaDB localmente. Solo cambiar `CHROMA_HOST` no basta si no hay cliente Python y servidor Chroma disponibles.
+Para quitar este fallback en local no hace falta Docker:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-chroma.txt
+```
+
+Y en `.env`:
+
+```env
+CHROMA_MODE=persistent
+CHROMA_PERSIST_DIRECTORY=data/chroma
+CHROMA_COLLECTION=documents
+```
+
+Con `CHROMA_MODE=persistent`, ChromaDB se ejecuta embebido y persiste en disco. Solo necesitas `CHROMA_HOST` y `CHROMA_PORT` cuando uses `CHROMA_MODE=http`.

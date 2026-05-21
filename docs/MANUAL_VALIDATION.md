@@ -35,10 +35,50 @@ Ejecutar tests automatizados:
 Resultado esperado:
 
 ```text
-124 passed, 2 warnings
+130 passed, 2 warnings
 ```
 
 Las advertencias actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
+
+## 0.1. Alternativa Docker Compose
+
+Si Docker esta disponible, puedes levantar backend, production mock, Chainlit y
+ChromaDB HTTP real con un solo comando:
+
+```powershell
+docker compose up --build
+```
+
+Validar servicios:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/health"
+Invoke-RestMethod -Uri "http://localhost:8001/health"
+Invoke-RestMethod -Uri "http://localhost:8000/api/documents"
+```
+
+URLs:
+
+- Backend FastAPI: `http://localhost:8000`
+- Production mock API: `http://localhost:8001`
+- Chainlit UI: `http://localhost:8002`
+- ChromaDB HTTP en host: `http://localhost:8003`
+
+Dentro de Compose, el backend usa `PRODUCTION_API_BASE_URL=http://production-api:8001`
+y `CHROMA_HOST=chromadb`. Si `.env` contiene claves de LLM/embeddings, Compose
+las pasa por interpolacion; no pegues secretos en comandos ni capturas.
+
+Para cerrar servicios:
+
+```powershell
+docker compose down
+```
+
+Para reiniciar ChromaDB desde cero:
+
+```powershell
+docker compose down -v
+```
 
 ## 1. Arrancar servicios
 

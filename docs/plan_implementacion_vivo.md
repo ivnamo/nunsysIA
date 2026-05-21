@@ -158,7 +158,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R7 | pendiente | Dividir DocumentRAGTool | Tool demasiado amplia | `refactor(rag): extract relevance and answer building` |
 | R8 | pendiente | Endurecer upload PDF | Parser multipart manual fragil | `refactor(api): use uploadfile for pdf ingestion` |
 | R9 | pendiente | Trazabilidad de replanning | Se pierde historia de intentos | `feat(agents): retain replan attempt traces` |
-| R10 | pendiente | Docker Compose | P10 pendiente | `feat(runtime): add docker compose stack` |
+| R10 | artefactos implementados / prueba Docker pendiente | Docker Compose | P10 pendiente | `feat(runtime): add docker compose stack` |
 | R11 | pendiente | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
 
 ## Fase R1 - Guardrail documental en planes mixtos
@@ -601,6 +601,18 @@ Criterio de aceptacion:
 - Chroma no cae a memoria dentro de Compose salvo fallo documentado.
 - Beta real smoke/parcial queda registrada con runtime Docker.
 
+Estado 2026-05-21:
+
+- Agregados `Dockerfile`, `.dockerignore` y `docker-compose.yml`.
+- Compose define backend FastAPI, production mock, Chainlit y ChromaDB HTTP real.
+- Backend espera a ChromaDB y production mock via healthchecks para reducir el riesgo de fallback a memoria por carrera de arranque.
+- Actualizados `README.md` y `.env.example` con variables local vs Docker.
+- Validacion local disponible:
+  - `python -m pytest`: 130 passed, 2 warnings externas.
+  - Parse estatico YAML con PyYAML: ok, servicios `backend`, `chainlit`, `chromadb`, `production-api`.
+- No validado con `docker compose config` ni `docker compose up --build`: Docker no esta instalado o no esta en PATH en esta maquina.
+- Pendiente antes de cerrar fase: levantar en entorno con Docker, ejecutar smoke manual y `BT-smoke`/`BT-parcial` con LLM real.
+
 ## Fase R11 - Guion demo y cierre
 
 Prioridad: **antes de entrega final**.
@@ -690,3 +702,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R1 | validado en tests / beta pendiente | Guardrail mixto documental implementado; unit validator 6 passed; integration agent graph 11 passed | pendiente |
 | 2026-05-21 | R2 | validado en tests / beta pendiente | Planner sin default ALFKI; unit planner 15 passed; query endpoint 7 passed; agent graph 11 passed | pendiente |
 | 2026-05-21 | R3 | validado en tests / beta pendiente | Tool actions visibles; unit tools/traceability 25 passed; query endpoint 7 passed; agent graph 11 passed | pendiente |
+| 2026-05-21 | R10 | artefactos implementados / prueba Docker pendiente | Dockerfile/Compose/docs creados; pytest 130 passed; parse YAML ok; Docker CLI no disponible | pendiente |

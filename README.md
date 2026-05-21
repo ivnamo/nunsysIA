@@ -206,6 +206,48 @@ EMBEDDING_PROVIDER=gemini
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
 
+## Docker Compose
+
+P10 levanta la POC completa con backend FastAPI, API mock de produccion,
+Chainlit y ChromaDB HTTP real:
+
+```powershell
+docker compose up --build
+```
+
+Servicios expuestos:
+
+- Backend FastAPI: `http://localhost:8000`
+- Production mock API: `http://localhost:8001`
+- Chainlit UI: `http://localhost:8002`
+- ChromaDB HTTP: `http://localhost:8003`
+
+El compose pasa al backend `PRODUCTION_API_BASE_URL=http://production-api:8001`,
+`CHROMA_MODE=http`, `CHROMA_HOST=chromadb` y `CHROMA_PORT=8000`. Si existe un
+`.env` local, Docker Compose lo usa solo para interpolar variables como
+`LLM_PROVIDER`, `GEMINI_API_KEY`, `OPENAI_API_KEY` o modelos; no versiona secretos.
+Sin claves reales, usa proveedores deterministas y los fallbacks quedan visibles.
+
+Comprobaciones rapidas:
+
+```powershell
+curl.exe http://localhost:8000/health
+curl.exe http://localhost:8001/health
+curl.exe http://localhost:8000/api/documents
+```
+
+Para parar y limpiar contenedores sin borrar el volumen documental:
+
+```powershell
+docker compose down
+```
+
+Para reiniciar tambien ChromaDB desde cero:
+
+```powershell
+docker compose down -v
+```
+
 El ERP de la POC actual se crea en memoria con SQLite y el seed `data/northwind_seed.sql` al construir el workflow. `ERP_DATABASE_URL` existe en configuracion para un posible cableado posterior con persistencia externa, pero aun no alimenta el repositorio ERP runtime. No uses `DATABASE_URL` para el ERP: Chainlit reserva esa variable para su propia persistencia interna con `asyncpg`.
 
 La arquitectura tambien permite OpenAI sin tocar el grafo ni las tools:

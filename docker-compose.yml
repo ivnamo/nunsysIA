@@ -1,0 +1,139 @@
+services:
+  chromadb:
+    image: chromadb/chroma:1.5.0
+    container_name: nunsysia-chromadb
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/chroma
+      ANONYMIZED_TELEMETRY: "FALSE"
+    ports:
+      - "8003:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v2/heartbeat', timeout=2)\" || python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/heartbeat', timeout=2)\"",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  production-api:
+    build:
+      context: .
+    container_name: nunsysia-production-api
+    command:
+      [
+        "python",
+        "-m",
+        "uvicorn",
+        "production_mock.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8001",
+      ]
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  backend:
+    build:
+      context: .
+    container_name: nunsysia-backend
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      production-api:
+        condition: service_healthy
+    environment:
+      APP_ENV: docker
+      PRODUCTION_API_BASE_URL: http://production-api:8001
+      PRODUCTION_API_TIMEOUT_SECONDS: ${PRODUCTION_API_TIMEOUT_SECONDS:-5.0}
+      CHROMA_MODE: http
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      CHROMA_COLLECTION: ${CHROMA_COLLECTION:-documents}
+      RAG_CHUNK_SIZE: ${RAG_CHUNK_SIZE:-900}
+      RAG_CHUNK_OVERLAP: ${RAG_CHUNK_OVERLAP:-120}
+      RAG_TOP_K: ${RAG_TOP_K:-3}
+      MAX_DOCUMENT_UPLOAD_BYTES: ${MAX_DOCUMENT_UPLOAD_BYTES:-10485760}
+      LLM_PROVIDER: ${LLM_PROVIDER:-deterministic}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_API_TRANSPORT: ${GEMINI_API_TRANSPORT:-rest}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-45}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-deterministic}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-deterministic}
+    command:
+      [
+        "python",
+        "-m",
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+      ]
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  chainlit:
+    build:
+      context: .
+    container_name: nunsysia-chainlit
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_API_BASE_URL: http://backend:8000
+      BACKEND_API_TIMEOUT_SECONDS: ${BACKEND_API_TIMEOUT_SECONDS:-30.0}
+    command:
+      [
+        "python",
+        "-m",
+        "chainlit",
+        "run",
+        "chainlit_app/main.py",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8002",
+      ]
+    ports:
+      - "8002:8002"
+
+volumes:
+  chroma_data:

@@ -4,6 +4,8 @@ Este checklist sirve para validar la POC en local antes de una demo. Los comando
 
 No pegues API keys en la terminal ni en capturas. El backend lee `.env` automaticamente.
 
+El guion recomendado de presentacion esta en `docs/DEMO_SCRIPT.md`.
+
 ## Regla de validacion beta con LLM externos
 
 Para las validaciones beta y ensayos de demo real, el propietario del proyecto autoriza expresamente el uso de los proveedores LLM y de embeddings configurados en `.env`. Esta autorizacion incluye enviar preguntas de prueba, prompts de ejecucion, fragmentos recuperados de los PDFs mock y datos seed necesarios para evaluar el comportamiento end-to-end del sistema.

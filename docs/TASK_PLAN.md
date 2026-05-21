@@ -18,7 +18,8 @@ evaluables de demo:
 
 Pendiente antes del cierre final:
 
-- guion demo final.
+- sin pendientes tecnicos obligatorios para la revision.
+- ejecutar la demo con `docs/DEMO_SCRIPT.md`.
 
 ## Fase 0: Setup y estructura
 

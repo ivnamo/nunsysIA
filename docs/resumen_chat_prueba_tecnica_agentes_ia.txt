@@ -42,8 +42,8 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R9 queda cerrada con trazabilidad de replanning. El siguiente bloque tecnico es
-R11: guion demo y cierre.
+R11 queda cerrada. La POC queda lista para demo/revision tecnica con guion
+final en `docs/DEMO_SCRIPT.md`.
 
 Componentes implementados:
 
@@ -72,6 +72,8 @@ Componentes implementados:
 Suite versionada actual:
 
 - `142 passed, 2 warnings`
+- Smoke final Docker con Gemini real y ChromaDB HTTP: PASS sin fallbacks en
+  casos ERP+produccion, RAG, mixto, memoria y guardrail.
 
 
 3. CONTRATO DE CONSULTA
@@ -182,14 +184,14 @@ La respuesta no debe exponer:
 
 R11 - Guion demo y cierre:
 
-- Preparar guion de 3 a 5 minutos.
-- Resumir que defender y que deuda admitir.
-- Ejecutar/registrar una validacion final con casos de demo.
+- Cerrado con `docs/DEMO_SCRIPT.md`.
+- Incluye orden de demo, defensa tecnica, deuda consciente y plan de rollback.
+- Validacion final registrada en `docs/BETA_VALIDATION_REPORT.md`.
 
 Cierre final:
 
-- Guion de demo de 3 a 5 minutos.
-- Validacion manual completa con `docs/MANUAL_VALIDATION.md`.
+- Sin pendientes tecnicos obligatorios para revision.
+- Ejecutar la demo siguiendo `docs/DEMO_SCRIPT.md`.
 
 P10 - Docker Compose cerrado:
 

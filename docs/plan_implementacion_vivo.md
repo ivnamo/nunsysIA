@@ -10,8 +10,8 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R9 cerrada con trazabilidad de replanning**. El siguiente bloque
-tecnico es **R11 - guion demo y cierre**.
+La POC tiene **R11 cerrada** y queda lista para demo/revision tecnica. El guion
+final esta en `docs/DEMO_SCRIPT.md`.
 
 Estado declarado y versionado:
 
@@ -160,7 +160,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R8 | cerrado | Endurecer upload PDF | Parser multipart manual fragil | `refactor(api): use uploadfile for pdf ingestion` |
 | R9 | cerrado | Trazabilidad de replanning | Se pierde historia de intentos | `feat(agents): retain replan attempt traces` |
 | R10 | cerrado | Docker Compose | Runtime no reproducible | `feat(runtime): add docker compose stack` |
-| R11 | siguiente | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
+| R11 | cerrado | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
 
 ## Fase R1 - Guardrail documental en planes mixtos
 
@@ -776,6 +776,19 @@ Criterio de aceptacion:
 - Las limitaciones estan explicadas sin parecer improvisadas.
 - `docs/BETA_VALIDATION_REPORT.md` contiene una iteracion final sin fallos en casos de demo.
 
+Estado:
+
+- Cerrado el 2026-05-21.
+- Creado `docs/DEMO_SCRIPT.md` con guion de 3-5 minutos, orden recomendado,
+  argumentos de defensa, deuda consciente y plan de rollback.
+- Smoke final Docker con Gemini real y ChromaDB HTTP:
+  - backend y production mock `health=ok`;
+  - ChromaDB heartbeat `ok`;
+  - 5 PDFs v2 indexados con `fallbacks_count=0`;
+  - casos ERP+produccion, RAG, mixto, memoria y guardrail en `PASS`;
+  - todas las respuestas de demo sin fallbacks inesperados.
+- Suite completa local: `142 passed, 2 warnings`.
+
 ## Matriz de tests por tipo de cambio
 
 | Cambio | Tests focalizados |
@@ -807,7 +820,7 @@ Criterio de aceptacion:
 
 - `pytest` completo pasa.
 - `docs/MANUAL_VALIDATION.md` ejecutado al menos para casos obligatorios.
-- `BT-completa` con LLM real registrada en `docs/BETA_VALIDATION_REPORT.md`.
+- Smoke final Docker con LLM real registrado en `docs/BETA_VALIDATION_REPORT.md`.
 - Casos validados:
   - ERP + produccion: ALFKI pendientes y estados.
   - Produccion bloqueada con motivo y cliente ERP.
@@ -847,3 +860,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R7 | cerrado | DocumentRAGTool dividido en fachada, filtros, relevancia y answer builder grounded; `pytest`: 136 passed | este bloque |
 | 2026-05-21 | R8 | cerrado | Upload PDF endurecido con UploadFile, compatibilidad application/pdf y tests de errores 400/413; `pytest`: 139 passed | este bloque |
 | 2026-05-21 | R9 | cerrado | Replanning visible en `data.replanning` sin planes raw ni chain-of-thought; `pytest`: 142 passed | este bloque |
+| 2026-05-21 | R11 | cerrado | Guion demo final creado; Docker smoke final con Gemini/Chroma PASS sin fallbacks; `pytest`: 142 passed | este bloque |

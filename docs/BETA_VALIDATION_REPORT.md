@@ -2149,3 +2149,107 @@ Validacion:
 Decision: R9 queda cerrada sin beta LLM real porque no cambia routing,
 retrieval ni respuesta visible normal; amplia la trazabilidad publica en rutas
 con replan. Siguiente bloque: R11, guion demo y cierre.
+
+## Iteracion R11 - Smoke final de demo con Docker y Gemini real
+
+Fecha: 2026-05-21.
+
+Objetivo: validar los casos de demo tras cerrar los refactors R4-R9 y dejar
+evidencia final para revision tecnica.
+
+Runtime:
+
+- Docker Compose: `docker-compose.yml` + `docker-compose.secrets.yml`.
+- LLM provider: Gemini real via secreto por archivo.
+- Embeddings provider: Gemini real via secreto por archivo.
+- Chroma mode: HTTP real.
+- Coleccion Chroma aislada: `beta_final_r11_20260521`.
+- Documentos: 5 PDFs v2 de `data/sample_docs/`.
+
+Health:
+
+- Backend FastAPI: `ok`.
+- Production mock: `ok`.
+- ChromaDB heartbeat: `ok`.
+- Docker Compose: backend, production mock y ChromaDB `healthy`; Chainlit `Up`.
+
+Ingestion:
+
+| Documento | Chunks | Fallbacks |
+|---|---:|---:|
+| `v2_contrato_marco_logistica_2026.pdf` | 8 | 0 |
+| `v2_anexo_penalizaciones_sla.pdf` | 8 | 0 |
+| `v2_procedimiento_produccion_bloqueos.pdf` | 8 | 0 |
+| `v2_politica_calidad_entregas.pdf` | 6 | 0 |
+| `v2_condiciones_comerciales_northwind.pdf` | 8 | 0 |
+
+Casos ejecutados:
+
+### FINAL-ERP-PROD - PASS
+
+Pregunta: `Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion"]`
+- `fallbacks_count`: `0`
+- tool calls: `ERPTool.get_pending_orders_by_customer` y
+  `ProductionAPITool.get_status_for_erp_orders`.
+
+### FINAL-RAG - PASS
+
+Pregunta: `Segun el PDF, hay alguna penalizacion por retrasos?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["Documentos"]`
+- `data.rag.status`: `completed`
+- `data.rag.chunks_count`: `5`
+- `fallbacks_count`: `0`
+
+### FINAL-MIXED - PASS
+
+Pregunta: `en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion", "Documentos"]`
+- `data.rag.status`: `completed`
+- `data.rag.chunks_count`: `5`
+- `fallbacks_count`: `0`
+
+### FINAL-MEMORY - PASS
+
+Preguntas:
+
+1. `Que pedidos pendientes tiene el cliente ALFKI?`
+2. `Y en que estado estan?`
+
+Resultado:
+
+- Primer turno: `completed`, `sources=["ERP"]`.
+- Follow-up: `completed`, `sources=["Memoria", "ERP", "Produccion"]`.
+- `data.memory.status`: `found`.
+- `fallbacks_count`: `0`.
+
+### FINAL-GUARDRAIL - PASS
+
+Pregunta: `Segun el PDF, que receta de cocina vegana recomienda?`
+
+Resultado:
+
+- `status`: `insufficient_context`
+- `sources`: `["Documentos"]`
+- `data.rag.status`: `insufficient_context`
+- `data.rag.chunks_count`: `0`
+- `fallbacks_count`: `0`
+
+Validacion automatizada local posterior:
+
+- Suite completa: `142 passed, 2 warnings`.
+
+Decision: R11 queda cerrada. La POC queda lista para demo/revision tecnica con
+guion en `docs/DEMO_SCRIPT.md`.

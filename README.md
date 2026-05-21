@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R9 cerrada con trazabilidad de replanning**.
-Siguiente bloque: **R11 - guion demo y cierre**.
+Estado actual: **R11 cerrada: POC lista para revision tecnica**.
+Siguiente bloque: **demo/revision con evaluador**.
 
 Este repositorio contiene:
 
@@ -87,9 +87,10 @@ Disponible para ejecutar actualmente:
 - PDFs mock realistas en `data/sample_docs/` para probar RAG multi-documento.
 - follow-ups conversacionales simples por `conversation_id`, por ejemplo preguntar despues `Y en que estado estan?`.
 
-Pendiente:
+Cierre:
 
-- R11: guion demo final y cierre.
+- sin pendientes tecnicos obligatorios para revision;
+- guion final en `docs/DEMO_SCRIPT.md`.
 
 ## Arquitectura decidida
 
@@ -146,6 +147,7 @@ La guia principal esta en:
 - `docs/TRACEABILITY.md`
 - `docs/DEVELOPMENT_GUIDE.md`
 - `docs/MANUAL_VALIDATION.md`
+- `docs/DEMO_SCRIPT.md`
 - `docs/plan_implementacion_vivo.md`
 
 Antes de implementar una fase, leer tambien `.cursor/rules/`.
@@ -395,7 +397,7 @@ Endpoints del mock:
 - `GET /production/orders?status=delayed`
 - `GET /production/orders/{order_id}`
 
-## Siguiente bloque
+## Cierre actual
 
 P10 queda cerrada con Docker Compose, ChromaDB HTTP real, secretos por archivo y
 smoke beta con LLM/embeddings reales. R4, R5, R6, R7, R8 y R9 tambien quedan cerradas: la
@@ -406,4 +408,5 @@ fachada del nodo final, `PlannerAgent` como fachada del nodo de planificacion y
 Los replans quedan resumidos en `data.replanning` sin exponer planes raw ni
 chain-of-thought.
 
-- preparar guion demo final y documentacion de entrega.
+R11 queda cerrada con `docs/DEMO_SCRIPT.md` y smoke final Docker con Gemini real,
+Chroma HTTP y 5 PDFs v2. La POC queda lista para demo/revision tecnica.

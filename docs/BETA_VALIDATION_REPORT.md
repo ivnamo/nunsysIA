@@ -1718,3 +1718,101 @@ Mejora recomendada: Mantener este criterio de alcance para preguntas ajenas a la
 - Mantener la pregunta mixta de penalizaciones como smoke test principal porque prueba ERP, produccion, RAG, citas y trazabilidad en un solo flujo.
 - Mantener el test de regresion del validador final para evitar falsos positivos con tokens `ID` procedentes de campos auditables.
 - Completar P10 Docker Compose para cerrar el entregable tecnico solicitado en la prueba.
+
+## Iteracion Docker Compose - P10 smoke real
+
+Fecha: 2026-05-21.
+
+Objetivo: validar que la POC levanta en Docker Compose con backend FastAPI,
+API mock de produccion, Chainlit y ChromaDB HTTP real.
+
+Entorno:
+
+- Runtime: Docker Desktop en Windows.
+- Compose: `docker compose up -d --build`.
+- Chroma image: `chromadb/chroma:1.5.0`.
+- Chroma expuesto en host: `localhost:8003`, backend usa `CHROMA_HOST=chromadb`.
+- LLM/embeddings: proveedor real configurado en `.env`; no se documentan claves.
+- Documento cargado: `v2_anexo_penalizaciones_sla.pdf`.
+
+Incidencia detectada y corregida:
+
+- Chroma arrancaba, pero quedaba `unhealthy` porque el healthcheck del compose
+  usaba `python` dentro de la imagen `chromadb/chroma:1.5.0`.
+- La imagen no incluye el comando `python`.
+- El mensaje sobre Chroma Cloud en logs era informativo, no el fallo.
+- Fix aplicado: healthcheck interno con comprobacion del puerto `8000` en
+  `/proc/net/tcp`.
+
+Evidencia de runtime:
+
+- `docker compose ps`: backend, production mock y ChromaDB `healthy`; Chainlit `Up`.
+- `GET http://localhost:8000/health`: `ok`.
+- `GET http://localhost:8001/health`: `ok`.
+- `GET http://localhost:8003/api/v2/heartbeat`: `200`.
+- Upload PDF: `indexed`, `chunks_indexed=8`, `fallbacks=[]`.
+
+### DOCKER-BT-01 - PASS - RAG documental
+
+Pregunta: `Hay alguna penalizacion por retrasos?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["Documentos"]`
+- `tool_calls[0].tool`: `DocumentRAGTool`
+- `tool_calls[0].action`: `query`
+- `fallbacks`: `[]`
+- `data.rag.documents`: `["v2_anexo_penalizaciones_sla.pdf"]`
+- `data.rag.chunks_count`: `5`
+
+Veredicto: `PASS`.
+
+### DOCKER-BT-02 - PASS - ERP + produccion
+
+Pregunta: `Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion"]`
+- Pedidos visibles: `10248`, `10252`
+- Estado visible: `10252` bloqueado por `Falta de material`
+- `tool_calls.action`: `get_pending_orders_by_customer`, `get_status_for_erp_orders`
+- `fallbacks`: `[]`
+
+Veredicto: `PASS`.
+
+### DOCKER-BT-03 - PASS - Mixta ERP + produccion + RAG
+
+Pregunta: `en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion", "Documentos"]`
+- `data.erp_order_ids`: `10248`, `10252`, `10255`, `10301`, `10312`
+- `data.rag.documents`: `["v2_anexo_penalizaciones_sla.pdf"]`
+- `data.rag.chunks_count`: `5`
+- `fallbacks`: `[]`
+
+Veredicto: `PASS`.
+
+### DOCKER-BT-04 - PASS - Guardrail documental
+
+Pregunta: `Segun el PDF, que receta de cocina vegana recomienda?`
+
+Resultado:
+
+- `status`: `insufficient_context`
+- `sources`: `["Documentos"]`
+- `tool_calls[0].action`: `query`
+- `data.rag.chunks_count`: `0`
+- `failure_reason`: `No hay chunks documentales relevantes.`
+- `fallbacks`: `[]`
+
+Veredicto: `PASS`.
+
+Decision: P10 queda validado en Docker para smoke tecnico. Pendiente opcional:
+ejecutar una `BT-parcial` completa desde Chainlit contra el backend dockerizado
+antes de la demo final.

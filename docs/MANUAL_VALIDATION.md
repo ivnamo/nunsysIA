@@ -65,8 +65,24 @@ URLs:
 - ChromaDB HTTP en host: `http://localhost:8003`
 
 Dentro de Compose, el backend usa `PRODUCTION_API_BASE_URL=http://production-api:8001`
-y `CHROMA_HOST=chromadb`. Si `.env` contiene claves de LLM/embeddings, Compose
-las pasa por interpolacion; no pegues secretos en comandos ni capturas.
+y `CHROMA_HOST=chromadb`. El Compose base no pasa `GEMINI_API_KEY` ni
+`OPENAI_API_KEY` como variables directas del contenedor. Para validar con Gemini
+real, monta el secreto por archivo:
+
+```powershell
+New-Item -ItemType Directory -Force .secrets
+$secret = Read-Host "Gemini API key" -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
+try {
+  Set-Content -NoNewline .secrets\gemini_api_key ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr))
+} finally {
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+}
+docker compose -f docker-compose.yml -f docker-compose.secrets.yml up --build
+```
+
+No pegues secretos en comandos que vayas a capturar ni en documentos
+versionados.
 
 Para cerrar servicios:
 

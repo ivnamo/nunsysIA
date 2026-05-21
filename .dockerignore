@@ -9,6 +9,7 @@ htmlcov
 data/chroma
 .env
 .env.*
+.secrets
 *.pyc
 *.pyo
 *.log

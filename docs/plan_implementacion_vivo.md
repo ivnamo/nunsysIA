@@ -622,6 +622,7 @@ Estado 2026-05-21:
   - Mixto ERP + produccion + RAG: `completed`, fuentes `ERP`, `Produccion`, `Documentos`, `fallbacks=[]`.
   - Guardrail documental sin evidencia: `insufficient_context`, `fallbacks=[]`.
 - Incidencia corregida: `chromadb/chroma:1.5.0` no incluye comando `python`; el healthcheck inicial fallaba aunque el servidor Chroma escuchaba en `8000`. Se cambio a comprobacion interna de puerto `8000` via `/proc/net/tcp`.
+- Endurecimiento de secretos aplicado: Compose base no pasa `GEMINI_API_KEY` ni `OPENAI_API_KEY` como variables directas; para Docker con proveedor real se usa `docker-compose.secrets.yml` y `*_API_KEY_FILE`.
 - Pendiente antes de cerrar fase por completo: registrar `BT-smoke`/`BT-parcial` formal en `docs/BETA_VALIDATION_REPORT.md`.
 
 ## Fase R11 - Guion demo y cierre
@@ -713,4 +714,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R1 | validado en tests / beta pendiente | Guardrail mixto documental implementado; unit validator 6 passed; integration agent graph 11 passed | pendiente |
 | 2026-05-21 | R2 | validado en tests / beta pendiente | Planner sin default ALFKI; unit planner 15 passed; query endpoint 7 passed; agent graph 11 passed | pendiente |
 | 2026-05-21 | R3 | validado en tests / beta pendiente | Tool actions visibles; unit tools/traceability 25 passed; query endpoint 7 passed; agent graph 11 passed | pendiente |
-| 2026-05-21 | R10 | validado en Docker / beta parcial pendiente | Compose stack healthy; upload PDF 8 chunks; RAG/ERP/mixto/guardrail OK sin fallbacks; healthcheck Chroma corregido | pendiente |
+| 2026-05-21 | R10 | validado en Docker / beta parcial pendiente | Compose stack healthy; upload PDF 8 chunks; RAG/ERP/mixto/guardrail OK sin fallbacks; healthcheck Chroma corregido; secretos por archivo validados | pendiente |

@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from app.core.config import Settings, get_settings
+
+
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def test_settings_default_gemini_model_is_current_flash_model() -> None:
@@ -50,6 +55,8 @@ def test_settings_convert_empty_api_keys_to_none(monkeypatch) -> None:
     get_settings.cache_clear()
     monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("OPENAI_API_KEY", " ")
+    monkeypatch.setenv("GEMINI_API_KEY_FILE", "")
+    monkeypatch.setenv("OPENAI_API_KEY_FILE", "")
 
     settings = get_settings()
 
@@ -57,6 +64,34 @@ def test_settings_convert_empty_api_keys_to_none(monkeypatch) -> None:
     assert settings.openai_api_key is None
 
     get_settings.cache_clear()
+
+
+def test_settings_loads_api_key_from_secret_file(monkeypatch) -> None:
+    get_settings.cache_clear()
+    secret_file = FIXTURES_DIR / "dummy_gemini_secret.txt"
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setenv("GEMINI_API_KEY_FILE", str(secret_file))
+
+    settings = get_settings()
+
+    assert settings.gemini_api_key == "test-gemini-key"
+
+    get_settings.cache_clear()
+
+
+def test_settings_fails_when_secret_file_is_missing(monkeypatch) -> None:
+    get_settings.cache_clear()
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setenv("GEMINI_API_KEY_FILE", str(FIXTURES_DIR / "missing_secret"))
+
+    try:
+        get_settings()
+    except RuntimeError as exc:
+        assert "GEMINI_API_KEY_FILE" in str(exc)
+    else:
+        raise AssertionError("get_settings deberia fallar si el secret file no existe")
+    finally:
+        get_settings.cache_clear()
 
 
 def test_settings_prefers_erp_database_url_over_chainlit_database_url(monkeypatch) -> None:

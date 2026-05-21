@@ -198,13 +198,18 @@ Configurar proveedor LLM en `.env`:
 
 ```env
 LLM_PROVIDER=gemini
-GEMINI_API_KEY=tu_key
+GEMINI_API_KEY=
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_API_TRANSPORT=rest
 LLM_TIMEOUT_SECONDS=45
 EMBEDDING_PROVIDER=gemini
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
+
+Para Docker o despliegues compartidos, no metas claves reales en la imagen ni
+las pases como `ENV` directas del contenedor. El backend tambien acepta
+`GEMINI_API_KEY_FILE` y `OPENAI_API_KEY_FILE` para leer secretos desde archivos
+montados, por ejemplo `/run/secrets/gemini_api_key`.
 
 ## Docker Compose
 
@@ -225,8 +230,27 @@ Servicios expuestos:
 El compose pasa al backend `PRODUCTION_API_BASE_URL=http://production-api:8001`,
 `CHROMA_MODE=http`, `CHROMA_HOST=chromadb` y `CHROMA_PORT=8000`. Si existe un
 `.env` local, Docker Compose lo usa solo para interpolar variables como
-`LLM_PROVIDER`, `GEMINI_API_KEY`, `OPENAI_API_KEY` o modelos; no versiona secretos.
-Sin claves reales, usa proveedores deterministas y los fallbacks quedan visibles.
+`LLM_PROVIDER` o modelos; no pasa `GEMINI_API_KEY` ni `OPENAI_API_KEY` como
+variables directas del contenedor. Sin secretos montados, usa proveedores
+deterministas y los fallbacks quedan visibles.
+
+Para levantar Docker Compose con Gemini real usando secretos por archivo:
+
+```powershell
+New-Item -ItemType Directory -Force .secrets
+$secret = Read-Host "Gemini API key" -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
+try {
+  Set-Content -NoNewline .secrets\gemini_api_key ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr))
+} finally {
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+}
+docker compose -f docker-compose.yml -f docker-compose.secrets.yml up --build
+```
+
+`.secrets/` esta ignorado por Git y por el build de Docker. En servidores o
+Cloud Run/Kubernetes, usa el gestor de secretos del proveedor y apunta
+`GEMINI_API_KEY_FILE` u `OPENAI_API_KEY_FILE` al archivo montado.
 
 Comprobaciones rapidas:
 
@@ -254,7 +278,7 @@ La arquitectura tambien permite OpenAI sin tocar el grafo ni las tools:
 
 ```env
 LLM_PROVIDER=openai
-OPENAI_API_KEY=tu_key
+OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 EMBEDDING_PROVIDER=openai
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small

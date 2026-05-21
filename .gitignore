@@ -23,6 +23,7 @@ build/
 *.log
 .pytest-tmp/
 .files/
+.secrets/
 tmp/pytest/
 docs/image/
 data/chroma/

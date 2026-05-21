@@ -66,10 +66,10 @@ def get_settings() -> Settings:
             os.getenv("MAX_DOCUMENT_UPLOAD_BYTES", str(10 * 1024 * 1024))
         ),
         llm_provider=os.getenv("LLM_PROVIDER", "deterministic").lower(),
-        gemini_api_key=_empty_to_none(os.getenv("GEMINI_API_KEY")),
+        gemini_api_key=_secret_from_env("GEMINI_API_KEY"),
         gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
         gemini_api_transport=os.getenv("GEMINI_API_TRANSPORT", "rest"),
-        openai_api_key=_empty_to_none(os.getenv("OPENAI_API_KEY")),
+        openai_api_key=_secret_from_env("OPENAI_API_KEY"),
         openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0")),
         llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "45")),
@@ -91,3 +91,19 @@ def _empty_to_none(value: str | None) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _secret_from_env(name: str) -> str | None:
+    direct_value = _empty_to_none(os.getenv(name))
+    if direct_value:
+        return direct_value
+
+    file_path = _empty_to_none(os.getenv(f"{name}_FILE"))
+    if not file_path:
+        return None
+
+    try:
+        with open(file_path, encoding="utf-8") as secret_file:
+            return _empty_to_none(secret_file.read())
+    except OSError as exc:
+        raise RuntimeError(f"No se pudo leer {name}_FILE={file_path!r}.") from exc

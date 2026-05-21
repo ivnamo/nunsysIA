@@ -14,7 +14,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v2/heartbeat', timeout=2)\" || python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/heartbeat', timeout=2)\"",
+          "grep -q ':1F40' /proc/net/tcp",
         ]
       interval: 5s
       timeout: 3s

@@ -21,6 +21,12 @@ Pendiente antes del cierre final:
 - sin pendientes tecnicos obligatorios para la revision.
 - ejecutar la demo con `docs/DEMO_SCRIPT.md`.
 
+Extension opcional post-cierre:
+
+- R12-R18 en `docs/plan_implementacion_vivo.md`: flexibilidad
+  conversacional, `needs_clarification`, Query DSL segura, joins controlados y
+  tests reales opt-in con LLM. No bloquea la revision actual.
+
 ## Fase 0: Setup y estructura
 
 Estado: completada.
@@ -336,3 +342,34 @@ Criterio de aceptacion:
 Riesgos:
 
 - Documentar tarde y olvidar decisiones clave.
+
+## Fase P13: Flexibilidad conversacional + Query DSL segura
+
+Estado: planificada como extension opcional.
+
+Objetivo: ampliar la POC sin cambiar el stack ni el flujo agentic aprobado,
+permitiendo preguntas mas abiertas, aclaraciones utiles y consultas flexibles a
+ERP/Produccion mediante una DSL validada.
+
+Tareas:
+
+- Anadir `needs_clarification` al contrato publico.
+- Ampliar routing del planner con sinonimos de negocio y normalizacion de
+  cliente/pedido.
+- Crear modelos y validadores de Query DSL antes de ejecutar nada.
+- Crear `ERPQueryTool` y `ProductionQueryTool` con allowlists.
+- Ejecutar cruces ERP-Produccion solo en el reasoner y por `order_id`.
+- Mejorar respuesta final manteniendo grounding estricto.
+- Anadir tests `real_llm` opt-in con `RUN_REAL_LLM_TESTS=1`.
+
+Criterio de aceptacion:
+
+- Suite rapida sigue siendo determinista.
+- No hay SQL, HTTP ni joins libres generados por LLM.
+- Las tools especificas siguen teniendo prioridad para casos criticos.
+- La beta real queda registrada en `docs/BETA_VALIDATION_REPORT.md`.
+
+Riesgos:
+
+- Cambiar contrato y comportamiento visible demasiado cerca de una demo.
+- Abrir una superficie agentic nueva sin validadores suficientes.

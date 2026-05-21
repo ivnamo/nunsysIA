@@ -141,6 +141,7 @@ La guia principal esta en:
 - `docs/TRACEABILITY.md`
 - `docs/DEVELOPMENT_GUIDE.md`
 - `docs/MANUAL_VALIDATION.md`
+- `docs/plan_implementacion_vivo.md`
 
 Antes de implementar una fase, leer tambien `.cursor/rules/`.
 

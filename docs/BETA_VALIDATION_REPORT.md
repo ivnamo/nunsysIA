@@ -11,12 +11,13 @@ La ejecucion usa proveedores externos configurados en `.env` para LLM y embeddin
 ## Resumen ejecutivo
 
 - Resultado global: PASS=13, PARTIAL=0, FAIL=0, BLOCKER=0.
-- Suite automatizada previa: `124 passed, 2 warnings`.
+- Suite automatizada previa: `133 passed, 2 warnings`.
 - LLM provider: `gemini`; modelo Gemini: `gemini-2.5-flash`.
 - Embedding provider: `gemini`; modelo embeddings Gemini: `gemini-embedding-001`.
 - Chroma mode: `persistent`; coleccion aislada: `beta_validation_20260521_hardened_final_122123`.
 - API de produccion mock validada en proceso con seed `data/production_seed.json`.
-- Gap de entrega vigente: Docker Compose sigue pendiente hasta P10.
+- P10 Docker Compose: validado con backend, production mock, Chainlit,
+  ChromaDB HTTP real y secretos por archivo.
 
 Lectura critica: la bateria beta queda superada; mantener estos casos como regresion antes de la demo final.
 
@@ -1717,7 +1718,8 @@ Mejora recomendada: Mantener este criterio de alcance para preguntas ajenas a la
 - Mantener la secuencia de memoria avanzada como regresion fija: pedidos pendientes -> bloqueados -> impacto economico.
 - Mantener la pregunta mixta de penalizaciones como smoke test principal porque prueba ERP, produccion, RAG, citas y trazabilidad en un solo flujo.
 - Mantener el test de regresion del validador final para evitar falsos positivos con tokens `ID` procedentes de campos auditables.
-- Completar P10 Docker Compose para cerrar el entregable tecnico solicitado en la prueba.
+- P10 Docker Compose ya queda cerrado en el baseline final; mantenerlo como
+  smoke de regresion antes de la demo.
 
 ## Iteracion Docker Compose - P10 smoke real
 
@@ -1813,6 +1815,107 @@ Resultado:
 
 Veredicto: `PASS`.
 
-Decision: P10 queda validado en Docker para smoke tecnico. Pendiente opcional:
-ejecutar una `BT-parcial` completa desde Chainlit contra el backend dockerizado
-antes de la demo final.
+Decision: P10 queda validado en Docker para smoke tecnico. Esta iteracion queda
+superada por el baseline final R10 registrado a continuacion, ejecutado con
+todos los PDFs v2 y guardrail corregido.
+
+## Iteracion Docker Compose - baseline final R10 con LLM real
+
+Fecha: 2026-05-21.
+
+Objetivo: cerrar P10 como baseline reproducible antes de continuar con R4.
+
+Entorno:
+
+- Runtime: Docker Desktop en Windows.
+- Comando: `docker compose -f docker-compose.yml -f docker-compose.secrets.yml up -d --build`.
+- Coleccion Chroma aislada: `beta_docker_baseline_20260521_r10b`.
+- Backend: `CHROMA_MODE=http`, `CHROMA_HOST=chromadb`, `CHROMA_COLLECTION=beta_docker_baseline_20260521_r10b`.
+- Secretos: `GEMINI_API_KEY_DIRECT=False`; `GEMINI_API_KEY_FILE=/run/secrets/gemini_api_key`.
+- LLM/embeddings: proveedor real configurado por secreto; no se documentan claves.
+- Suite automatizada previa: `133 passed, 2 warnings`.
+
+Preparacion documental:
+
+- `v2_contrato_marco_logistica_2026.pdf`: `indexed`, 8 chunks, `fallbacks=[]`.
+- `v2_anexo_penalizaciones_sla.pdf`: `indexed`, 8 chunks, `fallbacks=[]`.
+- `v2_procedimiento_produccion_bloqueos.pdf`: `indexed`, 8 chunks, `fallbacks=[]`.
+- `v2_politica_calidad_entregas.pdf`: `indexed`, 6 chunks, `fallbacks=[]`.
+- `v2_condiciones_comerciales_northwind.pdf`: `indexed`, 8 chunks, `fallbacks=[]`.
+
+Incidencia beta detectada durante esta pasada:
+
+- Con todos los PDFs v2 cargados, la pregunta `Segun el PDF, que receta de cocina vegana recomienda?` recuperaba un chunk de `v2_procedimiento_produccion_bloqueos.pdf` porque el texto contiene `receta o especificacion`.
+- Resultado antes del fix: `completed`, fuente `Documentos`, 1 chunk recuperado. No era una respuesta aceptable porque confundia una receta culinaria con una discrepancia de receta productiva.
+- Fix aplicado: `DocumentRAGTool._has_query_evidence()` exige al menos dos solapes de evidencia cuando la pregunta contiene tres o mas tokens significativos.
+- Tests agregados: regresion unitaria de solape debil y regresion de API con documento v2 que contiene `receta o especificacion`.
+
+### DOCKER-BASELINE-01 - PASS - ERP + produccion
+
+Pregunta: `Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion"]`
+- Pedidos visibles: `10248`, `10252`
+- `10252`: bloqueado por `Falta de material`
+- `tool_calls.action`: `get_pending_orders_by_customer`, `get_status_for_erp_orders`
+- `fallbacks`: `[]`
+
+### DOCKER-BASELINE-02 - PASS - RAG documental
+
+Pregunta: `Segun el PDF, hay alguna penalizacion por retrasos?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["Documentos"]`
+- Documento recuperado: `v2_anexo_penalizaciones_sla.pdf`
+- `data.rag.chunks_count`: `5`
+- `tool_calls.action`: `query`
+- `fallbacks`: `[]`
+
+### DOCKER-BASELINE-03 - PASS - Mixto ERP + produccion + RAG
+
+Pregunta: `en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion", "Documentos"]`
+- Pedidos evaluados: `10248`, `10252`, `10255`, `10301`, `10312`
+- Documentos recuperados: `v2_anexo_penalizaciones_sla.pdf`, `v2_contrato_marco_logistica_2026.pdf`, `v2_procedimiento_produccion_bloqueos.pdf`
+- `fallbacks`: `[]`
+
+### DOCKER-BASELINE-04 - PASS - Memoria conversacional
+
+Secuencia:
+
+1. `Que pedidos pendientes tiene el cliente ALFKI?`
+2. `Y en que estado estan?`
+
+Resultado:
+
+- Primera respuesta: `completed`, fuente `ERP`, pedidos `10248` y `10252`.
+- Follow-up: `completed`, fuentes `["Memoria", "ERP", "Produccion"]`.
+- `data.memory.customer_id`: `ALFKI`
+- `tool_calls`: `MemoryTool.recall`, `ERPTool.get_pending_orders_by_customer`, `ProductionAPITool.get_status_for_erp_orders`
+- `fallbacks`: `[]`
+
+### DOCKER-BASELINE-05 - PASS - Guardrail documental
+
+Pregunta: `Segun el PDF, que receta de cocina vegana recomienda?`
+
+Resultado:
+
+- `status`: `insufficient_context`
+- `answer`: `No hay contexto documental suficiente para responder sin inventar.`
+- `sources`: `["Documentos"]`
+- `data.rag.chunks_count`: `0`
+- `failure_reason`: `No hay chunks documentales relevantes.`
+- `fallbacks`: `[]`
+
+Decision: P10 queda cerrada como baseline Docker defendible. Siguiente bloque:
+R4, extraer politica de penalizaciones del `FinalResponseBuilder` con tests
+focalizados y beta smoke posterior.

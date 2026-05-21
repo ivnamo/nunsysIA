@@ -131,6 +131,30 @@ def test_document_rag_tool_returns_insufficient_context_without_relevant_chunks(
     assert result.tool_call.output_summary == "0 chunks relevantes recuperados"
 
 
+def test_document_rag_tool_rejects_single_weak_overlap_for_multi_topic_query() -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Los motivos validos de bloqueo incluyen discrepancia de receta "
+            "o especificacion en una orden de produccion."
+        ),
+        filename="procedimiento_produccion_bloqueos.pdf",
+    )
+    tool = DocumentRAGTool(vector_store=vector_store)
+
+    result = tool.query(
+        DocumentRAGInput(
+            query="Segun el PDF, que receta de cocina vegana recomienda?",
+            top_k=5,
+            min_score=0,
+        )
+    )
+
+    assert result.data["status"] == "insufficient_context"
+    assert result.data["chunks"] == []
+
+
 def test_document_rag_tool_returns_tool_error_when_embedding_fails() -> None:
     tool = DocumentRAGTool(
         vector_store=InMemoryDocumentVectorStore(),

@@ -140,10 +140,12 @@ Implementado en el repositorio y cubierto por tests/checklist manual:
 - Planner hibrido con LLM opcional.
 - Respuesta final con LLM controlado y fallback determinista.
 - Memoria conversacional simple con traza `Memoria`.
+- Docker Compose con backend, mock de produccion, Chainlit y ChromaDB HTTP real.
 
 Pendiente para cierre tecnico:
 
-- Docker Compose completo.
+- Guion demo final y refactors incrementales documentados en
+  `docs/plan_implementacion_vivo.md`.
 
 ## Justificacion de Arquitectura
 

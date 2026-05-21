@@ -4,7 +4,10 @@ Este plan guia la implementacion por fases. No se debe avanzar a la siguiente fa
 
 ## Estado actual
 
-El repositorio ya ha superado las fases 0 a 9 a nivel funcional y queda preparado para **P10 - Docker Compose**. P9 queda cubierta con los comportamientos evaluables de demo:
+El repositorio ya ha superado las fases 0 a 10 a nivel funcional. **P10 -
+Docker Compose** queda validada con backend FastAPI, API mock de produccion,
+Chainlit y ChromaDB HTTP real. P9/P10 quedan cubiertas con los comportamientos
+evaluables de demo:
 
 - Planner hibrido con LLM opcional y fallback determinista.
 - RAG multi-documento con PDFs mock realistas.
@@ -13,9 +16,9 @@ El repositorio ya ha superado las fases 0 a 9 a nivel funcional y queda preparad
 - Guardrails para no inventar y devolver `insufficient_context`.
 - Memoria conversacional simple de ultimas 5 interacciones por `conversation_id`.
 
-Pendiente antes del cierre:
+Pendiente antes del cierre final:
 
-- Docker Compose completo;
+- refactor R4 de politica de penalizaciones;
 - guion demo final.
 
 ## Fase 0: Setup y estructura
@@ -261,7 +264,7 @@ Riesgos:
 
 ## Fase P10: Docker Compose
 
-Estado: pendiente.
+Estado: completada y validada.
 
 Objetivo: levantar la POC completa.
 
@@ -275,6 +278,21 @@ Tareas:
 Criterio de aceptacion:
 
 - `docker compose up --build` levanta el sistema.
+- Docker Compose con `docker-compose.secrets.yml` usa API key por archivo, no
+  como variable directa del contenedor.
+- ChromaDB HTTP queda `healthy` y no cae a memoria.
+- Smoke beta con LLM/embeddings reales pasa en Docker.
+
+Evidencia 2026-05-21:
+
+- `python -m pytest`: `133 passed, 2 warnings`.
+- Coleccion Chroma Docker aislada: `beta_docker_baseline_20260521_r10b`.
+- 5 PDFs v2 indexados con `fallbacks=[]`.
+- Casos Docker baseline: ERP+produccion, RAG, mixto, memoria conversacional y
+  guardrail documental en `PASS`.
+- Incidencia beta corregida: falso positivo RAG por solape debil con `receta`;
+  el filtro documental exige mas evidencia cuando la pregunta contiene varios
+  conceptos.
 
 Riesgos:
 
@@ -286,7 +304,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`124 passed, 2 warnings`).
+- Mantener suite automatizada versionada actual (`133 passed, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.

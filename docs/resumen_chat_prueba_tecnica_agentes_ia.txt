@@ -42,8 +42,8 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-P9 queda cerrada a nivel funcional. El siguiente bloque pendiente es P10:
-Docker Compose.
+P10 queda cerrada con Docker Compose validado. El siguiente bloque tecnico es
+R4: extraer la politica de penalizaciones y preparar el guion demo final.
 
 Componentes implementados:
 
@@ -65,7 +65,7 @@ Componentes implementados:
 
 Suite versionada actual:
 
-- `124 passed, 2 warnings`
+- `133 passed, 2 warnings`
 
 
 3. CONTRATO DE CONSULTA
@@ -174,14 +174,21 @@ La respuesta no debe exponer:
 7. PENDIENTE
 ============
 
-P10 - Docker Compose:
+R4 - Refactor de politica de penalizaciones:
 
-- Dockerfile.
-- docker-compose.yml.
-- Servicios para backend, API mock de produccion, Chainlit y ChromaDB.
-- Variables de entorno documentadas para ejecucion en contenedores.
+- Extraer reglas documentales hardcodeadas del `FinalResponseBuilder`.
+- Mantener el flujo Planner -> Reasoner/Executor -> Validator -> FinalResponseBuilder.
+- Validar con tests focalizados, `pytest` completo y smoke beta con LLM real.
 
 Cierre final:
 
 - Guion de demo de 3 a 5 minutos.
 - Validacion manual completa con `docs/MANUAL_VALIDATION.md`.
+
+P10 - Docker Compose cerrado:
+
+- Dockerfile y docker-compose versionados.
+- Servicios para backend, API mock de produccion, Chainlit y ChromaDB.
+- Secretos por archivo con `docker-compose.secrets.yml`.
+- Baseline Docker con LLM/embeddings reales registrado en
+  `docs/BETA_VALIDATION_REPORT.md`.

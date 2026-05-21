@@ -11,7 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **P9 cerrada a nivel funcional**. Siguiente bloque: **P10 - Docker Compose**.
+Estado actual: **P10 cerrada con Docker Compose validado**. Siguiente bloque:
+**R4 - extraer politica de penalizaciones** y preparar guion demo final.
 
 Este repositorio contiene:
 
@@ -61,7 +62,7 @@ Este repositorio contiene:
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
 - citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
 - memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
-- suite automatizada versionada actual: `124 passed, 2 warnings`.
+- suite automatizada versionada actual: `133 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -83,7 +84,7 @@ Disponible para ejecutar actualmente:
 
 Pendiente:
 
-- Docker Compose.
+- R4: extraer politica de penalizaciones del `FinalResponseBuilder`;
 - guion demo final.
 
 ## Arquitectura decidida
@@ -95,7 +96,7 @@ Pendiente:
 - Vector store inicial: ChromaDB.
 - Schemas: Pydantic.
 - Tests: pytest.
-- Runtime objetivo de cierre: Docker Compose.
+- Runtime objetivo de cierre: Docker Compose validado.
 
 Flujo objetivo:
 
@@ -392,7 +393,9 @@ Endpoints del mock:
 
 ## Siguiente bloque
 
-P9 queda cerrada a nivel funcional con memoria conversacional simple. El siguiente bloque pendiente es P10: Docker Compose.
+P10 queda cerrada con Docker Compose, ChromaDB HTTP real, secretos por archivo y
+smoke beta con LLM/embeddings reales. El siguiente bloque tecnico es R4:
+extraer la politica de penalizaciones del `FinalResponseBuilder`.
 
-- cerrar Docker Compose;
+- ejecutar R4 con tests focalizados y beta smoke;
 - preparar guion demo final y documentacion de entrega.

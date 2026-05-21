@@ -243,7 +243,9 @@ def _has_query_evidence(query: str, text: str) -> bool:
     if not query_tokens:
         return False
     text_tokens = _meaningful_tokens(text)
-    return bool(_token_overlap(query_tokens, text_tokens))
+    overlap = _token_overlap(query_tokens, text_tokens)
+    required_overlap = 2 if len(query_tokens) >= 3 else 1
+    return len(overlap) >= required_overlap
 
 
 def _meaningful_tokens(text: str) -> set[str]:

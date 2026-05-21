@@ -118,18 +118,22 @@ def test_api_uploads_demo_document_space_and_answers_rag_questions(
 def test_api_returns_insufficient_context_for_unrelated_document_question(
     client: TestClient,
 ) -> None:
-    filename = "contrato_marco_logistica_2026.pdf"
-    upload_response = client.post(
-        "/api/documents/upload",
-        files={
-            "file": (
-                filename,
-                build_pdf_bytes(SAMPLE_DOCUMENTS[filename]),
-                "application/pdf",
-            )
-        },
-    )
-    assert upload_response.status_code == 201
+    filenames = [
+        "contrato_marco_logistica_2026.pdf",
+        "v2_procedimiento_produccion_bloqueos.pdf",
+    ]
+    for filename in filenames:
+        upload_response = client.post(
+            "/api/documents/upload",
+            files={
+                "file": (
+                    filename,
+                    build_pdf_bytes(SAMPLE_DOCUMENTS[filename]),
+                    "application/pdf",
+                )
+            },
+        )
+        assert upload_response.status_code == 201
 
     response = client.post(
         "/api/query",

@@ -18,7 +18,7 @@ evaluables de demo:
 
 Pendiente antes del cierre final:
 
-- refactor R8 de upload PDF;
+- refactor R9 de trazabilidad de replanning;
 - guion demo final.
 
 ## Fase 0: Setup y estructura
@@ -304,7 +304,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`136 passed, 2 warnings`).
+- Mantener suite automatizada versionada actual (`139 passed, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.

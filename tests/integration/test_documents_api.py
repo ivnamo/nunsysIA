@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.routes_documents import get_document_service
+from app.core.config import Settings
 from app.main import create_app
 from app.rag.ingestion import DocumentIngestionService
 from app.rag.vector_store import InMemoryDocumentVectorStore
@@ -47,6 +48,55 @@ def test_upload_document_rejects_non_pdf_filename(client: TestClient) -> None:
 
     assert response.status_code == 400
     assert "PDF" in response.json()["detail"]
+
+
+def test_upload_document_accepts_direct_pdf_body(client: TestClient) -> None:
+    response = client.post(
+        "/api/documents/upload?filename=directo.pdf",
+        content=_pdf_bytes("Contrato directo con penalizacion por retrasos."),
+        headers={"content-type": "application/pdf"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["filename"] == "directo.pdf"
+
+
+def test_upload_document_rejects_multipart_without_file(client: TestClient) -> None:
+    response = client.post(
+        "/api/documents/upload",
+        files={"other": ("contrato.pdf", _pdf_bytes("Texto"), "application/pdf")},
+    )
+
+    assert response.status_code == 400
+    assert "campo file" in response.json()["detail"]
+
+
+def test_upload_document_rejects_oversized_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.api import routes_documents
+
+    monkeypatch.setattr(
+        routes_documents,
+        "get_settings",
+        lambda: Settings(max_document_upload_bytes=32),
+    )
+    app = create_app()
+    service = DocumentIngestionService(vector_store=InMemoryDocumentVectorStore())
+    app.dependency_overrides[get_document_service] = lambda: service
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/documents/upload",
+        files={
+            "file": (
+                "contrato.pdf",
+                _pdf_bytes("Contrato demasiado grande para el limite configurado."),
+                "application/pdf",
+            )
+        },
+    )
+
+    assert response.status_code == 413
+    assert "tamano maximo" in response.json()["detail"]
 
 
 def _pdf_bytes(text: str) -> bytes:

@@ -136,6 +136,8 @@ No se debe exponer chain-of-thought interno.
 Implementado en el repositorio y cubierto por tests/checklist manual:
 
 - FastAPI con endpoints principales.
+- Upload documental multipart con `UploadFile` y compatibilidad directa
+  `application/pdf`.
 - Mock API de produccion.
 - ERP Northwind reducido con SQLite en memoria y seed controlado.
 - LangGraph con Planner, Reasoner/Executor, Validator y FinalResponseBuilder.

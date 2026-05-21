@@ -42,8 +42,8 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R7 queda cerrada con DocumentRAGTool dividido. El siguiente bloque tecnico
-es R8: endurecer upload PDF y preparar el guion demo
+R8 queda cerrada con upload PDF endurecido. El siguiente bloque tecnico
+es R9: trazabilidad de replanning y preparar el guion demo
 final.
 
 Componentes implementados:
@@ -65,11 +65,13 @@ Componentes implementados:
 - RAG como tool determinista con filtros, relevancia y respuesta grounded
   separados
 - Chainlit con upload de PDFs y comando `/documentos`
+- Upload documental multipart gestionado con `UploadFile` y compatibilidad
+  `application/pdf`
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`
 
 Suite versionada actual:
 
-- `136 passed, 2 warnings`
+- `139 passed, 2 warnings`
 
 
 3. CONTRATO DE CONSULTA
@@ -178,11 +180,11 @@ La respuesta no debe exponer:
 7. PENDIENTE
 ============
 
-R8 - Endurecer upload PDF:
+R9 - Trazabilidad de replanning:
 
-- Sustituir parser multipart manual por `UploadFile` si no rompe Chainlit/API.
-- Mantener limites de tamano, errores controlados y compatibilidad de subida.
-- Validar con tests documentales, Chainlit client y `pytest` completo.
+- Conservar resumen publico de intentos cuando haya replan.
+- Exponer que hubo replan y motivo sin revelar chain-of-thought.
+- Validar con tests de validator, agent graph y `pytest` completo.
 
 Cierre final:
 

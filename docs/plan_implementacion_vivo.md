@@ -10,8 +10,9 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R7 cerrada con DocumentRAGTool dividido**. El siguiente bloque
-tecnico es **R8 - endurecer upload PDF** antes de preparar el guion demo final.
+La POC tiene **R8 cerrada con upload PDF endurecido**. El siguiente bloque
+tecnico es **R9 - trazabilidad de replanning** antes de preparar el guion demo
+final.
 
 Estado declarado y versionado:
 
@@ -23,7 +24,7 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `136 passed, 2 warnings`.
+- Suite automatizada declarada: `139 passed, 2 warnings`.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
   beta con LLM/embeddings reales.
 
@@ -157,8 +158,8 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R5 | cerrado | Dividir FinalResponseBuilder | God object de respuesta final | `refactor(final-response): split answer builders` |
 | R6 | cerrado | Dividir Planner | God object de planificacion | `refactor(planner): split rule planner from llm planner` |
 | R7 | cerrado | Dividir DocumentRAGTool | Tool demasiado amplia | `refactor(rag): extract relevance and answer building` |
-| R8 | siguiente | Endurecer upload PDF | Parser multipart manual fragil | `refactor(api): use uploadfile for pdf ingestion` |
-| R9 | pendiente | Trazabilidad de replanning | Se pierde historia de intentos | `feat(agents): retain replan attempt traces` |
+| R8 | cerrado | Endurecer upload PDF | Parser multipart manual fragil | `refactor(api): use uploadfile for pdf ingestion` |
+| R9 | siguiente | Trazabilidad de replanning | Se pierde historia de intentos | `feat(agents): retain replan attempt traces` |
 | R10 | cerrado | Docker Compose | Runtime no reproducible | `feat(runtime): add docker compose stack` |
 | R11 | pendiente | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
 
@@ -172,7 +173,7 @@ Problema:
 - En un plan `mixed`, una consulta documental insuficiente puede quedar como fuente consultada y permitir respuesta final.
 - `FinalResponseBuilder._answer_order_penalties()` puede responder penalizaciones aunque la evidencia documental no sea suficiente.
 
-Archivos previstos:
+Archivos modificados:
 
 - `app/agents/validator.py`
 - `app/agents/final_response.py`
@@ -596,6 +597,24 @@ Criterio de aceptacion:
 - Upload por API sigue funcionando.
 - No se aceptan ficheros no PDF.
 
+Estado:
+
+- Cerrado el 2026-05-21.
+- `app/api/routes_documents.py` recibe `UploadFile | None` con `File(default=None)`
+  para multipart y mantiene `Request` para compatibilidad `application/pdf`.
+- `app/api/upload_parser.py` ya no parsea multipart manualmente; usa el
+  `UploadFile` entregado por FastAPI y conserva lectura directa de PDF.
+- Se mantiene limite `MAX_DOCUMENT_UPLOAD_BYTES` con error `413`.
+- Se cubre upload multipart, upload directo `application/pdf`, multipart sin
+  campo `file`, fichero no PDF y fichero demasiado grande.
+- Tests focalizados:
+  - `tests/integration/test_documents_api.py`: 5 passed.
+  - `tests/unit/test_chainlit_client.py`: 4 passed.
+  - `tests/integration/test_api_document_demo_flow.py`: 2 passed.
+- Suite completa: `139 passed, 2 warnings`.
+- No se ejecuta beta LLM real porque no cambia planner, RAG, embeddings,
+  respuesta visible ni contrato de `/api/query`.
+
 ## Fase R9 - Trazabilidad de replanning
 
 Prioridad: **post-POC**.
@@ -708,7 +727,7 @@ Estado 2026-05-21:
   - 5 PDFs v2 indexados: contrato, SLA, procedimiento, calidad y condiciones comerciales.
   - ERP + produccion, RAG, mixto, memoria conversacional y guardrail documental pasan sin fallbacks.
   - Bug beta detectado y corregido: con todos los PDFs v2, `receta de cocina vegana` recuperaba un chunk por solape debil con `receta o especificacion`. `DocumentRAGTool` ahora exige mas evidencia cuando la pregunta contiene varios conceptos.
-- R10 queda cerrada; la fase activa actual es R8 tras cerrar R4, R5, R6 y R7.
+- R10 queda cerrada; la fase activa actual es R9 tras cerrar R4, R5, R6, R7 y R8.
 
 ## Fase R11 - Guion demo y cierre
 
@@ -805,3 +824,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R5 | cerrado | FinalResponseBuilder dividido en fachada, templates, prompt y grounding; `pytest`: 136 passed | este bloque |
 | 2026-05-21 | R6 | cerrado | PlannerAgent dividido en fachada, modelos, reglas, LLM planner, normalizacion, contexto y utilidades; `pytest`: 136 passed | este bloque |
 | 2026-05-21 | R7 | cerrado | DocumentRAGTool dividido en fachada, filtros, relevancia y answer builder grounded; `pytest`: 136 passed | este bloque |
+| 2026-05-21 | R8 | cerrado | Upload PDF endurecido con UploadFile, compatibilidad application/pdf y tests de errores 400/413; `pytest`: 139 passed | este bloque |

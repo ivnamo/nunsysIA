@@ -2092,3 +2092,30 @@ Validacion:
 Decision: R7 queda cerrada sin beta adicional porque no cambia algoritmos,
 umbrales, prompts ni salidas visibles esperadas. Siguiente bloque: R8,
 endurecer upload PDF.
+
+## Iteracion R8 - Upload PDF endurecido
+
+Fecha: 2026-05-21.
+
+Objetivo: sustituir el parser multipart manual por el mecanismo estandar de
+FastAPI sin romper Chainlit ni el contrato documental.
+
+Cambio validado:
+
+- `POST /api/documents/upload` acepta multipart mediante `UploadFile`.
+- Se conserva compatibilidad con upload directo `Content-Type: application/pdf`.
+- Se mantiene `MAX_DOCUMENT_UPLOAD_BYTES` y error `413` para ficheros demasiado
+  grandes.
+- Se mantienen errores controlados para multipart sin campo `file`, fichero no
+  PDF y PDFs sin texto util.
+
+Validacion:
+
+- `tests/integration/test_documents_api.py`: 5 passed.
+- `tests/unit/test_chainlit_client.py`: 4 passed.
+- `tests/integration/test_api_document_demo_flow.py`: 2 passed.
+- Suite completa: `139 passed, 2 warnings`.
+
+Decision: R8 queda cerrada sin beta LLM real porque no cambia planner, RAG,
+embeddings, respuesta visible ni contrato de `/api/query`. Siguiente bloque:
+R9, trazabilidad de replanning.

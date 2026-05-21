@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R7 cerrada con DocumentRAGTool dividido**.
-Siguiente bloque: **R8 - endurecer upload PDF** y preparar guion demo final.
+Estado actual: **R8 cerrada con upload PDF endurecido**.
+Siguiente bloque: **R9 - trazabilidad de replanning** y preparar guion demo final.
 
 Este repositorio contiene:
 
@@ -50,7 +50,8 @@ Este repositorio contiene:
 - adaptador ChromaDB con fallback local en memoria si Chroma no esta disponible;
 - `DocumentRAGTool` como fachada determinista con trazabilidad,
   `insufficient_context`, filtros documentales y respuesta grounded extraidos;
-- endpoints `POST /api/documents/upload` y `GET /api/documents`;
+- endpoints `POST /api/documents/upload` y `GET /api/documents`, con
+  multipart gestionado por `UploadFile` y soporte directo `application/pdf`;
 - tests de ingestion, retrieval, tool RAG y endpoints documentales.
 - app Chainlit conectada a `POST /api/query`;
 - cliente HTTP de Chainlit testeable;
@@ -64,7 +65,7 @@ Este repositorio contiene:
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
 - citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
 - memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
-- suite automatizada versionada actual: `136 passed, 2 warnings`.
+- suite automatizada versionada actual: `139 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -86,7 +87,7 @@ Disponible para ejecutar actualmente:
 
 Pendiente:
 
-- R8: endurecer upload PDF;
+- R9: trazabilidad de replanning;
 - guion demo final.
 
 ## Arquitectura decidida
@@ -396,10 +397,11 @@ Endpoints del mock:
 ## Siguiente bloque
 
 P10 queda cerrada con Docker Compose, ChromaDB HTTP real, secretos por archivo y
-smoke beta con LLM/embeddings reales. R4, R5, R6 y R7 tambien quedan cerradas: la
+smoke beta con LLM/embeddings reales. R4, R5, R6, R7 y R8 tambien quedan cerradas: la
 politica de penalizaciones se extrajo, `FinalResponseBuilder` quedo como
 fachada del nodo final, `PlannerAgent` como fachada del nodo de planificacion y
-`DocumentRAGTool` como fachada RAG determinista.
+`DocumentRAGTool` como fachada RAG determinista. El upload documental usa
+`UploadFile` para multipart y conserva el modo directo `application/pdf`.
 
-- ejecutar R8 sobre upload documental con tests focalizados;
+- ejecutar R9 sobre trazabilidad de replanning con tests focalizados;
 - preparar guion demo final y documentacion de entrega.

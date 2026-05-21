@@ -166,7 +166,7 @@ En respuestas de impacto economico, `data` puede incluir un resumen publico sin 
 
 Descripcion: sube un PDF para indexarlo en el vector store documental. En local puede usarse el fallback en memoria si ChromaDB no esta instalado o disponible.
 
-Request principal: `multipart/form-data`.
+Request principal: `multipart/form-data`, procesado con `UploadFile` de FastAPI.
 
 Campo esperado:
 

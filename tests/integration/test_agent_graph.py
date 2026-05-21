@@ -289,6 +289,27 @@ def test_agent_graph_answers_order_penalties_with_erp_production_and_documents(
     assert response.data["rag"]["documents"] == ["anexo_penalizaciones_sla.pdf"]
 
 
+def test_agent_graph_blocks_order_penalties_when_document_context_is_insufficient(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        rag_tool=DocumentRAGTool(
+            vector_store=InMemoryDocumentVectorStore(),
+            embedding_model=DeterministicEmbeddingModel(),
+        ),
+        question="en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno",
+    )
+
+    assert response.status == "insufficient_context"
+    assert response.sources == ["ERP", "Produccion", "Documentos"]
+    assert "contexto documental suficiente" in response.answer
+    assert "Penalizaciones estimadas por pedido" not in response.answer
+    assert response.data["rag"]["status"] == "insufficient_context"
+
+
 def test_agent_graph_returns_tool_error_when_rag_embedding_fails(
     erp_tool: ERPTool,
     production_tool: ProductionAPITool,

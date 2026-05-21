@@ -46,9 +46,10 @@ Cada fase debe seguir este protocolo:
 2. Ejecutar tests focalizados antes si el cambio es delicado.
 3. Implementar el minimo cambio necesario.
 4. Ejecutar tests focalizados.
-5. Ejecutar `pytest` completo antes de cerrar fases criticas o antes de demo.
-6. Actualizar documentacion si cambia contrato, trazabilidad o validacion manual.
-7. Hacer un commit unico con mensaje claro.
+5. Ejecutar validacion beta con LLM real cuando la fase cambie comportamiento visible.
+6. Ejecutar `pytest` completo antes de cerrar fases criticas o antes de demo.
+7. Actualizar documentacion si cambia contrato, trazabilidad o validacion manual.
+8. Hacer un commit unico con mensaje claro.
 
 Formato sugerido de commit:
 
@@ -75,12 +76,80 @@ Usar estos estados para mantener vivo este documento:
 - `cerrado`: commit realizado.
 - `pospuesto`: deuda aceptada con motivo.
 
+## Validacion beta con LLM real
+
+Los tests automatizados siguen siendo obligatorios, pero no sustituyen la beta
+con LLM y embeddings reales. La prueba tecnica se defiende por comportamiento
+visible, calidad de retrieval, grounding y trazabilidad, asi que
+`docs/BETA_VALIDATION_REPORT.md` forma parte del criterio de aceptacion.
+
+Regla general:
+
+- `pytest` protege contratos, regresiones y determinismo.
+- La beta real valida planner LLM, final response LLM, embeddings externos,
+  Chroma persistente, ranking documental y salida visible en Chainlit.
+- Los tests basicos no deben depender de LLM pagados.
+- Las pasadas beta usan `.env` local autorizado segun `docs/MANUAL_VALIDATION.md`.
+- No se documentan secretos, tokens ni valores de entorno sensibles.
+
+### Niveles de beta
+
+| Nivel | Cuando se ejecuta | Casos minimos | Evidencia |
+|---|---|---|---|
+| `BT-smoke` | Despues de cada fase que toque planner, validator, final response, RAG o tools | 1 ERP+produccion, 1 RAG, 1 mixta, 1 guardrail | Resumen en el registro vivo o en `BETA_VALIDATION_REPORT.md` si cambia respuesta visible |
+| `BT-parcial` | Antes de cerrar R1, R4, R7 y R10 | BT-05 a BT-10 + BT-V2-LLM-02/03/06/07 | Nueva iteracion en `BETA_VALIDATION_REPORT.md` |
+| `BT-completa` | Antes de demo final o entrega | BT-01 a BT-11 + BT-V2-LLM-01 a BT-V2-LLM-07 | Informe completo actualizado |
+
+### Configuracion beta esperada
+
+- `LLM_PROVIDER=gemini` u otro proveedor real configurado y autorizado.
+- `EMBEDDING_PROVIDER=gemini` u otro proveedor real configurado y autorizado.
+- `LLM_TEMPERATURE=0`.
+- `LLM_TIMEOUT_SECONDS=45` salvo motivo documentado.
+- Chroma persistente con coleccion aislada por fase, por ejemplo:
+  `beta_validation_YYYYMMDD_R1_HHMMSS`.
+- PDFs seed de `data/sample_docs/`, incluyendo `v2_*.pdf` para validar
+  retrieval multipagina.
+
+### Casos smoke obligatorios
+
+Estos cuatro casos se repiten tras cambios de comportamiento visible:
+
+1. ERP + produccion: `Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?`
+2. RAG documental: `Hay alguna penalizacion por retrasos?`
+3. Mixto ERP + produccion + RAG: pregunta de penalizaciones con pedido/cliente y causa de produccion.
+4. Guardrail: pregunta ajena al dominio o documental sin evidencia, como receta de cocina vegana.
+
+### Criterio de parada
+
+- Un `FAIL` en guardrail, trazabilidad, respuesta mixta o RAG documental bloquea
+  el commit funcional hasta corregirlo.
+- Un `PARTIAL` puede documentarse durante refactor interno, pero no debe quedar
+  en la beta final si afecta a los casos de demo.
+- Si aparece fallback en una pasada que esperaba proveedor real, se investiga y
+  se documenta la causa antes de cerrar la fase.
+- Si el fallo se debe a proveedor externo intermitente, se repite una vez con
+  coleccion nueva y se registra el resultado.
+
+### Registro minimo por pasada beta
+
+Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
+
+- fecha, fase y commit o rama evaluada;
+- proveedor/modelo LLM y proveedor/modelo de embeddings;
+- modo Chroma y nombre de coleccion;
+- documentos cargados y numero de chunks;
+- PASS/PARTIAL/FAIL por caso;
+- respuesta visible resumida o completa para fallos y parciales;
+- citas, fallbacks, `status`, `sources`, `tool_calls` y `failure_reason`;
+- decision: continuar, corregir o aceptar deuda consciente.
+
 ## Roadmap de fases
 
 | Fase | Estado | Objetivo | Riesgo que reduce | Commit sugerido |
 |---|---|---|---|---|
 | R0 | en curso | Crear este plan vivo | Evitar refactor improvisado | `docs(refactor): add phased implementation plan` |
-| R1 | pendiente | Guardrail documental en planes mixtos | Responder penalizaciones sin evidencia RAG | `fix(agents): enforce document evidence in mixed plans` |
+| R1 | validado en tests / beta pendiente | Guardrail documental en planes mixtos | Responder penalizaciones sin evidencia RAG | `fix(agents): enforce document evidence in mixed plans` |
 | R2 | pendiente | Planner sin defaults silenciosos | Responder ALFKI cuando falta cliente | `fix(planner): avoid implicit customer defaults` |
 | R3 | pendiente | Trazabilidad de actions y fallbacks | Tool calls poco explicitas | `fix(traceability): expose tool actions consistently` |
 | R4 | pendiente | Extraer politica de penalizaciones | Logica documental hardcodeada en builder | `refactor(final-response): extract penalty policy` |
@@ -122,11 +191,27 @@ Tests minimos:
 .\.venv\Scripts\python.exe -m pytest tests\integration\test_agent_graph.py
 ```
 
+Beta real:
+
+- Ejecutar `BT-parcial` porque esta fase toca el guardrail mixto mas sensible.
+- Casos obligatorios: BT-08, BT-10, BT-V2-LLM-02, BT-V2-LLM-03, BT-V2-LLM-06 y BT-V2-LLM-07.
+- Registrar coleccion Chroma aislada y fallbacks en `docs/BETA_VALIDATION_REPORT.md`.
+
 Criterio de aceptacion:
 
 - RAG puro sigue devolviendo `insufficient_context`.
 - Mixto ERP + Produccion + Documentos no completa penalizaciones si RAG no aporta contexto.
 - Casos positivos de penalizaciones siguen pasando cuando hay documento valido.
+- Beta real sin `FAIL` en mixto, RAG documental ni guardrails.
+
+Estado 2026-05-21:
+
+- Implementado en `app/agents/validator.py` con deteccion de planes que requieren contexto documental, tambien si `intent == mixed`.
+- Agregadas regresiones en `tests/unit/test_validator.py` y `tests/integration/test_agent_graph.py`.
+- Validado con pytest focalizado:
+  - `tests/unit/test_validator.py`: 6 passed.
+  - `tests/integration/test_agent_graph.py`: 11 passed, 1 warning externa de LangGraph.
+- Pendiente antes de cerrar fase: `BT-parcial` con LLM real y registro en `docs/BETA_VALIDATION_REPORT.md`.
 
 ## Fase R2 - Planner sin defaults silenciosos
 
@@ -155,6 +240,12 @@ Tests minimos:
 .\.venv\Scripts\python.exe -m pytest tests\unit\test_planner.py
 .\.venv\Scripts\python.exe -m pytest tests\integration\test_query_endpoint.py
 ```
+
+Beta real:
+
+- Ejecutar `BT-smoke`.
+- Incluir memoria conversacional si se toca resolucion por contexto: BT-09A, BT-09B y BT-09C.
+- Verificar que una pregunta sin cliente explicito no queda maquillada como ALFKI salvo que la memoria lo soporte.
 
 Criterio de aceptacion:
 
@@ -194,6 +285,12 @@ Tests minimos:
 .\.venv\Scripts\python.exe -m pytest tests\unit\test_erp_tool.py tests\unit\test_production_tool.py tests\unit\test_rag_tool.py tests\unit\test_traceability.py
 ```
 
+Beta real:
+
+- Ejecutar `BT-smoke`.
+- Revisar en Chainlit que `tool_calls` muestre tool y accion de forma auditable.
+- Registrar cualquier cambio visible en `docs/BETA_VALIDATION_REPORT.md`.
+
 Criterio de aceptacion:
 
 - `tool_calls` permite auditar tool + action sin depender solo de `output_summary`.
@@ -228,11 +325,18 @@ Tests minimos:
 .\.venv\Scripts\python.exe -m pytest tests\integration\test_agent_graph.py
 ```
 
+Beta real:
+
+- Ejecutar `BT-parcial`.
+- Casos obligatorios: BT-07, BT-08, BT-V2-LLM-02, BT-V2-LLM-03 y BT-V2-LLM-06.
+- Verificar que la redaccion final no calcula ni sugiere penalizacion sin evidencia documental suficiente.
+
 Criterio de aceptacion:
 
 - La respuesta mixta sigue funcionando para el caso demo.
 - La politica no depende de memoria del modelo.
 - Las reglas documentales quedan aisladas y explicables.
+- Beta real sin `PARTIAL` en impacto economico y trazabilidad.
 
 ## Fase R5 - Dividir FinalResponseBuilder
 
@@ -262,6 +366,11 @@ Tests minimos:
 .\.venv\Scripts\python.exe -m pytest tests\unit\test_final_response.py
 .\.venv\Scripts\python.exe -m pytest tests\integration\test_agent_graph.py
 ```
+
+Beta real:
+
+- Ejecutar `BT-smoke` si cambia cualquier salida visible.
+- Si el refactor es mecanico y los snapshots/respuestas no cambian, basta con dejarlo documentado en el registro vivo.
 
 Criterio de aceptacion:
 
@@ -299,6 +408,11 @@ Tests minimos:
 .\.venv\Scripts\python.exe -m pytest tests\integration\test_agent_graph.py
 ```
 
+Beta real:
+
+- Ejecutar `BT-smoke`.
+- Repetir BT-09A/BT-09B/BT-09C si se toca memoria o resolucion contextual.
+
 Criterio de aceptacion:
 
 - No cambia el grafo.
@@ -333,6 +447,12 @@ Tests minimos:
 .\.venv\Scripts\python.exe -m pytest tests\unit\test_rag_tool.py tests\unit\test_rag_ingestion.py
 .\.venv\Scripts\python.exe -m pytest tests\integration\test_api_document_demo_flow.py
 ```
+
+Beta real:
+
+- Ejecutar `BT-parcial`.
+- Casos obligatorios: BT-05, BT-06, BT-07, BT-10 y BT-V2-LLM-01 a BT-V2-LLM-07.
+- Validar ranking de paginas esperadas, no solo respuesta textual.
 
 Criterio de aceptacion:
 
@@ -435,6 +555,12 @@ docker compose up --build
 .\.venv\Scripts\python.exe -m pytest
 ```
 
+Beta real:
+
+- Ejecutar `BT-parcial` dentro del runtime Docker o contra servicios levantados con Docker.
+- Si se mantiene una beta fuera de Docker por coste/tiempo, ejecutar al menos `BT-smoke` desde Chainlit contra backend dockerizado.
+- Confirmar que Chroma en Compose no cae a memoria salvo fallo visible y documentado.
+
 Validacion manual:
 
 - `GET /health` backend.
@@ -450,6 +576,7 @@ Criterio de aceptacion:
 - `docker compose up --build` levanta la POC completa.
 - Chainlit puede consultar el backend por red Docker.
 - Chroma no cae a memoria dentro de Compose salvo fallo documentado.
+- Beta real smoke/parcial queda registrada con runtime Docker.
 
 ## Fase R11 - Guion demo y cierre
 
@@ -469,11 +596,13 @@ Contenido esperado:
 - Que destacar ante revisor.
 - Deuda consciente admitida.
 - Plan de rollback si LLM o Chroma fallan.
+- Referencia a la ultima `BT-completa` con LLM real.
 
 Criterio de aceptacion:
 
 - Una persona externa puede levantar, ejecutar y defender la POC.
 - Las limitaciones estan explicadas sin parecer improvisadas.
+- `docs/BETA_VALIDATION_REPORT.md` contiene una iteracion final sin fallos en casos de demo.
 
 ## Matriz de tests por tipo de cambio
 
@@ -496,6 +625,7 @@ Criterio de aceptacion:
 - `git diff` revisado.
 - No hay cambios de alcance accidental.
 - Tests focalizados pasan.
+- Si el cambio afecta comportamiento visible, `BT-smoke` con LLM real pasa o queda justificado.
 - Si se toca contrato API, docs actualizados.
 - Si se toca respuesta visible, Chainlit formatting sigue mostrando fuentes, pasos, tool calls y fallbacks.
 - No hay secretos en diff.
@@ -505,6 +635,7 @@ Criterio de aceptacion:
 
 - `pytest` completo pasa.
 - `docs/MANUAL_VALIDATION.md` ejecutado al menos para casos obligatorios.
+- `BT-completa` con LLM real registrada en `docs/BETA_VALIDATION_REPORT.md`.
 - Casos validados:
   - ERP + produccion: ALFKI pendientes y estados.
   - Produccion bloqueada con motivo y cliente ERP.
@@ -514,6 +645,7 @@ Criterio de aceptacion:
   - Memoria conversacional con `conversation_id`.
   - Pregunta documental sin evidencia.
 - Fallbacks visibles si se fuerza modo deterministico o Chroma memoria.
+- Sin fallbacks inesperados en la pasada beta real.
 - `.env` no esta versionado.
 - P10 Docker Compose cerrado o declarado explicitamente como pendiente.
 
@@ -531,4 +663,5 @@ Criterio de aceptacion:
 | Fecha | Fase | Estado | Evidencia | Commit |
 |---|---|---|---|---|
 | 2026-05-21 | R0 | en curso | Documento creado desde auditoria senior | pendiente |
-
+| 2026-05-21 | Beta | en curso | Beta real integrada como criterio de aceptacion por fase | pendiente |
+| 2026-05-21 | R1 | validado en tests / beta pendiente | Guardrail mixto documental implementado; unit validator 6 passed; integration agent graph 11 passed | pendiente |

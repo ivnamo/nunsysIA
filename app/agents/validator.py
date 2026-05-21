@@ -26,7 +26,7 @@ class ValidatorNode:
             )
 
         rag_result = state.get("data", {}).get("rag")
-        if plan.intent == "rag" and rag_result:
+        if _requires_document_context(plan) and rag_result:
             if rag_result.get("status") == "insufficient_context":
                 return {
                     **state,
@@ -34,6 +34,7 @@ class ValidatorNode:
                     "validation_decision": "fail",
                     "failure_reason": "No hay chunks documentales relevantes.",
                 }
+        if plan.intent == "rag" and rag_result:
             if rag_result.get("status") == "completed":
                 return {
                     **state,
@@ -97,3 +98,12 @@ class ValidatorNode:
             "validation_decision": "fail",
             "failure_reason": failure_reason,
         }
+
+
+def _requires_document_context(plan: ExecutionPlan) -> bool:
+    if "Documentos" in plan.expected_sources:
+        return True
+    return any(
+        step.tool == "DocumentRAGTool" and step.required
+        for step in plan.steps
+    )

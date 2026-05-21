@@ -106,6 +106,73 @@ def test_validator_fails_rag_when_context_is_insufficient() -> None:
     assert state["validation_decision"] == "fail"
 
 
+def test_validator_fails_mixed_plan_when_document_context_is_insufficient() -> None:
+    validator = ValidatorNode()
+
+    state = validator(
+        {
+            "plan": {
+                "intent": "mixed",
+                "steps": [
+                    {
+                        "step_id": 1,
+                        "tool": "ERPTool",
+                        "action": "get_orders_by_month",
+                        "args": {"year": 2026, "month": 5},
+                        "required": True,
+                    },
+                    {
+                        "step_id": 2,
+                        "tool": "ProductionAPITool",
+                        "action": "get_status_for_erp_orders",
+                        "args": {},
+                        "required": True,
+                    },
+                    {
+                        "step_id": 3,
+                        "tool": "DocumentRAGTool",
+                        "action": "query",
+                        "args": {"query": "penalizaciones", "top_k": 5},
+                        "required": True,
+                    },
+                ],
+                "expected_sources": ["ERP", "Produccion", "Documentos"],
+                "answer_requirements": [],
+            },
+            "sources": ["ERP", "Produccion", "Documentos"],
+            "tool_calls": [
+                ToolCallTrace(tool="ERPTool", status="success", source="ERP"),
+                ToolCallTrace(
+                    tool="ProductionAPITool",
+                    status="success",
+                    source="Produccion",
+                ),
+                ToolCallTrace(
+                    tool="DocumentRAGTool",
+                    status="success",
+                    source="Documentos",
+                ),
+            ],
+            "reasoning": [
+                "Consulta ERP de pedidos por mes",
+                "Consulta API de produccion para pedido 10248",
+                "Consulta RAG documental con chunks recuperados",
+            ],
+            "data": {
+                "rag": {
+                    "answer": "No hay contexto documental suficiente para responder sin inventar.",
+                    "status": "insufficient_context",
+                    "chunks": [],
+                }
+            },
+            "attempts": 0,
+        }
+    )
+
+    assert state["status"] == "insufficient_context"
+    assert state["validation_decision"] == "fail"
+
+
 def test_validator_finishes_rag_when_document_context_exists() -> None:
     validator = ValidatorNode()
 

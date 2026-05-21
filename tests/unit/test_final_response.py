@@ -138,6 +138,28 @@ def test_final_response_answers_mixed_penalties_with_llm() -> None:
     assert "penalizacion" in state["response"].answer
 
 
+def test_final_response_answers_economic_impact_without_raw_order_lines() -> None:
+    builder = FinalResponseBuilder()
+
+    state = builder(_economic_impact_state())
+
+    assert state["response"].status == "completed"
+    assert "10252" in state["response"].answer
+    assert "1863.00" in state["response"].answer
+    assert state["response"].data == {
+        "order_amounts_count": 1,
+        "order_amount_order_ids": [10252],
+        "economic_impact_total": "1863.00",
+        "memory": {
+            "status": "found",
+            "turns_count": 1,
+            "customer_id": "ALFKI",
+            "order_ids": [10252],
+        },
+    }
+    assert "product_id" not in str(state["response"].data)
+
+
 def test_final_response_falls_back_when_llm_times_out() -> None:
     builder = FinalResponseBuilder(
         chat_model=_SlowChatModel(),
@@ -354,3 +376,38 @@ def _mixed_penalty_state() -> dict:
     }
     state["sources"] = ["ERP", "Produccion", "Documentos"]
     return state
+
+
+def _economic_impact_state() -> dict:
+    return {
+        "question": "Cual es el impacto economico de esos?",
+        "plan": {
+            "intent": "erp",
+            "steps": [],
+            "expected_sources": ["Memoria", "ERP"],
+            "answer_requirements": [
+                "Resolver la referencia con memoria y calcular importes ERP."
+            ],
+        },
+        "status": "completed",
+        "data": {
+            "memory": {
+                "status": "found",
+                "turns": [
+                    {
+                        "question": "Y cuales de esos pedidos estan bloqueados?",
+                        "answer": "El pedido 10252 esta bloqueado.",
+                        "facts": {"customer_id": "ALFKI", "order_ids": [10252]},
+                    }
+                ],
+                "facts": {"customer_id": "ALFKI", "order_ids": [10252]},
+            },
+            "order_amounts": [{"order_id": 10252, "amount": "1863.00"}],
+        },
+        "sources": ["Memoria", "ERP"],
+        "reasoning": [
+            "Consulta memoria conversacional",
+            "Consulta ERP de importe para pedido 10252",
+        ],
+        "tool_calls": [],
+    }

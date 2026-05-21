@@ -25,7 +25,7 @@ def format_query_response(response: QueryResponse) -> str:
         sections.append(
             "**Tool calls**\n"
             + "\n".join(
-                f"- `{call.tool}` [{call.status}]: {call.output_summary or 'sin resumen'}"
+                f"- `{_tool_call_label(call)}` [{call.status}]: {call.output_summary or 'sin resumen'}"
                 for call in response.tool_calls
             )
         )
@@ -72,6 +72,12 @@ def format_document_list(response: DocumentListResponse) -> str:
 
 def format_error(message: str) -> str:
     return f"No se pudo completar la operacion: {message}"
+
+
+def _tool_call_label(call: object) -> str:
+    tool = getattr(call, "tool", "")
+    action = getattr(call, "action", None)
+    return f"{tool}.{action}" if action else str(tool)
 
 
 def _format_meta(response: QueryResponse) -> str | None:

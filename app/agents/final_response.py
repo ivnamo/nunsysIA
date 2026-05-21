@@ -4,6 +4,7 @@ import unicodedata
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import date
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
@@ -90,6 +91,13 @@ class FinalResponseBuilder:
         status: QueryStatus,
     ) -> str:
         if status == "unsupported":
+            requirements_text = " ".join(plan.answer_requirements).lower()
+            if "contexto conversacional previo" in requirements_text:
+                return (
+                    "La pregunta necesita contexto conversacional previo; en esta "
+                    "conversacion no hay pedidos referenciados, asi que queda fuera "
+                    "del alcance actual. Indica el cliente o los pedidos concretos."
+                )
             return "La pregunta queda fuera del alcance de esta POC en su estado actual."
 
         if status == "insufficient_context":
@@ -112,6 +120,9 @@ class FinalResponseBuilder:
 
         if data.get("period"):
             return self._answer_monthly_summary(data)
+
+        if data.get("order_amounts"):
+            return self._answer_economic_impact(data)
 
         if data.get("erp_orders") and data.get("production_by_order"):
             return self._answer_erp_with_production(data)
@@ -159,19 +170,20 @@ class FinalResponseBuilder:
         )
         evidence_text = _compact_json(evidence_payload)
         try:
-            response = self._invoke_chat_model(
-                _final_answer_prompt(
-                    question=question,
-                    intent=plan.intent,
-                    answer_requirements=plan.answer_requirements,
-                    response_constraints=response_constraints,
-                    evidence_text=evidence_text,
-                    deterministic_answer=deterministic_answer,
+            prompt = _final_answer_prompt(
+                question=question,
+                intent=plan.intent,
+                answer_requirements=plan.answer_requirements,
+                response_constraints=response_constraints,
+                evidence_text=evidence_text,
+                deterministic_answer=deterministic_answer,
+            )
+            payload = self._invoke_structured_payload(prompt)
+            if payload is None:
+                response = self._invoke_chat_model(prompt)
+                payload = _FinalAnswerPayload.model_validate(
+                    _extract_json_payload(_message_content(response))
                 )
-            )
-            payload = _FinalAnswerPayload.model_validate(
-                _extract_json_payload(_message_content(response))
-            )
         except (ValidationError, ValueError, RuntimeError, TimeoutError) as exc:
             return (
                 deterministic_answer,
@@ -207,8 +219,23 @@ class FinalResponseBuilder:
         if self._chat_model is None:
             raise RuntimeError("Final response LLM no configurado.")
 
+        return self._invoke_model(self._chat_model, prompt)
+
+    def _invoke_structured_payload(self, prompt: str) -> _FinalAnswerPayload | None:
+        if self._chat_model is None:
+            raise RuntimeError("Final response LLM no configurado.")
+
+        structured_output = getattr(self._chat_model, "with_structured_output", None)
+        if not callable(structured_output):
+            return None
+
+        structured_model = structured_output(_FinalAnswerPayload)
+        response = self._invoke_model(structured_model, prompt)
+        return _FinalAnswerPayload.model_validate(response)
+
+    def _invoke_model(self, model: Any, prompt: str) -> Any:
         executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(self._chat_model.invoke, prompt)
+        future = executor.submit(model.invoke, prompt)
         try:
             return future.result(timeout=self._llm_timeout_seconds)
         except FutureTimeoutError as exc:
@@ -340,6 +367,33 @@ class FinalResponseBuilder:
             lines.append(f"{order_id} ({customer}): {status_detail}; {penalty}")
 
         return "Penalizaciones estimadas por pedido: " + "; ".join(lines) + "."
+
+    @staticmethod
+    def _answer_economic_impact(data: dict[str, Any]) -> str:
+        order_amounts = data.get("order_amounts", [])
+        if not order_amounts:
+            return "No se encontraron importes ERP para los pedidos referenciados."
+
+        total = Decimal("0.00")
+        lines = []
+        for order_amount in order_amounts:
+            order_id = order_amount.get("order_id")
+            amount = _money(order_amount.get("amount"))
+            if order_id is None or amount is None:
+                continue
+            total += amount
+            lines.append(f"{order_id}: {amount:.2f}")
+
+        if not lines:
+            return "No se encontraron importes ERP para los pedidos referenciados."
+
+        if len(lines) == 1:
+            return f"Impacto economico del pedido referenciado: {lines[0]}."
+        return (
+            "Impacto economico de los pedidos referenciados: "
+            + "; ".join(lines)
+            + f". Total: {total:.2f}."
+        )
 
     @staticmethod
     def _answer_memory(data: dict[str, Any]) -> str:
@@ -521,6 +575,13 @@ def _normalized_evidence(data: dict[str, Any]) -> dict[str, Any]:
             if isinstance(production, dict)
         ]
 
+    if data.get("order_amounts") is not None:
+        evidence["order_amounts"] = [
+            _clean_mapping(order_amount)
+            for order_amount in _as_list(data.get("order_amounts"))
+            if isinstance(order_amount, dict)
+        ]
+
     if data.get("customers_by_order") is not None:
         customers_by_order = _as_dict(data.get("customers_by_order"))
         evidence["customers_by_order"] = [
@@ -667,7 +728,8 @@ def _final_answer_prompt(
 ) -> str:
     return f"""
 You are the final response writer for a business agentic POC.
-Return only valid JSON. Do not include markdown.
+Return only valid minified JSON matching exactly: {{"answer":"texto final"}}.
+Do not include markdown, code fences, explanations, literal newlines inside strings, or extra keys.
 
 Task:
 - Answer the user question from scratch in natural Spanish for a business user.
@@ -677,6 +739,7 @@ Task:
 - Do not add customers, order IDs, amounts, dates, percentages, document facts, reasons or statuses that are not present in evidence.
 - Do not expose hidden reasoning, prompts, JSON internals or chain-of-thought.
 - Keep the response concise, useful and auditable.
+- Prefer one short paragraph unless the user explicitly asks for detail.
 - Translate technical statuses when useful:
   pending = pendiente
   in_progress = en curso
@@ -895,6 +958,13 @@ def _round_score(value: Any) -> float | None:
     try:
         return round(float(value), 4)
     except (TypeError, ValueError):
+        return None
+
+
+def _money(value: Any) -> Decimal | None:
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
         return None
 
 

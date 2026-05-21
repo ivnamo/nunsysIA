@@ -61,7 +61,7 @@ Este repositorio contiene:
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
 - citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
 - memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
-- suite automatizada versionada actual: `115 passed, 2 warnings`.
+- suite automatizada versionada actual: `124 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 

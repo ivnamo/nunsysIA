@@ -93,6 +93,74 @@ def test_agent_graph_uses_memory_to_resolve_follow_up(
     assert response.data["memory"]["order_ids"] == [10248, 10252]
 
 
+def test_agent_graph_filters_blocked_orders_from_memory_follow_up(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        question="Y cuales de esos pedidos estan bloqueados?",
+        conversation_id="demo-memory",
+        conversation_history=[
+            {
+                "question": "Que pedidos pendientes tiene el cliente ALFKI?",
+                "answer": "El cliente ALFKI tiene 2 pedidos pendientes: 10248, 10252.",
+                "status": "completed",
+                "sources": ["ERP"],
+                "facts": {"customer_id": "ALFKI", "order_ids": [10248, 10252]},
+            }
+        ],
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Memoria", "Produccion", "ERP"]
+    assert "10252" in response.answer
+    assert "Falta de material" in response.answer
+    assert "10248" not in response.answer
+    assert [call.tool for call in response.tool_calls] == [
+        "MemoryTool",
+        "ProductionAPITool",
+        "ERPTool",
+    ]
+    assert response.data["production_order_ids"] == [10252]
+    assert response.data["memory"]["order_ids"] == [10248, 10252]
+
+
+def test_agent_graph_calculates_economic_impact_from_memory_follow_up(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        question="Cual es el impacto economico de esos?",
+        conversation_id="demo-memory",
+        conversation_history=[
+            {
+                "question": "Y cuales de esos pedidos estan bloqueados?",
+                "answer": "El pedido 10252 esta bloqueado por Falta de material.",
+                "status": "completed",
+                "sources": ["Memoria", "Produccion", "ERP"],
+                "facts": {"customer_id": "ALFKI", "order_ids": [10252]},
+            }
+        ],
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Memoria", "ERP"]
+    assert "10252" in response.answer
+    assert "1863.00" in response.answer
+    assert [call.tool for call in response.tool_calls] == [
+        "MemoryTool",
+        "ERPTool",
+    ]
+    assert response.data["order_amounts_count"] == 1
+    assert response.data["order_amount_order_ids"] == [10252]
+    assert response.data["economic_impact_total"] == "1863.00"
+    assert "product_id" not in str(response.data)
+
+
 def test_agent_graph_answers_blocked_orders_with_erp_customer_context(
     erp_tool: ERPTool,
     production_tool: ProductionAPITool,

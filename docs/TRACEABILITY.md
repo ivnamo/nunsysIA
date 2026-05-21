@@ -11,6 +11,7 @@ La traza debe servir para auditar el comportamiento sin exponer razonamiento int
 Cada llamada a tool debe guardar:
 
 - `tool`: nombre de la tool.
+- `action`: accion interna ejecutada cuando conviene exponerla para auditoria; puede ser `null` en llamadas simples.
 - `args`: argumentos relevantes y sanitizados.
 - `status`: `success`, `error` o `skipped`.
 - `output_summary`: resumen breve del resultado.
@@ -63,6 +64,7 @@ El razonamiento interno no debe devolverse al usuario.
   "tool_calls": [
     {
       "tool": "ERPTool",
+      "action": null,
       "args": {"customer_id": "ALFKI"},
       "status": "success",
       "output_summary": "2 pedidos pendientes encontrados",
@@ -70,6 +72,7 @@ El razonamiento interno no debe devolverse al usuario.
     },
     {
       "tool": "ProductionAPITool",
+      "action": null,
       "args": {"order_id": 10248},
       "status": "success",
       "output_summary": "Estado de produccion in_progress",
@@ -77,6 +80,7 @@ El razonamiento interno no debe devolverse al usuario.
     },
     {
       "tool": "ProductionAPITool",
+      "action": null,
       "args": {"order_id": 10252},
       "status": "success",
       "output_summary": "Estado de produccion blocked",
@@ -103,6 +107,7 @@ El razonamiento interno no debe devolverse al usuario.
   "tool_calls": [
     {
       "tool": "DocumentRAGTool",
+      "action": null,
       "args": {"query": "penalizacion por retrasos"},
       "status": "success",
       "output_summary": "3 chunks recuperados de contrato.pdf",
@@ -131,6 +136,7 @@ El razonamiento interno no debe devolverse al usuario.
   "tool_calls": [
     {
       "tool": "MemoryTool",
+      "action": null,
       "args": {"query": "Y en que estado estan?", "max_turns": 5},
       "status": "success",
       "output_summary": "Memoria conversacional: 1 interacciones recuperadas",
@@ -142,6 +148,48 @@ El razonamiento interno no debe devolverse al usuario.
 ```
 
 La memoria solo resuelve referencias conversacionales. Si la respuesta requiere datos de negocio actuales, deben aparecer tambien las tools deterministas correspondientes.
+
+## Ejemplo Follow-Up Economico
+
+```json
+{
+  "sources": ["Memoria", "ERP"],
+  "reasoning": [
+    "Consulta memoria conversacional",
+    "Calcula importe ERP para pedido 10252"
+  ],
+  "tool_calls": [
+    {
+      "tool": "MemoryTool",
+      "action": null,
+      "args": {"query": "Cual es el impacto economico de esos?", "max_turns": 5},
+      "status": "success",
+      "output_summary": "Memoria conversacional: 1 interacciones recuperadas",
+      "source": "Memoria"
+    },
+    {
+      "tool": "ERPTool",
+      "action": "calculate_order_amount",
+      "args": {"order_id": 10252},
+      "status": "success",
+      "output_summary": "Importe del pedido 10252: 1863.00",
+      "source": "ERP"
+    }
+  ],
+  "data": {
+    "memory": {
+      "status": "found",
+      "turns_count": 1,
+      "customer_id": "ALFKI",
+      "order_ids": [10252]
+    },
+    "order_amounts_count": 1,
+    "order_amount_order_ids": [10252],
+    "economic_impact_total": "1863.00"
+  },
+  "status": "completed"
+}
+```
 
 ## Estados Posibles
 
@@ -182,7 +230,10 @@ El campo `data` puede usarse para facilitar demo y auditoria, pero debe contener
 - `memory.turns_count`
 - `memory.customer_id`
 - `memory.order_ids`
+- `order_amounts_count`
+- `order_amount_order_ids`
+- `economic_impact_total`
 
-No debe contener importes detallados, textos completos de chunks, connection strings, errores raw, prompts ni objetos internos.
+No debe contener lineas raw de pedido, textos completos de chunks, connection strings, errores raw, prompts ni objetos internos. Para impacto economico se permiten IDs de pedido, conteos y total agregado como evidencia publica.
 
 Las citas documentales por chunk se devuelven en `data.rag.citations`. No deben incluir texto completo del chunk: solo metadatos publicos y score para auditoria.

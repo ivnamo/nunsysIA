@@ -4,6 +4,14 @@ Este checklist sirve para validar la POC en local antes de una demo. Los comando
 
 No pegues API keys en la terminal ni en capturas. El backend lee `.env` automaticamente.
 
+## Regla de validacion beta con LLM externos
+
+Para las validaciones beta y ensayos de demo real, el propietario del proyecto autoriza expresamente el uso de los proveedores LLM y de embeddings configurados en `.env`. Esta autorizacion incluye enviar preguntas de prueba, prompts de ejecucion, fragmentos recuperados de los PDFs mock y datos seed necesarios para evaluar el comportamiento end-to-end del sistema.
+
+La autorizacion aplica a material de prueba de este repositorio y a los documentos preparados para la demo. No autoriza publicar claves, tokens, connection strings ni secretos en la documentacion, en capturas o en salidas compartidas.
+
+El informe vivo de resultados beta se mantiene en `docs/BETA_VALIDATION_REPORT.md`.
+
 ## 0. Preparar entorno
 
 ```powershell
@@ -25,7 +33,7 @@ Ejecutar tests automatizados:
 Resultado esperado:
 
 ```text
-115 passed, 2 warnings
+124 passed, 2 warnings
 ```
 
 Las advertencias actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.

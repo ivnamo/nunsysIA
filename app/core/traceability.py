@@ -29,6 +29,7 @@ def sanitize_tool_calls(tool_calls: list[ToolCallTrace]) -> list[ToolCallTrace]:
     return [
         ToolCallTrace(
             tool=call.tool,
+            action=call.action,
             args=_sanitize_value(call.args),
             status=call.status,
             output_summary=_short_text(call.output_summary),
@@ -73,6 +74,14 @@ def build_public_data_summary(data: dict[str, Any]) -> dict[str, Any] | None:
     if data.get("production_by_order") is not None:
         production_by_order = data.get("production_by_order") or {}
         summary["production_statuses_count"] = len(production_by_order)
+
+    if data.get("order_amounts") is not None:
+        order_amounts = _as_list(data.get("order_amounts"))
+        summary["order_amounts_count"] = len(order_amounts)
+        summary["order_amount_order_ids"] = _order_ids(order_amounts)
+        total = _amount_total(order_amounts)
+        if total is not None:
+            summary["economic_impact_total"] = total
 
     if data.get("customers_by_order") is not None:
         customers_by_order = data.get("customers_by_order") or {}
@@ -245,3 +254,19 @@ def _memory_order_ids(values: Any) -> list[int]:
         if order_id not in order_ids:
             order_ids.append(order_id)
     return order_ids
+
+
+def _amount_total(rows: list[Any]) -> str | None:
+    total = 0.0
+    found = False
+    for row in rows:
+        if not isinstance(row, dict) or row.get("amount") is None:
+            continue
+        try:
+            total += float(row["amount"])
+        except (TypeError, ValueError):
+            continue
+        found = True
+    if not found:
+        return None
+    return f"{total:.2f}"

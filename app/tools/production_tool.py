@@ -15,6 +15,11 @@ class ProductionOrdersInput(BaseModel):
     status: ProductionStatus | None = None
 
 
+class ProductionOrdersByIdsInput(BaseModel):
+    order_ids: list[int] = Field(min_length=1)
+    status: ProductionStatus | None = None
+
+
 class ProductionAPITool:
     name = "ProductionAPITool"
 
@@ -67,16 +72,58 @@ class ProductionAPITool:
             ),
         )
 
+    def get_status_for_order_ids(
+        self,
+        tool_input: ProductionOrdersByIdsInput,
+    ) -> ToolResult:
+        started_at = perf_counter()
+        orders = []
+        try:
+            for order_id in tool_input.order_ids:
+                order = self._client.get_order(order_id)
+                if order is None:
+                    continue
+                if tool_input.status and order.production_status != tool_input.status:
+                    continue
+                orders.append(order)
+        except ProductionAPIError as exc:
+            return self._error_result(
+                tool_input.model_dump(),
+                str(exc),
+                started_at,
+                action="get_status_for_order_ids",
+            )
+
+        data = [order.model_dump(mode="json") for order in orders]
+        status_suffix = f" con estado {tool_input.status}" if tool_input.status else ""
+        return ToolResult(
+            data=data,
+            tool_call=ToolCallTrace(
+                tool=self.name,
+                action="get_status_for_order_ids",
+                args=tool_input.model_dump(),
+                status="success",
+                output_summary=(
+                    f"{len(data)} pedidos de produccion encontrados por ids"
+                    f"{status_suffix}"
+                ),
+                duration_ms=self._duration_ms(started_at),
+                source="Produccion",
+            ),
+        )
+
     def _error_result(
         self,
         args: dict[str, object],
         error: str,
         started_at: float,
+        action: str | None = None,
     ) -> ToolResult:
         return ToolResult(
             data=None,
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action=action,
                 args=args,
                 status="error",
                 output_summary="Error al consultar API de produccion",

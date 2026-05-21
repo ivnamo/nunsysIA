@@ -19,7 +19,7 @@ Ya existe codigo funcional para:
 - Chainlit conectado al backend, con subida de PDFs y comando `/documentos`.
 - Memoria conversacional simple de ultimas 5 interacciones por `conversation_id`.
 - Trazabilidad publica: fuentes, pasos, tool calls, fallbacks, estado, confianza y resumen de evidencias.
-- Tests automatizados versionados: `115 passed, 2 warnings` en la validacion local actual.
+- Tests automatizados versionados: `124 passed, 2 warnings` en la validacion local actual.
 
 ## Pendiente real
 

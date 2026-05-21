@@ -112,7 +112,57 @@ def test_query_endpoint_keeps_conversation_memory_by_id(client: TestClient) -> N
         },
     )
     assert isolated_response.status_code == 200
-    assert isolated_response.json()["status"] == "unsupported"
+    isolated_payload = isolated_response.json()
+    assert isolated_payload["status"] == "unsupported"
+    assert "contexto conversacional previo" in isolated_payload["answer"]
+
+
+def test_query_endpoint_resolves_blocked_and_economic_memory_follow_ups(
+    client: TestClient,
+) -> None:
+    first_response = client.post(
+        "/api/query",
+        json={
+            "question": "Que pedidos pendientes tiene el cliente ALFKI?",
+            "conversation_id": "memory-api-impact-001",
+        },
+    )
+    assert first_response.status_code == 200
+
+    blocked_response = client.post(
+        "/api/query",
+        json={
+            "question": "Y cuales de esos pedidos estan bloqueados?",
+            "conversation_id": "memory-api-impact-001",
+        },
+    )
+
+    assert blocked_response.status_code == 200
+    blocked_payload = blocked_response.json()
+    assert blocked_payload["status"] == "completed"
+    assert blocked_payload["sources"] == ["Memoria", "Produccion", "ERP"]
+    assert "10252" in blocked_payload["answer"]
+    assert "Falta de material" in blocked_payload["answer"]
+    assert "10248" not in blocked_payload["answer"]
+    assert blocked_payload["data"]["production_order_ids"] == [10252]
+
+    impact_response = client.post(
+        "/api/query",
+        json={
+            "question": "Cual es el impacto economico de esos?",
+            "conversation_id": "memory-api-impact-001",
+        },
+    )
+
+    assert impact_response.status_code == 200
+    impact_payload = impact_response.json()
+    assert impact_payload["status"] == "completed"
+    assert impact_payload["sources"] == ["Memoria", "ERP"]
+    assert "10252" in impact_payload["answer"]
+    assert "1863.00" in impact_payload["answer"]
+    assert impact_payload["data"]["order_amount_order_ids"] == [10252]
+    assert impact_payload["data"]["economic_impact_total"] == "1863.00"
+    assert "product_id" not in str(impact_payload["data"])
 
 
 def test_query_endpoint_answers_document_question_after_upload(

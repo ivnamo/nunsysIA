@@ -18,10 +18,12 @@ _ALLOWED_TOOL_ACTIONS: dict[str, set[str]] = {
         "get_pending_orders_by_customer",
         "get_orders_by_month",
         "get_customers_for_production_orders",
+        "calculate_order_amount",
     },
     "ProductionAPITool": {
         "list_orders",
         "get_status_for_erp_orders",
+        "get_status_for_order_ids",
     },
     "DocumentRAGTool": {"query"},
     "MemoryTool": {"recall"},
@@ -76,6 +78,21 @@ class PlannerAgent:
         normalized: str,
         state: AgentState,
     ) -> tuple[ExecutionPlan, str | None]:
+        contextual_unsupported_plan = _build_contextual_unsupported_plan(
+            normalized=normalized,
+            history=state.get("conversation_history", []),
+        )
+        if contextual_unsupported_plan is not None:
+            return contextual_unsupported_plan, None
+
+        contextual_plan = _build_contextual_rule_based_plan(
+            question=question,
+            normalized=normalized,
+            history=state.get("conversation_history", []),
+        )
+        if contextual_plan is not None:
+            return contextual_plan, None
+
         if _is_order_penalty_query(normalized):
             return self._build_rule_based_plan(question, normalized, state), None
 
@@ -176,8 +193,10 @@ Allowed tool actions:
 - ERPTool.get_pending_orders_by_customer(args: {{"customer_id": "ALFKI"}})
 - ERPTool.get_orders_by_month(args: {{"year": 2026, "month": 5}})
 - ERPTool.get_customers_for_production_orders(args: {{}})
+- ERPTool.calculate_order_amount(args: {{"order_ids": [10248, 10252]}})
 - ProductionAPITool.list_orders(args: {{"status": "blocked|delayed|in_progress|finished"}})
 - ProductionAPITool.get_status_for_erp_orders(args: {{}})
+- ProductionAPITool.get_status_for_order_ids(args: {{"order_ids": [10248, 10252], "status": "blocked|delayed|in_progress|finished|null"}})
 - DocumentRAGTool.query(args: {{"query": "<question>", "top_k": 5}})
 - MemoryTool.recall(args: {{"query": "<question>", "max_turns": 5}})
 
@@ -196,6 +215,8 @@ Business examples:
 - Delayed orders and affected customers: ProductionAPITool.list_orders(status=delayed), then ERPTool.get_customers_for_production_orders.
 - This month summary: ERPTool.get_orders_by_month(year=2026, month=5), then ProductionAPITool.get_status_for_erp_orders.
 - Penalties by order based on current order state: ERPTool.get_orders_by_month(year=2026, month=5), then ProductionAPITool.get_status_for_erp_orders, then DocumentRAGTool.query.
+- Conversational blocked orders from previous order IDs: MemoryTool.recall, then ProductionAPITool.get_status_for_order_ids(status=blocked), then ERPTool.get_customers_for_production_orders.
+- Conversational economic impact from previous order IDs: MemoryTool.recall, then ERPTool.calculate_order_amount.
 - PDF, contract, delivery terms, penalties, clauses, documents: DocumentRAGTool.query.
 
 Output schema:
@@ -424,6 +445,24 @@ def _build_contextual_rule_based_plan(
         args={"query": question, "max_turns": 5},
     )
 
+    if _is_economic_impact_followup(normalized_ascii) and order_ids:
+        return ExecutionPlan(
+            intent="erp",
+            steps=[
+                memory_step,
+                PlanStep(
+                    step_id=2,
+                    tool="ERPTool",
+                    action="calculate_order_amount",
+                    args={"order_ids": order_ids},
+                ),
+            ],
+            expected_sources=["Memoria", "ERP"],
+            answer_requirements=[
+                "Resolver la referencia con memoria y calcular importes ERP de los pedidos referenciados.",
+            ],
+        )
+
     if "penaliz" in normalized_ascii and order_ids:
         return ExecutionPlan(
             intent="mixed",
@@ -456,6 +495,29 @@ def _build_contextual_rule_based_plan(
             expected_sources=["Memoria", "ERP", "Produccion", "Documentos"],
             answer_requirements=[
                 "Resolver la referencia con memoria y responder con fuentes actuales.",
+            ],
+        )
+
+    if "bloquead" in normalized_ascii and order_ids:
+        return ExecutionPlan(
+            intent="erp_production",
+            steps=[
+                memory_step,
+                PlanStep(
+                    step_id=2,
+                    tool="ProductionAPITool",
+                    action="get_status_for_order_ids",
+                    args={"order_ids": order_ids, "status": "blocked"},
+                ),
+                PlanStep(
+                    step_id=3,
+                    tool="ERPTool",
+                    action="get_customers_for_production_orders",
+                ),
+            ],
+            expected_sources=["Memoria", "Produccion", "ERP"],
+            answer_requirements=[
+                "Responder solo con los pedidos referenciados que esten bloqueados.",
             ],
         )
 
@@ -514,24 +576,41 @@ def _build_contextual_rule_based_plan(
     return None
 
 
+def _build_contextual_unsupported_plan(
+    normalized: str,
+    history: list[dict[str, Any]],
+) -> ExecutionPlan | None:
+    normalized_ascii = _strip_accents(normalized)
+    if history or not _looks_like_contextual_followup(normalized_ascii):
+        return None
+
+    return ExecutionPlan(
+        intent="unsupported",
+        steps=[],
+        expected_sources=[],
+        answer_requirements=[
+            "Explicar que la pregunta necesita contexto conversacional previo y pedir que se concrete el cliente o los pedidos.",
+        ],
+    )
+
+
 def _conversation_facts(history: list[dict[str, Any]]) -> dict[str, Any]:
     facts: dict[str, Any] = {}
-    order_ids: list[int] = []
+    latest_order_ids: list[int] = []
 
-    for turn in history:
+    for turn in reversed(history):
         turn_facts = turn.get("facts") if isinstance(turn, dict) else None
         if isinstance(turn_facts, dict):
             customer_id = turn_facts.get("customer_id")
-            if isinstance(customer_id, str) and re.fullmatch(r"[A-Z]{5}", customer_id):
+            if (
+                "customer_id" not in facts
+                and isinstance(customer_id, str)
+                and re.fullmatch(r"[A-Z]{5}", customer_id)
+            ):
                 facts["customer_id"] = customer_id
 
-            for order_id in turn_facts.get("order_ids", []):
-                try:
-                    normalized_order_id = int(order_id)
-                except (TypeError, ValueError):
-                    continue
-                if normalized_order_id not in order_ids:
-                    order_ids.append(normalized_order_id)
+            if not latest_order_ids:
+                latest_order_ids = _normalize_order_ids(turn_facts.get("order_ids"))
 
         if "customer_id" not in facts:
             for field in ("question", "answer"):
@@ -542,8 +621,8 @@ def _conversation_facts(history: list[dict[str, Any]]) -> dict[str, Any]:
                         facts["customer_id"] = customer_id
                         break
 
-    if order_ids:
-        facts["order_ids"] = order_ids
+    if latest_order_ids:
+        facts["order_ids"] = latest_order_ids
     return facts
 
 
@@ -570,6 +649,23 @@ def _is_memory_summary_query(normalized_ascii: str) -> bool:
     return any(
         marker in normalized_ascii
         for marker in ("resume lo anterior", "resumen de lo anterior", "que hemos visto")
+    )
+
+
+def _is_economic_impact_followup(normalized_ascii: str) -> bool:
+    return any(
+        marker in normalized_ascii
+        for marker in (
+            "impacto economico",
+            "importe",
+            "importes",
+            "coste",
+            "costes",
+            "costo",
+            "costos",
+            "valor",
+            "economico",
+        )
     )
 
 
@@ -650,9 +746,22 @@ def _normalize_step_args(step: PlanStep, question: str) -> dict[str, Any]:
             "month": _bounded_int(step.args.get("month"), default=5, minimum=1, maximum=12),
         }
 
+    if step.tool == "ERPTool" and step.action == "calculate_order_amount":
+        order_ids = _normalize_order_ids(step.args.get("order_ids"))
+        if order_ids:
+            return {"order_ids": order_ids}
+        return {"order_id": _bounded_int(step.args.get("order_id"), default=0, minimum=0, maximum=999999)}
+
     if step.tool == "ProductionAPITool" and step.action == "list_orders":
         status = step.args.get("status")
         return {"status": status if status in _PRODUCTION_STATUSES else None}
+
+    if step.tool == "ProductionAPITool" and step.action == "get_status_for_order_ids":
+        status = step.args.get("status")
+        return {
+            "order_ids": _normalize_order_ids(step.args.get("order_ids")),
+            "status": status if status in _PRODUCTION_STATUSES else None,
+        }
 
     if step.tool == "DocumentRAGTool" and step.action == "query":
         args: dict[str, Any] = {
@@ -726,6 +835,19 @@ def _bounded_float(value: Any, default: float, minimum: float, maximum: float) -
     except (TypeError, ValueError):
         return default
     return max(minimum, min(maximum, number))
+
+
+def _normalize_order_ids(value: Any) -> list[int]:
+    values = value if isinstance(value, list) else [value]
+    order_ids: list[int] = []
+    for item in values:
+        try:
+            order_id = int(item)
+        except (TypeError, ValueError):
+            continue
+        if order_id > 0 and order_id not in order_ids:
+            order_ids.append(order_id)
+    return order_ids
 
 
 def _is_document_query(normalized: str) -> bool:

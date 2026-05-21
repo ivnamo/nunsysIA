@@ -146,6 +146,95 @@ def test_planner_uses_memory_for_contextual_follow_up() -> None:
     assert state["plan"]["steps"][1]["args"] == {"customer_id": "ALFKI"}
 
 
+def test_planner_uses_memory_and_order_ids_for_blocked_follow_up() -> None:
+    planner = PlannerAgent(
+        chat_model=_FakeChatModel('{"intent": "unsupported", "steps": [], "expected_sources": []}')
+    )
+
+    state = planner(
+        {
+            "question": "Y cuales de esos pedidos estan bloqueados?",
+            "attempts": 0,
+            "conversation_history": [
+                {
+                    "question": "Que pedidos pendientes tiene el cliente ALFKI?",
+                    "answer": "El cliente ALFKI tiene 2 pedidos pendientes: 10248, 10252.",
+                    "facts": {"customer_id": "ALFKI", "order_ids": [10248, 10252]},
+                }
+            ],
+        }
+    )
+
+    assert state["intent"] == "erp_production"
+    assert state["plan"]["expected_sources"] == ["Memoria", "Produccion", "ERP"]
+    assert [step["action"] for step in state["plan"]["steps"]] == [
+        "recall",
+        "get_status_for_order_ids",
+        "get_customers_for_production_orders",
+    ]
+    assert state["plan"]["steps"][1]["args"] == {
+        "order_ids": [10248, 10252],
+        "status": "blocked",
+    }
+
+
+def test_planner_uses_memory_and_amounts_for_economic_impact_follow_up() -> None:
+    planner = PlannerAgent(
+        chat_model=_FakeChatModel('{"intent": "unsupported", "steps": [], "expected_sources": []}')
+    )
+
+    state = planner(
+        {
+            "question": "Cual es el impacto economico de esos?",
+            "attempts": 0,
+            "conversation_history": [
+                {
+                    "question": "Y cuales de esos pedidos estan bloqueados?",
+                    "answer": "El pedido 10252 esta bloqueado por Falta de material.",
+                    "facts": {"customer_id": "ALFKI", "order_ids": [10252]},
+                }
+            ],
+        }
+    )
+
+    assert state["intent"] == "erp"
+    assert state["plan"]["expected_sources"] == ["Memoria", "ERP"]
+    assert [step["action"] for step in state["plan"]["steps"]] == [
+        "recall",
+        "calculate_order_amount",
+    ]
+    assert state["plan"]["steps"][1]["args"] == {"order_ids": [10252]}
+
+
+def test_planner_marks_isolated_contextual_follow_up_as_unsupported_before_llm() -> None:
+    chat_model = _FakeChatModel(
+        """
+        {
+          "intent": "erp_production",
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "ProductionAPITool",
+              "action": "get_status_for_order_ids",
+              "args": {"order_ids": [], "status": "blocked"},
+              "required": true
+            }
+          ],
+          "expected_sources": ["Produccion"],
+          "answer_requirements": []
+        }
+        """
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner({"question": "Y en que estado estan?", "attempts": 0})
+
+    assert chat_model.calls == 0
+    assert state["intent"] == "unsupported"
+    assert state["plan"]["steps"] == []
+    assert "contexto conversacional previo" in state["plan"]["answer_requirements"][0]
+
+
 def test_planner_uses_llm_plan_when_it_matches_allowed_contract() -> None:
     chat_model = _FakeChatModel(
         """

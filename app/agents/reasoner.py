@@ -6,6 +6,7 @@ from app.core.tracing import SourceName, ToolCallTrace, ToolResult
 from app.tools.erp_tool import (
     CustomerByOrderInput,
     ERPTool,
+    OrderAmountInput,
     OrdersByMonthInput,
     PendingOrdersByCustomerInput,
 )
@@ -13,6 +14,7 @@ from app.tools.memory_tool import MemoryRecallInput, MemoryTool
 from app.tools.production_tool import (
     ProductionAPITool,
     ProductionOrderInput,
+    ProductionOrdersByIdsInput,
     ProductionOrdersInput,
 )
 from app.tools.rag_tool import DocumentRAGInput, DocumentRAGTool
@@ -131,6 +133,30 @@ class ReasonerExecutorAgent:
             execution.add_result(result, "Consulta ERP de pedidos por mes")
             return
 
+        if step.action == "calculate_order_amount":
+            order_amounts = execution.data.setdefault("order_amounts", [])
+            order_ids = _order_ids_from_step(step.args)
+            if not order_ids:
+                execution.add_skipped(
+                    tool="ERPTool",
+                    source="ERP",
+                    args=step.args,
+                    summary="No hay pedidos referenciados para calcular importe",
+                )
+                return
+
+            for order_id in order_ids:
+                result = self._erp_tool.calculate_order_amount(
+                    OrderAmountInput(order_id=order_id)
+                )
+                if result.data:
+                    order_amounts.append(result.data)
+                execution.add_result(
+                    result,
+                    f"Consulta ERP de importe para pedido {order_id}",
+                )
+            return
+
         if step.action == "get_customers_for_production_orders":
             customers_by_order: dict[int, dict[str, Any] | None] = {}
             production_orders = execution.data.get("production_orders", [])
@@ -165,6 +191,17 @@ class ReasonerExecutorAgent:
             )
             execution.data["production_orders"] = result.data
             execution.add_result(result, "Consulta API de produccion por estado")
+            return
+
+        if step.action == "get_status_for_order_ids":
+            result = self._production_tool.get_status_for_order_ids(
+                ProductionOrdersByIdsInput.model_validate(step.args)
+            )
+            execution.data["production_orders"] = result.data
+            execution.add_result(
+                result,
+                "Consulta API de produccion para pedidos referenciados",
+            )
             return
 
         if step.action == "get_status_for_erp_orders":
@@ -290,3 +327,21 @@ def _merge_fallbacks(left: list[str], right: list[str]) -> list[str]:
         if fallback not in fallbacks:
             fallbacks.append(fallback)
     return fallbacks
+
+
+def _order_ids_from_step(args: dict[str, Any]) -> list[int]:
+    values = args.get("order_ids")
+    if values is None:
+        values = [args.get("order_id")]
+    if not isinstance(values, list):
+        values = [values]
+
+    order_ids: list[int] = []
+    for value in values:
+        try:
+            order_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if order_id > 0 and order_id not in order_ids:
+            order_ids.append(order_id)
+    return order_ids

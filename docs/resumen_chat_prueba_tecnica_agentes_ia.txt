@@ -65,7 +65,7 @@ Componentes implementados:
 
 Suite versionada actual:
 
-- `115 passed, 2 warnings`
+- `124 passed, 2 warnings`
 
 
 3. CONTRATO DE CONSULTA

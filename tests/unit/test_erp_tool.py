@@ -61,6 +61,7 @@ def test_erp_tool_calculate_order_amount_returns_amount(
     result = erp_tool.calculate_order_amount(OrderAmountInput(order_id=10252))
 
     assert result.data == {"order_id": 10252, "amount": str(Decimal("1863.00"))}
+    assert result.tool_call.action == "calculate_order_amount"
     assert result.tool_call.output_summary == "Importe calculado"
 
 

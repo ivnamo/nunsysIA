@@ -19,6 +19,7 @@ def test_format_query_response_includes_traceability_sections() -> None:
         tool_calls=[
             ToolCallTrace(
                 tool="ERPTool",
+                action="calculate_order_amount",
                 args={"customer_id": "ALFKI"},
                 status="success",
                 output_summary="2 pedidos encontrados",
@@ -35,7 +36,7 @@ def test_format_query_response_includes_traceability_sections() -> None:
     assert "Estado: `completed`" in content
     assert "- ERP" in content
     assert "1. Consulta ERP" in content
-    assert "`ERPTool` [success]: 2 pedidos encontrados" in content
+    assert "`ERPTool.calculate_order_amount` [success]: 2 pedidos encontrados" in content
 
 
 def test_format_query_response_shows_fallbacks() -> None:

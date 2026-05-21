@@ -11,6 +11,7 @@ def test_sanitize_tool_calls_redacts_sensitive_args_and_errors() -> None:
     tool_calls = [
         ToolCallTrace(
             tool="ERPTool",
+            action="calculate_order_amount",
             args={
                 "customer_id": "ALFKI",
                 "database_url": "postgresql://user:pass@localhost/db",
@@ -29,6 +30,7 @@ def test_sanitize_tool_calls_redacts_sensitive_args_and_errors() -> None:
         "database_url": "[redacted]",
         "nested": {"api_key": "[redacted]"},
     }
+    assert sanitized[0].action == "calculate_order_amount"
     assert sanitized[0].error == "[redacted]"
 
 
@@ -120,4 +122,21 @@ def test_build_public_data_summary_includes_memory_summary_without_turn_text() -
             "customer_id": "ALFKI",
             "order_ids": [10248, 10252],
         }
+    }
+
+
+def test_build_public_data_summary_includes_economic_impact_without_raw_lines() -> None:
+    summary = build_public_data_summary(
+        {
+            "order_amounts": [
+                {"order_id": 10252, "amount": "1863.00"},
+                {"order_id": 10248, "amount": "440.00"},
+            ]
+        }
+    )
+
+    assert summary == {
+        "order_amounts_count": 2,
+        "order_amount_order_ids": [10252, 10248],
+        "economic_impact_total": "2303.00",
     }

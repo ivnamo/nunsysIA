@@ -39,6 +39,8 @@ El repositorio mantiene este request de demo en `query.json`.
 
 `conversation_id` permite memoria conversacional en memoria de proceso. El backend conserva las ultimas 5 interacciones de cada conversacion y puede usarlas para resolver follow-ups breves. Si la memoria se consulta, la respuesta incluye fuente `Memoria` y una tool call `MemoryTool`; la memoria no sustituye a ERP, Produccion o Documentos como fuente de datos de negocio actuales.
 
+Los follow-ups con referencias a pedidos concretos pueden generar tool calls internas especializadas, por ejemplo `ProductionAPITool.get_status_for_order_ids` para consultar estados productivos por IDs ya resueltos y `ERPTool.calculate_order_amount` para calcular importes ERP. El contrato mantiene compatibilidad: `tool_calls.action` es opcional, los argumentos se sanitizan y `data` mantiene solo un resumen auditable.
+
 Response `200`:
 
 ```json
@@ -53,6 +55,7 @@ Response `200`:
   "tool_calls": [
     {
       "tool": "ERPTool",
+      "action": null,
       "args": {
         "customer_id": "ALFKI"
       },
@@ -64,6 +67,7 @@ Response `200`:
     },
     {
       "tool": "ProductionAPITool",
+      "action": null,
       "args": {
         "order_id": 10248
       },
@@ -75,6 +79,7 @@ Response `200`:
     },
     {
       "tool": "ProductionAPITool",
+      "action": null,
       "args": {
         "order_id": 10252
       },
@@ -144,6 +149,16 @@ En respuestas que usen memoria conversacional, `data.memory` debe resumir solo m
     "customer_id": "ALFKI",
     "order_ids": [10248, 10252]
   }
+}
+```
+
+En respuestas de impacto economico, `data` puede incluir un resumen publico sin lineas raw de pedido:
+
+```json
+{
+  "order_amounts_count": 1,
+  "order_amount_order_ids": [10252],
+  "economic_impact_total": "1863.00"
 }
 ```
 
@@ -218,6 +233,7 @@ Errores posibles:
 - `fallbacks` debe listar cualquier ruta alternativa usada: planner por reglas, respuesta determinista, embeddings deterministas o vector store en memoria.
 - En respuestas RAG, `data.rag.documents` resume los documentos usados y `data.rag.citations` expone `filename`, `page`, `chunk_id` y `score` por chunk recuperado.
 - En respuestas con memoria, `data.memory` resume conteos e identificadores; no debe exponer todo el historial.
+- En respuestas de impacto economico, `data` puede exponer conteos, IDs de pedido y total agregado; no debe exponer lineas raw ni objetos ERP internos.
 - No devolver secretos.
 - Mantener respuestas compatibles con Pydantic.
 - Los errores deben ser comprensibles y trazables.

@@ -94,6 +94,7 @@ class ERPTool:
             data=data,
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action="calculate_order_amount",
                 args=tool_input.model_dump(),
                 status="success",
                 output_summary=output_summary,

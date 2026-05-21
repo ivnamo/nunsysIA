@@ -119,33 +119,34 @@ def _extract_facts(question: str, response: QueryResponse) -> dict[str, Any]:
 
 def _merge_facts(turns: list[dict[str, Any]]) -> dict[str, Any]:
     facts: dict[str, Any] = {}
-    order_ids: list[int] = []
+    latest_order_ids: list[int] = []
     documents: list[str] = []
 
-    for turn in turns:
+    for turn in reversed(turns):
         turn_facts = turn.get("facts") or {}
         if not isinstance(turn_facts, dict):
             continue
 
         customer_id = turn_facts.get("customer_id")
-        if customer_id:
+        if customer_id and "customer_id" not in facts:
             facts["customer_id"] = str(customer_id)
 
-        for order_id in turn_facts.get("order_ids", []):
-            try:
-                normalized_order_id = int(order_id)
-            except (TypeError, ValueError):
-                continue
-            if normalized_order_id not in order_ids:
-                order_ids.append(normalized_order_id)
+        if not latest_order_ids:
+            for order_id in turn_facts.get("order_ids", []):
+                try:
+                    normalized_order_id = int(order_id)
+                except (TypeError, ValueError):
+                    continue
+                if normalized_order_id not in latest_order_ids:
+                    latest_order_ids.append(normalized_order_id)
 
         for document in turn_facts.get("documents", []):
             document_name = str(document)
             if document_name not in documents:
                 documents.append(document_name)
 
-    if order_ids:
-        facts["order_ids"] = order_ids
+    if latest_order_ids:
+        facts["order_ids"] = latest_order_ids
     if documents:
         facts["documents"] = documents
 
@@ -154,7 +155,7 @@ def _merge_facts(turns: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _extract_order_ids(data: dict[str, Any]) -> list[int]:
     order_ids: list[int] = []
-    for key in ("erp_order_ids", "production_order_ids"):
+    for key in ("erp_order_ids", "production_order_ids", "order_amount_order_ids"):
         values = data.get(key)
         if not isinstance(values, list):
             continue

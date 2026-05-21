@@ -194,11 +194,19 @@ CHROMA_COLLECTION=documents
 
 Para conectar contra un servidor Chroma HTTP, usa `CHROMA_MODE=http` con `CHROMA_HOST` y `CHROMA_PORT`. Si ChromaDB no esta instalado o no se puede abrir/conectar, el backend cae a memoria y lo marca en `fallbacks`.
 
-Configurar proveedor LLM en `.env`:
+## Como introducir tu API key
+
+La POC puede ejecutarse sin clave real usando proveedores deterministas. Para
+validacion con LLM/embeddings reales, el evaluador puede usar Gemini u OpenAI.
+No versiones `.env`, `.secrets/` ni capturas con claves.
+
+### Local sin Docker
+
+Copia `.env.example` a `.env` y rellena la clave en el archivo local:
 
 ```env
 LLM_PROVIDER=gemini
-GEMINI_API_KEY=
+GEMINI_API_KEY=tu_clave_local
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_API_TRANSPORT=rest
 LLM_TIMEOUT_SECONDS=45
@@ -206,10 +214,28 @@ EMBEDDING_PROVIDER=gemini
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
 
-Para Docker o despliegues compartidos, no metas claves reales en la imagen ni
-las pases como `ENV` directas del contenedor. El backend tambien acepta
-`GEMINI_API_KEY_FILE` y `OPENAI_API_KEY_FILE` para leer secretos desde archivos
-montados, por ejemplo `/run/secrets/gemini_api_key`.
+### Docker Compose
+
+En Docker no pases `GEMINI_API_KEY` ni `OPENAI_API_KEY` como variables directas
+del contenedor. Usa el override de secretos por archivo:
+
+```powershell
+New-Item -ItemType Directory -Force .secrets
+$secret = Read-Host "Gemini API key" -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
+try {
+  Set-Content -NoNewline .secrets\gemini_api_key ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr))
+} finally {
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+}
+docker compose -f docker-compose.yml -f docker-compose.secrets.yml up --build
+```
+
+`.secrets/` esta ignorado por Git y por el build de Docker. El backend lee la
+clave desde `GEMINI_API_KEY_FILE=/run/secrets/gemini_api_key`.
+
+Para OpenAI, usa `OPENAI_API_KEY` en `.env` para local o monta un archivo y
+apunta `OPENAI_API_KEY_FILE` al secreto en Docker.
 
 ## Docker Compose
 
@@ -234,23 +260,8 @@ El compose pasa al backend `PRODUCTION_API_BASE_URL=http://production-api:8001`,
 variables directas del contenedor. Sin secretos montados, usa proveedores
 deterministas y los fallbacks quedan visibles.
 
-Para levantar Docker Compose con Gemini real usando secretos por archivo:
-
-```powershell
-New-Item -ItemType Directory -Force .secrets
-$secret = Read-Host "Gemini API key" -AsSecureString
-$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
-try {
-  Set-Content -NoNewline .secrets\gemini_api_key ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr))
-} finally {
-  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
-}
-docker compose -f docker-compose.yml -f docker-compose.secrets.yml up --build
-```
-
-`.secrets/` esta ignorado por Git y por el build de Docker. En servidores o
-Cloud Run/Kubernetes, usa el gestor de secretos del proveedor y apunta
-`GEMINI_API_KEY_FILE` u `OPENAI_API_KEY_FILE` al archivo montado.
+Para levantar Docker Compose con Gemini real, usa la seccion anterior
+`Como introducir tu API key`.
 
 Comprobaciones rapidas:
 

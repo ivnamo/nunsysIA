@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **P10 cerrada con Docker Compose validado**. Siguiente bloque:
-**R4 - extraer politica de penalizaciones** y preparar guion demo final.
+Estado actual: **R4 cerrada con politica de penalizaciones extraida**.
+Siguiente bloque: **R5 - dividir FinalResponseBuilder** y preparar guion demo final.
 
 Este repositorio contiene:
 
@@ -62,7 +62,7 @@ Este repositorio contiene:
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
 - citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
 - memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
-- suite automatizada versionada actual: `133 passed, 2 warnings`.
+- suite automatizada versionada actual: `136 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -84,7 +84,7 @@ Disponible para ejecutar actualmente:
 
 Pendiente:
 
-- R4: extraer politica de penalizaciones del `FinalResponseBuilder`;
+- R5: dividir `FinalResponseBuilder` en piezas mas pequenas;
 - guion demo final.
 
 ## Arquitectura decidida
@@ -394,8 +394,8 @@ Endpoints del mock:
 ## Siguiente bloque
 
 P10 queda cerrada con Docker Compose, ChromaDB HTTP real, secretos por archivo y
-smoke beta con LLM/embeddings reales. El siguiente bloque tecnico es R4:
-extraer la politica de penalizaciones del `FinalResponseBuilder`.
+smoke beta con LLM/embeddings reales. R4 tambien queda cerrada: la politica de
+penalizaciones se extrajo del `FinalResponseBuilder` y paso smoke Docker.
 
-- ejecutar R4 con tests focalizados y beta smoke;
+- ejecutar R5 con tests focalizados;
 - preparar guion demo final y documentacion de entrega.

@@ -10,8 +10,8 @@ La ejecucion usa proveedores externos configurados en `.env` para LLM y embeddin
 
 ## Resumen ejecutivo
 
-- Resultado global: PASS=13, PARTIAL=0, FAIL=0, BLOCKER=0.
-- Suite automatizada previa: `133 passed, 2 warnings`.
+- Resultado global de la pasada beta inicial: PASS=13, PARTIAL=0, FAIL=0, BLOCKER=0.
+- Suite automatizada previa: `136 passed, 2 warnings`.
 - LLM provider: `gemini`; modelo Gemini: `gemini-2.5-flash`.
 - Embedding provider: `gemini`; modelo embeddings Gemini: `gemini-embedding-001`.
 - Chroma mode: `persistent`; coleccion aislada: `beta_validation_20260521_hardened_final_122123`.
@@ -1919,3 +1919,88 @@ Resultado:
 Decision: P10 queda cerrada como baseline Docker defendible. Siguiente bloque:
 R4, extraer politica de penalizaciones del `FinalResponseBuilder` con tests
 focalizados y beta smoke posterior.
+
+## Iteracion R4 - politica de penalizaciones extraida
+
+Fecha: 2026-05-21.
+
+Objetivo: validar que la extraccion de la politica de penalizaciones no cambia
+el comportamiento visible del caso mixto ni relaja guardrails documentales.
+
+Entorno:
+
+- Runtime: Docker Desktop en Windows.
+- Comando: `docker compose -f docker-compose.yml -f docker-compose.secrets.yml up -d --build`.
+- Coleccion Chroma aislada: `beta_docker_r4_20260521`.
+- Backend: `CHROMA_MODE=http`, `CHROMA_HOST=chromadb`.
+- Secretos: `GEMINI_API_KEY_DIRECT=False`; `GEMINI_API_KEY_FILE=/run/secrets/gemini_api_key`.
+- LLM/embeddings: proveedor real configurado por secreto; no se documentan claves.
+- Suite automatizada previa: `136 passed, 2 warnings`.
+
+Cambio validado:
+
+- Nueva politica aislada en `app/agents/penalty_policy.py`.
+- `FinalResponseBuilder` conserva la fachada del nodo final y delega la
+  evaluacion de penalizaciones.
+- La politica recibe explicitamente pedidos ERP, estados de produccion y
+  evidencia RAG; no evalua penalizaciones sin evidencia documental completada.
+
+Preparacion documental:
+
+- `v2_contrato_marco_logistica_2026.pdf`: `indexed`, 8 chunks, `fallbacks=[]`.
+- `v2_anexo_penalizaciones_sla.pdf`: `indexed`, 8 chunks, `fallbacks=[]`.
+- `v2_procedimiento_produccion_bloqueos.pdf`: `indexed`, 8 chunks, `fallbacks=[]`.
+- `v2_politica_calidad_entregas.pdf`: `indexed`, 6 chunks, `fallbacks=[]`.
+- `v2_condiciones_comerciales_northwind.pdf`: `indexed`, 8 chunks, `fallbacks=[]`.
+
+### R4-SMOKE-01 - PASS - Mixto ERP + produccion + RAG
+
+Pregunta: `en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion", "Documentos"]`
+- Pedidos evaluados: `10248`, `10252`, `10255`, `10301`, `10312`
+- Documentos recuperados: `v2_anexo_penalizaciones_sla.pdf`, `v2_contrato_marco_logistica_2026.pdf`, `v2_procedimiento_produccion_bloqueos.pdf`
+- `data.rag.chunks_count`: `5`
+- `fallbacks`: `[]`
+
+### R4-SMOKE-02 - PASS - RAG penalizaciones
+
+Pregunta: `Segun el PDF, hay alguna penalizacion por retrasos?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["Documentos"]`
+- Documento recuperado: `v2_anexo_penalizaciones_sla.pdf`
+- `data.rag.chunks_count`: `5`
+- `fallbacks`: `[]`
+
+### R4-SMOKE-03 - PASS - ERP + produccion
+
+Pregunta: `Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion"]`
+- Pedidos visibles: `10248`, `10252`
+- `10252`: bloqueado por `Falta de material`
+- `fallbacks`: `[]`
+
+### R4-SMOKE-04 - PASS - Guardrail documental
+
+Pregunta: `Segun el PDF, que receta de cocina vegana recomienda?`
+
+Resultado:
+
+- `status`: `insufficient_context`
+- `sources`: `["Documentos"]`
+- `data.rag.chunks_count`: `0`
+- `failure_reason`: `No hay chunks documentales relevantes.`
+- `fallbacks`: `[]`
+
+Decision: R4 queda cerrada. Siguiente bloque: R5, dividir
+`FinalResponseBuilder` manteniendolo como fachada del nodo LangGraph.

@@ -35,7 +35,7 @@ Ejecutar tests automatizados:
 Resultado esperado:
 
 ```text
-133 passed, 2 warnings
+136 passed, 2 warnings
 ```
 
 Las advertencias actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.

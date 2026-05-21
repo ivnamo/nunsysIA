@@ -285,7 +285,7 @@ Criterio de aceptacion:
 
 Evidencia 2026-05-21:
 
-- `python -m pytest`: `133 passed, 2 warnings`.
+- `python -m pytest`: `136 passed, 2 warnings`.
 - Coleccion Chroma Docker aislada: `beta_docker_baseline_20260521_r10b`.
 - 5 PDFs v2 indexados con `fallbacks=[]`.
 - Casos Docker baseline: ERP+produccion, RAG, mixto, memoria conversacional y
@@ -304,7 +304,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`133 passed, 2 warnings`).
+- Mantener suite automatizada versionada actual (`136 passed, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.

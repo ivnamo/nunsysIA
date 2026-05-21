@@ -10,9 +10,9 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **P10 cerrada con Docker Compose validado**. El siguiente bloque
-tecnico es **R4 - extraer politica de penalizaciones** antes de seguir
-dividiendo hotspots mayores.
+La POC tiene **R4 cerrada con politica de penalizaciones extraida**. El
+siguiente bloque tecnico es **R5 - dividir FinalResponseBuilder** antes de
+seguir con hotspots mayores.
 
 Estado declarado y versionado:
 
@@ -24,7 +24,7 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `133 passed, 2 warnings`.
+- Suite automatizada declarada: `136 passed, 2 warnings`.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
   beta con LLM/embeddings reales.
 
@@ -154,8 +154,8 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R1 | cerrado | Guardrail documental en planes mixtos | Responder penalizaciones sin evidencia RAG | `fix(agents): enforce document evidence in mixed plans` |
 | R2 | cerrado | Planner sin defaults silenciosos | Responder ALFKI cuando falta cliente | `fix(planner): avoid implicit customer defaults` |
 | R3 | cerrado | Trazabilidad de actions y fallbacks | Tool calls poco explicitas | `fix(traceability): expose tool actions consistently` |
-| R4 | siguiente | Extraer politica de penalizaciones | Logica documental hardcodeada en builder | `refactor(final-response): extract penalty policy` |
-| R5 | pendiente | Dividir FinalResponseBuilder | God object de respuesta final | `refactor(final-response): split answer builders` |
+| R4 | cerrado | Extraer politica de penalizaciones | Logica documental hardcodeada en builder | `refactor(final-response): extract penalty policy` |
+| R5 | siguiente | Dividir FinalResponseBuilder | God object de respuesta final | `refactor(final-response): split answer builders` |
 | R6 | pendiente | Dividir Planner | God object de planificacion | `refactor(planner): split rule planner from llm planner` |
 | R7 | pendiente | Dividir DocumentRAGTool | Tool demasiado amplia | `refactor(rag): extract relevance and answer building` |
 | R8 | pendiente | Endurecer upload PDF | Parser multipart manual fragil | `refactor(api): use uploadfile for pdf ingestion` |
@@ -362,6 +362,23 @@ Criterio de aceptacion:
 - La politica no depende de memoria del modelo.
 - Las reglas documentales quedan aisladas y explicables.
 - Beta real sin `PARTIAL` en impacto economico y trazabilidad.
+
+Estado 2026-05-21:
+
+- Nuevo modulo `app/agents/penalty_policy.py` con entrada explicita:
+  pedidos ERP, estados de produccion y evidencia RAG.
+- `FinalResponseBuilder._answer_order_penalties()` queda como fachada y delega
+  en `build_order_penalties_answer()`.
+- La politica no evalua penalizaciones si `rag.status != completed` o no hay
+  chunks documentales utiles.
+- Tests focalizados:
+  - `tests/unit/test_penalty_policy.py`: 3 passed.
+  - `tests/unit/test_final_response.py`: 13 passed.
+  - `tests/integration/test_agent_graph.py`: 11 passed.
+- Suite completa: `136 passed, 2 warnings`.
+- Smoke Docker con LLM/embeddings reales en coleccion `beta_docker_r4_20260521`:
+  penalizaciones mixtas, RAG de penalizaciones, ERP+produccion y guardrail
+  documental en PASS, sin fallbacks.
 
 ## Fase R5 - Dividir FinalResponseBuilder
 
@@ -723,3 +740,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R3 | cerrado | Tool actions visibles; unit tools/traceability 25 passed; query endpoint 7 passed; agent graph 11 passed; cubierto por baseline Docker | `551bb42` |
 | 2026-05-21 | R10 | cerrado | Compose stack healthy; 5 PDFs v2 indexados; RAG/ERP/mixto/memoria/guardrail OK sin fallbacks; healthcheck Chroma y secretos por archivo validados | `d27372e`, `4498e00`, `1cba7ac` |
 | 2026-05-21 | R10-fix | cerrado | Falso positivo RAG por solape debil `receta` corregido; `pytest`: 133 passed; Docker baseline `r10b` PASS | este bloque |
+| 2026-05-21 | R4 | cerrado | Politica de penalizaciones extraida; `pytest`: 136 passed; Docker smoke `beta_docker_r4_20260521` PASS sin fallbacks | este bloque |

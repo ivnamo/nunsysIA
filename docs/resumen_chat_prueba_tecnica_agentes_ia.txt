@@ -42,8 +42,9 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-P10 queda cerrada con Docker Compose validado. El siguiente bloque tecnico es
-R4: extraer la politica de penalizaciones y preparar el guion demo final.
+R4 queda cerrada con la politica de penalizaciones extraida. El siguiente
+bloque tecnico es R5: dividir FinalResponseBuilder y preparar el guion demo
+final.
 
 Componentes implementados:
 
@@ -65,7 +66,7 @@ Componentes implementados:
 
 Suite versionada actual:
 
-- `133 passed, 2 warnings`
+- `136 passed, 2 warnings`
 
 
 3. CONTRATO DE CONSULTA
@@ -174,11 +175,11 @@ La respuesta no debe exponer:
 7. PENDIENTE
 ============
 
-R4 - Refactor de politica de penalizaciones:
+R5 - Dividir FinalResponseBuilder:
 
-- Extraer reglas documentales hardcodeadas del `FinalResponseBuilder`.
-- Mantener el flujo Planner -> Reasoner/Executor -> Validator -> FinalResponseBuilder.
-- Validar con tests focalizados, `pytest` completo y smoke beta con LLM real.
+- Mantener `FinalResponseBuilder` como fachada del nodo LangGraph.
+- Extraer redaccion determinista, grounding y prompt final en piezas mas pequenas.
+- Validar con tests focalizados y `pytest` completo.
 
 Cierre final:
 

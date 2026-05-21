@@ -150,7 +150,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 |---|---|---|---|---|
 | R0 | en curso | Crear este plan vivo | Evitar refactor improvisado | `docs(refactor): add phased implementation plan` |
 | R1 | validado en tests / beta pendiente | Guardrail documental en planes mixtos | Responder penalizaciones sin evidencia RAG | `fix(agents): enforce document evidence in mixed plans` |
-| R2 | pendiente | Planner sin defaults silenciosos | Responder ALFKI cuando falta cliente | `fix(planner): avoid implicit customer defaults` |
+| R2 | validado en tests / beta pendiente | Planner sin defaults silenciosos | Responder ALFKI cuando falta cliente | `fix(planner): avoid implicit customer defaults` |
 | R3 | pendiente | Trazabilidad de actions y fallbacks | Tool calls poco explicitas | `fix(traceability): expose tool actions consistently` |
 | R4 | pendiente | Extraer politica de penalizaciones | Logica documental hardcodeada en builder | `refactor(final-response): extract penalty policy` |
 | R5 | pendiente | Dividir FinalResponseBuilder | God object de respuesta final | `refactor(final-response): split answer builders` |
@@ -252,6 +252,18 @@ Criterio de aceptacion:
 - `Que pedidos pendientes tiene el cliente ALFKI?` funciona.
 - `Que pedidos pendientes tiene el cliente?` no asume ALFKI.
 - Follow-ups con memoria siguen resolviendo cliente desde `conversation_id`.
+
+Estado 2026-05-21:
+
+- Eliminado el default silencioso a `ALFKI` en reglas deterministas del planner.
+- Eliminado el default silencioso a `ALFKI` al normalizar planes LLM con `customer_id` ausente o invalido.
+- La respuesta final `unsupported` pide cliente concreto o contexto conversacional previo.
+- Agregadas regresiones en `tests/unit/test_planner.py` y `tests/integration/test_query_endpoint.py`.
+- Validado con pytest focalizado:
+  - `tests/unit/test_planner.py`: 15 passed.
+  - `tests/integration/test_query_endpoint.py`: 7 passed, 1 warning externa de LangGraph.
+  - `tests/integration/test_agent_graph.py`: 11 passed, 1 warning externa de LangGraph.
+- Pendiente antes de cerrar fase: `BT-smoke` con LLM real.
 
 ## Fase R3 - Trazabilidad de actions y fallbacks
 
@@ -665,3 +677,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R0 | en curso | Documento creado desde auditoria senior | pendiente |
 | 2026-05-21 | Beta | en curso | Beta real integrada como criterio de aceptacion por fase | pendiente |
 | 2026-05-21 | R1 | validado en tests / beta pendiente | Guardrail mixto documental implementado; unit validator 6 passed; integration agent graph 11 passed | pendiente |
+| 2026-05-21 | R2 | validado en tests / beta pendiente | Planner sin default ALFKI; unit planner 15 passed; query endpoint 7 passed; agent graph 11 passed | pendiente |

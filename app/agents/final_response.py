@@ -92,6 +92,12 @@ class FinalResponseBuilder:
     ) -> str:
         if status == "unsupported":
             requirements_text = " ".join(plan.answer_requirements).lower()
+            if "cliente concreto" in requirements_text:
+                return (
+                    "La pregunta necesita un cliente concreto o contexto "
+                    "conversacional previo para consultar pedidos pendientes. "
+                    "Indica el cliente o los pedidos concretos."
+                )
             if "contexto conversacional previo" in requirements_text:
                 return (
                     "La pregunta necesita contexto conversacional previo; en esta "

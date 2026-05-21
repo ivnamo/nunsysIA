@@ -145,12 +145,15 @@ class PlannerAgent:
         for index, step in enumerate(plan.steps, start=1):
             if not _is_allowed_step(step):
                 return None
+            normalized_args = _normalize_step_args(step, question)
+            if normalized_args is None:
+                return None
             normalized_steps.append(
                 PlanStep(
                     step_id=index,
                     tool=step.tool,
                     action=step.action,
-                    args=_normalize_step_args(step, question),
+                    args=normalized_args,
                     required=step.required,
                 )
             )
@@ -380,7 +383,9 @@ User question: {question}
             )
 
         if "pendient" in normalized:
-            customer_id = self._extract_customer_id(question) or "ALFKI"
+            customer_id = self._extract_customer_id(question)
+            if customer_id is None:
+                return _missing_customer_plan()
             steps = [
                 PlanStep(
                     step_id=1,
@@ -419,6 +424,13 @@ User question: {question}
 
     @staticmethod
     def _extract_customer_id(question: str) -> str | None:
+        explicit_customer = re.search(
+            r"\bcliente\s+([A-Za-z]{5})\b",
+            question,
+            flags=re.IGNORECASE,
+        )
+        if explicit_customer:
+            return explicit_customer.group(1).upper()
         matches = re.findall(r"\b[A-Z]{5}\b", question)
         return matches[0] if matches else None
 
@@ -594,6 +606,17 @@ def _build_contextual_unsupported_plan(
     )
 
 
+def _missing_customer_plan() -> ExecutionPlan:
+    return ExecutionPlan(
+        intent="unsupported",
+        steps=[],
+        expected_sources=[],
+        answer_requirements=[
+            "Explicar que la pregunta necesita un cliente concreto o contexto conversacional previo para consultar pedidos pendientes.",
+        ],
+    )
+
+
 def _conversation_facts(history: list[dict[str, Any]]) -> dict[str, Any]:
     facts: dict[str, Any] = {}
     latest_order_ids: list[int] = []
@@ -733,11 +756,13 @@ def _is_allowed_step(step: PlanStep) -> bool:
     return step.action in _ALLOWED_TOOL_ACTIONS.get(step.tool, set())
 
 
-def _normalize_step_args(step: PlanStep, question: str) -> dict[str, Any]:
+def _normalize_step_args(step: PlanStep, question: str) -> dict[str, Any] | None:
     if step.tool == "ERPTool" and step.action == "get_pending_orders_by_customer":
         customer_id = str(step.args.get("customer_id") or "").upper()
         if not re.fullmatch(r"[A-Z]{5}", customer_id):
-            customer_id = PlannerAgent._extract_customer_id(question) or "ALFKI"
+            customer_id = PlannerAgent._extract_customer_id(question)
+        if customer_id is None:
+            return None
         return {"customer_id": customer_id}
 
     if step.tool == "ERPTool" and step.action == "get_orders_by_month":

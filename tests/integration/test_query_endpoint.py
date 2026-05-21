@@ -72,6 +72,23 @@ def test_query_endpoint_answers_erp_production_question(client: TestClient) -> N
     assert all("error" in call for call in payload["tool_calls"])
 
 
+def test_query_endpoint_does_not_assume_customer_for_pending_orders(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/query",
+        json={"question": "Que pedidos pendientes hay?"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "unsupported"
+    assert payload["sources"] == []
+    assert payload["tool_calls"] == []
+    assert "cliente concreto" in payload["answer"]
+    assert "ALFKI" not in payload["answer"]
+
+
 def test_query_endpoint_keeps_conversation_memory_by_id(client: TestClient) -> None:
     first_response = client.post(
         "/api/query",

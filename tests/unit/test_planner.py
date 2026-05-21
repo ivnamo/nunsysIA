@@ -46,6 +46,45 @@ def test_planner_creates_erp_production_plan_for_pending_orders() -> None:
     ]
 
 
+def test_planner_marks_pending_orders_without_customer_as_unsupported() -> None:
+    planner = PlannerAgent()
+
+    state = planner({"question": "Que pedidos pendientes hay?", "attempts": 0})
+
+    assert state["intent"] == "unsupported"
+    assert state["plan"]["steps"] == []
+    assert "cliente concreto" in state["plan"]["answer_requirements"][0]
+
+
+def test_planner_does_not_default_llm_pending_order_plan_to_alfki() -> None:
+    chat_model = _FakeChatModel(
+        """
+        {
+          "intent": "erp",
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "ERPTool",
+              "action": "get_pending_orders_by_customer",
+              "args": {},
+              "required": true
+            }
+          ],
+          "expected_sources": ["ERP"],
+          "answer_requirements": []
+        }
+        """
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner({"question": "Que pedidos pendientes hay?", "attempts": 0})
+
+    assert chat_model.calls == 1
+    assert state["intent"] == "unsupported"
+    assert state["plan"]["steps"] == []
+    assert "ALFKI" not in str(state["plan"])
+
+
 def test_planner_creates_blocked_orders_plan() -> None:
     planner = PlannerAgent()
 

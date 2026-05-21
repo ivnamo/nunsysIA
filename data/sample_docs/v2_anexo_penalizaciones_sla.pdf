@@ -1,0 +1,232 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R] /Count 4 >> endobj
+3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >> endobj
+5 0 obj << /Length 1358 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Anexo de penalizaciones y SLA - version extendida) Tj
+T*
+(Pagina 1 de 4 - Matriz de SLA y tipos de pedido) Tj
+T*
+() Tj
+T*
+(Alcance:) Tj
+T*
+(Este anexo complementa el contrato marco de logistica 2026 y define cuando puede) Tj
+T*
+(aplicarse una penalizacion economica. La penalizacion solo procede cuando existe) Tj
+T*
+(incumplimiento de plazo, causa imputable al operador logistico y evidencia completa) Tj
+T*
+(en ERP, produccion y prueba de entrega.) Tj
+T*
+() Tj
+T*
+(Matriz de SLA:) Tj
+T*
+(Pedido standard: 5 dias laborables desde liberacion final. Pedido urgente: 48) Tj
+T*
+(horas desde liberacion final. Entrega parcial aprobada: cumple solo la parte) Tj
+T*
+(aceptada por comercial. Entrega parcial no aprobada: se considera pendiente hasta) Tj
+T*
+(la entrega total o hasta que el cliente acepte el cambio por escrito.) Tj
+T*
+() Tj
+T*
+(Umbral economico:) Tj
+T*
+(Pedidos standard con mas de 2 dias laborables de retraso imputable tienen) Tj
+T*
+(penalizacion del 2 por ciento. Si superan 5 dias laborables, la penalizacion sube) Tj
+T*
+(al 5 por ciento. Pedidos urgentes tienen penalizacion del 3 por ciento desde el) Tj
+T*
+(primer dia de retraso imputable.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: SLA-V2-P01. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre matriz de SLA, tipos de pedido o porcentajes base.) Tj
+T*
+ET
+endstream endobj
+6 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >> endobj
+7 0 obj << /Length 1301 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Anexo de penalizaciones y SLA - version extendida) Tj
+T*
+(Pagina 2 de 4 - Evidencia necesaria y carga de la prueba) Tj
+T*
+() Tj
+T*
+(Evidencia obligatoria:) Tj
+T*
+(Para aplicar una penalizacion deben constar order_id, customer_id, importe del) Tj
+T*
+(pedido, fecha prometida, fecha real de entrega, fecha de liberacion, transportista,) Tj
+T*
+(causa del retraso y fuente responsable. El importe debe proceder de lineas ERP y) Tj
+T*
+(no de una estimacion manual.) Tj
+T*
+() Tj
+T*
+(Carga de la prueba:) Tj
+T*
+(El solicitante de la penalizacion debe aportar la prueba de entrega y el registro) Tj
+T*
+(de promesa de fecha. Logistica debe aportar tracking del transportista y eventos) Tj
+T*
+(de muelle. Produccion debe aportar estado de orden si hubo bloqueo, retraso,) Tj
+T*
+(retrabajo o incidencia de calidad.) Tj
+T*
+() Tj
+T*
+(Regla de insuficiencia:) Tj
+T*
+(Si no se puede demostrar la causa del retraso, el sistema debe informar que no hay) Tj
+T*
+(evidencia suficiente para asignar responsabilidad. No se debe aplicar penalizacion) Tj
+T*
+(solo porque la fecha real sea posterior a la fecha prometida.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: SLA-V2-P02. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre evidencia, carga de la prueba o insufficient_context.) Tj
+T*
+ET
+endstream endobj
+8 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >> endobj
+9 0 obj << /Length 1346 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Anexo de penalizaciones y SLA - version extendida) Tj
+T*
+(Pagina 3 de 4 - Exclusiones, pausas y casos no penalizables) Tj
+T*
+() Tj
+T*
+(Exclusiones:) Tj
+T*
+(No se aplican penalizaciones cuando el retraso procede de bloqueo de produccion,) Tj
+T*
+(falta de material, falta de capacidad, averia de linea, retrabajo por calidad,) Tj
+T*
+(espera de validacion tecnica, fuerza mayor, error de direccion aportado por el) Tj
+T*
+(cliente o cambio de prioridad aprobado por direccion comercial.) Tj
+T*
+() Tj
+T*
+(Pausas:) Tj
+T*
+(El contador de SLA queda pausado desde la fecha de bloqueo hasta la fecha de) Tj
+T*
+(desbloqueo registrada por produccion. En exportacion tambien puede pausarse por) Tj
+T*
+(documentacion aduanera o sanitaria incompleta, siempre que el expediente contenga) Tj
+T*
+(evento, responsable y fecha de resolucion.) Tj
+T*
+() Tj
+T*
+(Casos no penalizables:) Tj
+T*
+(Un pedido urgente no genera penalizacion si fue marcado urgente despues de la) Tj
+T*
+(liberacion y logistica ya habia planificado ruta standard. Una entrega rechazada) Tj
+T*
+(por el cliente por ausencia en domicilio no penaliza al operador si habia cita) Tj
+T*
+(confirmada.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: SLA-V2-P03. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre exclusiones, pausas de SLA o casos no penalizables.) Tj
+T*
+ET
+endstream endobj
+10 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 11 0 R >> endobj
+11 0 obj << /Length 1221 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Anexo de penalizaciones y SLA - version extendida) Tj
+T*
+(Pagina 4 de 4 - Calculo, aprobacion y auditoria mensual) Tj
+T*
+() Tj
+T*
+(Calculo:) Tj
+T*
+(La base de calculo es el importe neto del pedido despues de descuento comercial y) Tj
+T*
+(antes de impuestos. Si hay entrega parcial aprobada, la penalizacion se calcula) Tj
+T*
+(solo sobre la parte retrasada. Si el ERP no permite separar lineas entregadas y) Tj
+T*
+(pendientes, debe pedirse revision manual y no automatizar el importe.) Tj
+T*
+() Tj
+T*
+(Aprobacion:) Tj
+T*
+(Operaciones prepara la propuesta, comercial valida impacto en cliente y finanzas) Tj
+T*
+(aprueba la nota de cargo. Ninguna penalizacion se comunica al proveedor sin anexo) Tj
+T*
+(de evidencias, resumen de dias de retraso y causa imputable.) Tj
+T*
+() Tj
+T*
+(Auditoria:) Tj
+T*
+(El cierre mensual debe listar pedidos penalizados, pedidos descartados por) Tj
+T*
+(exclusion, pedidos sin evidencia suficiente y pedidos pendientes de aprobacion.) Tj
+T*
+(Cada fila debe enlazar con las fuentes consultadas.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: SLA-V2-P04. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre calculo economico, aprobacion o auditoria mensual.) Tj
+T*
+ET
+endstream endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000134 00000 n 
+0000000204 00000 n 
+0000000330 00000 n 
+0000001740 00000 n 
+0000001866 00000 n 
+0000003219 00000 n 
+0000003345 00000 n 
+0000004743 00000 n 
+0000004871 00000 n 
+trailer << /Root 1 0 R /Size 12 >>
+startxref
+6145
+%%EOF

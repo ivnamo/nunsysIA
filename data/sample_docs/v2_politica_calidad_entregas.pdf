@@ -1,0 +1,170 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >> endobj
+3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >> endobj
+5 0 obj << /Length 1228 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Politica de calidad para entregas a cliente - version extendida) Tj
+T*
+(Pagina 1 de 3 - Objetivo, alcance y principios) Tj
+T*
+() Tj
+T*
+(Objetivo:) Tj
+T*
+(Garantizar que los pedidos enviados al cliente cumplen calidad documental, calidad) Tj
+T*
+(de preparacion, trazabilidad de lote y condiciones acordadas. La politica aplica a) Tj
+T*
+(pedidos ERP con salida desde almacen central, almacen externo o expedicion directa) Tj
+T*
+(desde fabrica.) Tj
+T*
+() Tj
+T*
+(Principios:) Tj
+T*
+(Ningun pedido sale sin lote validado, cantidad conciliada, documentacion preparada) Tj
+T*
+(y etiqueta legible. Calidad puede retener un pedido aunque produccion lo haya) Tj
+T*
+(terminado si detecta incidencia documental, riesgo de lote o falta de evidencia.) Tj
+T*
+() Tj
+T*
+(Alcance documental:) Tj
+T*
+(El expediente de entrega debe contener albaran, order_id, cliente, lote, cantidad,) Tj
+T*
+(transportista y fecha de salida. Si el cliente requiere certificado especifico, la) Tj
+T*
+(salida queda condicionada a que el certificado este adjunto.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: CAL-V2-P01. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre objetivo, alcance de calidad o documentos de salida.) Tj
+T*
+ET
+endstream endobj
+6 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >> endobj
+7 0 obj << /Length 1234 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Politica de calidad para entregas a cliente - version extendida) Tj
+T*
+(Pagina 2 de 3 - Control previo y gestion de incidencias) Tj
+T*
+() Tj
+T*
+(Control previo:) Tj
+T*
+(Antes de liberar un pedido, calidad valida lote, cantidad, documentacion,) Tj
+T*
+(etiquetado y compatibilidad con condiciones de transporte. Si el pedido requiere) Tj
+T*
+(temperatura controlada, el transportista debe confirmar capacidad antes de salida.) Tj
+T*
+() Tj
+T*
+(Incidencias:) Tj
+T*
+(Una incidencia de calidad bloquea el pedido hasta que calidad registre resolucion.) Tj
+T*
+(La resolucion debe indicar si el lote se libera, se sustituye, se reprocesa o se) Tj
+T*
+(rechaza. Produccion no puede desbloquear una retencion de calidad sin aprobacion) Tj
+T*
+(de calidad.) Tj
+T*
+() Tj
+T*
+(Entregas parciales:) Tj
+T*
+(Las entregas parciales requieren aprobacion comercial y validacion de calidad para) Tj
+T*
+(cada lote entregado. Si una parte queda retenida, el albaran debe explicar la parte) Tj
+T*
+(enviada, la parte pendiente y el motivo de retencion.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: CAL-V2-P02. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre control previo, incidencia de calidad o entregas parciales.) Tj
+T*
+ET
+endstream endobj
+8 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >> endobj
+9 0 obj << /Length 1221 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Politica de calidad para entregas a cliente - version extendida) Tj
+T*
+(Pagina 3 de 3 - Indicadores, auditoria y respuesta RAG) Tj
+T*
+() Tj
+T*
+(Indicadores:) Tj
+T*
+(Los indicadores mensuales separan pedidos entregados a tiempo, pedidos retrasados,) Tj
+T*
+(pedidos bloqueados, pedidos con incidencia de calidad, entregas parciales y) Tj
+T*
+(devoluciones por documentacion incompleta. Cada indicador debe permitir navegar al) Tj
+T*
+(order_id que lo justifica.) Tj
+T*
+() Tj
+T*
+(Auditoria:) Tj
+T*
+(La auditoria revisa una muestra de expedientes y comprueba lote, albaran,) Tj
+T*
+(certificado, fecha de salida, transportista y aceptacion del cliente. Si falta una) Tj
+T*
+(evidencia, el hallazgo queda abierto aunque el pedido figure como delivered.) Tj
+T*
+() Tj
+T*
+(Respuesta documental:) Tj
+T*
+(Cuando se consulte por calidad, la respuesta debe citar la pagina y el documento) Tj
+T*
+(usado. Si el texto no contiene evidencia suficiente para lote, certificado o) Tj
+T*
+(retencion, debe devolver insufficient_context.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: CAL-V2-P03. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre indicadores, auditoria o respuesta documental con fuentes.) Tj
+T*
+ET
+endstream endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000197 00000 n 
+0000000323 00000 n 
+0000001603 00000 n 
+0000001729 00000 n 
+0000003015 00000 n 
+0000003141 00000 n 
+trailer << /Root 1 0 R /Size 10 >>
+startxref
+4414
+%%EOF

@@ -123,6 +123,22 @@ def test_final_response_answers_rag_summary_with_llm_not_chunk_fallback() -> Non
     assert state["response"].fallbacks == []
 
 
+def test_final_response_allows_generic_id_acronym_in_grounded_rag_answer() -> None:
+    chat_model = _FakeChatModel(
+        '{"answer": "El impacto economico se calcula con lineas ERP y debe unir '
+        'importe, porcentaje contractual y causa documentada. Para que sea auditable, '
+        'la respuesta debe citar filename, pagina, order ID y customer ID cuando '
+        'esos datos consten en la evidencia."}'
+    )
+    builder = FinalResponseBuilder(chat_model=chat_model)
+
+    state = builder(_rag_traceability_state())
+
+    assert state["response"].fallbacks == []
+    assert "order ID" in state["response"].answer
+    assert "customer ID" in state["response"].answer
+
+
 def test_final_response_answers_mixed_penalties_with_llm() -> None:
     chat_model = _FakeChatModel(
         '{"answer": "Con la evidencia actual, el pedido 10252 no tiene penalizacion aplicable porque esta bloqueado por falta de material. '
@@ -376,6 +392,58 @@ def _mixed_penalty_state() -> dict:
     }
     state["sources"] = ["ERP", "Produccion", "Documentos"]
     return state
+
+
+def _rag_traceability_state() -> dict:
+    return {
+        "question": (
+            "Segun v2_condiciones_comerciales_northwind.pdf, como se calcula "
+            "el impacto economico y que fuentes deben citarse?"
+        ),
+        "plan": {
+            "intent": "rag",
+            "steps": [],
+            "expected_sources": ["Documentos"],
+            "answer_requirements": [
+                "Responder solo con chunks documentales recuperados."
+            ],
+        },
+        "status": "completed",
+        "data": {
+            "rag": {
+                "answer": (
+                    "El importe de un pedido se calcula desde las lineas usando "
+                    "precio unitario, cantidad y descuento. Si se usa RAG, se "
+                    "debe citar filename y pagina."
+                ),
+                "status": "completed",
+                "chunks": [
+                    {
+                        "text": (
+                            "Condiciones comerciales Northwind. El importe de un "
+                            "pedido se calcula desde las lineas usando precio "
+                            "unitario, cantidad y descuento. La respuesta debe "
+                            "unir importe ERP, porcentaje contractual y causa "
+                            "documentada. Si se usa RAG, se debe citar filename "
+                            "y pagina. Para auditoria pueden constar order_id "
+                            "y customer_id."
+                        ),
+                        "metadata": {
+                            "document_id": "doc_v2",
+                            "filename": "v2_condiciones_comerciales_northwind.pdf",
+                            "page": 4,
+                            "chunk_id": "doc_v2_p4_c1",
+                            "uploaded_at": "2026-05-21T00:00:00Z",
+                        },
+                        "score": 0.91,
+                    }
+                ],
+            }
+        },
+        "sources": ["Documentos"],
+        "reasoning": ["Consulta RAG documental con chunks recuperados"],
+        "tool_calls": [],
+    }
 
 
 def _economic_impact_state() -> dict:

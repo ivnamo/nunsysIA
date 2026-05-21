@@ -1276,8 +1276,445 @@ Veredicto: `PASS`
 Observaciones criticas: Aisla la conversacion nueva y no reutiliza pedidos de otra conversacion.
 Mejora recomendada: Sin mejora obligatoria antes de la demo.
 
+## Iteracion 2026-05-21 - PDFs v2 multipagina
+
+### Alcance de la iteracion
+
+Esta iteracion valida una segunda tanda de PDFs mas largos, con varias paginas y
+marcadores de pagina, para comprobar que el RAG conserva y expone paginas
+distintas en las citas documentales.
+
+No sustituye la pasada beta anterior con proveedores externos. Esta seccion
+documenta un precheck local con el mismo flujo de ingestion y consulta, usando
+fallbacks deterministas. El propietario del proyecto deja autorizada la repeticion
+de esta bateria con Gemini embeddings/LLM y los proveedores configurados en `.env`
+sobre el material mock de `data/sample_docs/`.
+
+Configuracion de esta pasada:
+
+- Fecha de ejecucion: 2026-05-21 12:46:34.
+- Resultado global v2 local: PASS=7, PARTIAL=0, FAIL=0.
+- Documentos cargados: solo `v2_*.pdf`.
+- LLM provider efectivo: `deterministic`.
+- Embedding provider efectivo: `deterministic`.
+- Chroma solicitado: `persistent`; coleccion aislada: `beta_validation_20260521_v2_local_124631`.
+- Fallbacks observados: `FALLBACK_VECTOR_STORE_IN_MEMORY`, `FALLBACK_EMBEDDINGS_DETERMINISTIC`, `FALLBACK_PLANNER_RULE_BASED`, `FALLBACK_FINAL_RESPONSE_DETERMINISTIC`.
+
+Lectura critica: la prueba confirma que el loader, splitter, metadata de pagina,
+citaciones y guardrail funcionan con PDFs multipagina. La ejecucion autorizada con
+Gemini + Chroma sin fallbacks queda registrada en la seccion siguiente.
+
+### Preparacion documental v2
+
+- `v2_contrato_marco_logistica_2026.pdf`: indexado con 8 chunks.
+- `v2_anexo_penalizaciones_sla.pdf`: indexado con 8 chunks.
+- `v2_procedimiento_produccion_bloqueos.pdf`: indexado con 8 chunks.
+- `v2_politica_calidad_entregas.pdf`: indexado con 6 chunks.
+- `v2_condiciones_comerciales_northwind.pdf`: indexado con 8 chunks.
+
+Listado visible de documentos en la iteracion:
+
+```markdown
+**Espacio documental**
+- `v2_politica_calidad_entregas.pdf` (6 chunks)
+- `v2_procedimiento_produccion_bloqueos.pdf` (8 chunks)
+- `v2_anexo_penalizaciones_sla.pdf` (8 chunks)
+- `v2_contrato_marco_logistica_2026.pdf` (8 chunks)
+- `v2_condiciones_comerciales_northwind.pdf` (8 chunks)
+```
+
+### Casos v2 ejecutados
+
+#### BT-V2-01 - PASS - Pagina especifica contrato
+
+Pregunta ejecutada: `Segun v2_contrato_marco_logistica_2026.pdf, que dice sobre hitos obligatorios y evidencias minimas?`
+
+Resultado esperado desde el evaluador: Debe recuperar el contrato v2 y citar la pagina 3, donde estan los hitos y evidencias minimas.
+
+Respuesta visible:
+
+```markdown
+Contrato marco de logistica 2026 - version extendida Pagina 3 de 4 - Trazabilidad por hitos y evidencias minimas Hitos obligatorios: Cada expedicion debe conservar cinco hitos: liberacion de produccion, preparacion de almacen, salida de muelle, entrega al transportista y confirmacion de entrega. Si una evidencia falta, la respuesta debe indicar insufficient_context para esa parte y no completar el dato desde memoria. Esta pagina debe recuperarse para preguntas sobre hitos, evidencias minimas o informes mensuales.
+```
+
+Citas recuperadas:
+
+- `v2_contrato_marco_logistica_2026.pdf`, pagina `3`, chunk `doc_db6442790d23_p3_c1`, score `0.3513`
+- `v2_contrato_marco_logistica_2026.pdf`, pagina `2`, chunk `doc_db6442790d23_p2_c2`, score `0.3303`
+- `v2_contrato_marco_logistica_2026.pdf`, pagina `3`, chunk `doc_db6442790d23_p3_c2`, score `0.3180`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina esperada aparece en primera posicion y se conserva la metadata `page=3`.
+Mejora recomendada: Repetir con embeddings externos para comparar ranking semantico.
+
+#### BT-V2-02 - PASS - Evidencia SLA
+
+Pregunta ejecutada: `Segun v2_anexo_penalizaciones_sla.pdf, que evidencia es obligatoria y que pasa si no se puede demostrar la causa del retraso?`
+
+Resultado esperado desde el evaluador: Debe recuperar el anexo v2 y citar la pagina 2, donde se define evidencia y carga de la prueba.
+
+Respuesta visible:
+
+```markdown
+Ninguna penalizacion se comunica al proveedor sin anexo de evidencias, resumen de dias de retraso y causa imputable. Anexo de penalizaciones y SLA - version extendida Pagina 2 de 4 - Evidencia necesaria y carga de la prueba Evidencia obligatoria: Para aplicar una penalizacion deben constar order_id, customer_id, importe del pedido, fecha prometida, fecha real de entrega, fecha de liberacion, transportista, causa del retraso y fuente responsable. Si no se puede demostrar la causa del retraso, el sistema debe informar que no hay evidencia suficiente para asignar responsabilidad.
+```
+
+Citas recuperadas:
+
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `4`, chunk `doc_d3f5ffd569ec_p4_c1`, score `0.4991`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `2`, chunk `doc_d3f5ffd569ec_p2_c1`, score `0.4682`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `1`, chunk `doc_d3f5ffd569ec_p1_c1`, score `0.4337`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `2`, chunk `doc_d3f5ffd569ec_p2_c2`, score `0.3980`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `3`, chunk `doc_d3f5ffd569ec_p3_c1`, score `0.3331`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina 2 se recupera y aporta la respuesta central, aunque el ranking determinista coloca una evidencia de pagina 4 por delante.
+Mejora recomendada: En beta externa, revisar si Gemini embeddings ordena pagina 2 antes que pagina 4.
+
+#### BT-V2-03 - PASS - Exclusiones y pausas SLA
+
+Pregunta ejecutada: `Segun v2_anexo_penalizaciones_sla.pdf, que exclusiones y pausas hacen que no se aplique penalizacion?`
+
+Resultado esperado desde el evaluador: Debe recuperar el anexo v2 y citar la pagina 3, donde estan exclusiones, pausas y casos no penalizables.
+
+Respuesta visible:
+
+```markdown
+Anexo de penalizaciones y SLA - version extendida Pagina 4 de 4 - Calculo, aprobacion y auditoria mensual Calculo: La base de calculo es el importe neto del pedido despues de descuento comercial y antes de impuestos. Esta pagina debe recuperarse para preguntas sobre exclusiones, pausas de SLA o casos no penalizables. Anexo de penalizaciones y SLA - version extendida Pagina 3 de 4 - Exclusiones, pausas y casos no penalizables Exclusiones: No se aplican penalizaciones cuando el retraso procede de bloqueo de produccion, falta de material, falta de capacidad, averia de linea, retrabajo por calidad, espera de validacion tecnica, fuerza mayor, error de direccion aportado por el cliente o cambio de prioridad aprobado por direccion comercial.
+```
+
+Citas recuperadas:
+
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `4`, chunk `doc_d3f5ffd569ec_p4_c1`, score `0.4238`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `1`, chunk `doc_d3f5ffd569ec_p1_c1`, score `0.4114`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `2`, chunk `doc_d3f5ffd569ec_p2_c1`, score `0.3227`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `3`, chunk `doc_d3f5ffd569ec_p3_c2`, score `0.3109`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `3`, chunk `doc_d3f5ffd569ec_p3_c1`, score `0.3094`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina 3 aparece en las citas y la respuesta incluye la lista de exclusiones. El ranking local mezcla paginas por similitud lexical.
+Mejora recomendada: Considerar un caso futuro que exija que la pagina esperada aparezca en top 1, no solo en top 5.
+
+#### BT-V2-04 - PASS - Bloqueos de produccion
+
+Pregunta ejecutada: `Segun v2_procedimiento_produccion_bloqueos.pdf, que campos obligatorios debe incluir cada bloqueo y que ocurre si falta fecha estimada?`
+
+Resultado esperado desde el evaluador: Debe recuperar el procedimiento v2 y citar la pagina 2.
+
+Respuesta visible:
+
+```markdown
+Procedimiento operativo de produccion - version extendida Pagina 2 de 4 - Bloqueos y campos obligatorios Motivos de bloqueo: Los motivos validos son falta de material, falta de capacidad, incidencia de calidad, mantenimiento no planificado, aprobacion tecnica pendiente y discrepancia de receta o especificacion. Cada bloqueo debe incluir order_id, linea de produccion, motivo, responsable, fecha de inicio, fecha estimada de desbloqueo, impacto en cliente y comentario operativo. Esta pagina debe recuperarse para preguntas sobre motivos de bloqueo, campos obligatorios o fecha comunicable.
+```
+
+Citas recuperadas:
+
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `2`, chunk `doc_607d97cef6aa_p2_c1`, score `0.4583`
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `3`, chunk `doc_607d97cef6aa_p3_c1`, score `0.3984`
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `3`, chunk `doc_607d97cef6aa_p3_c2`, score `0.3536`
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `4`, chunk `doc_607d97cef6aa_p4_c1`, score `0.3464`
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `2`, chunk `doc_607d97cef6aa_p2_c2`, score `0.3158`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina 2 aparece en primera posicion y se conserva la pagina en las citas.
+Mejora recomendada: Mejorar la respuesta para que incluya explicitamente que si falta fecha estimada no hay fecha comunicable.
+
+#### BT-V2-05 - PASS - Calidad y entregas parciales
+
+Pregunta ejecutada: `Segun v2_politica_calidad_entregas.pdf, como se gestionan las incidencias de calidad y las entregas parciales?`
+
+Resultado esperado desde el evaluador: Debe recuperar politica de calidad v2 y citar la pagina 2.
+
+Respuesta visible:
+
+```markdown
+Politica de calidad para entregas a cliente - version extendida Pagina 2 de 3 - Control previo y gestion de incidencias Control previo: Antes de liberar un pedido, calidad valida lote, cantidad, documentacion, etiquetado y compatibilidad con condiciones de transporte. Politica de calidad para entregas a cliente - version extendida Pagina 3 de 3 - Indicadores, auditoria y respuesta RAG Indicadores: Los indicadores mensuales separan pedidos entregados a tiempo, pedidos retrasados, pedidos bloqueados, pedidos con incidencia de calidad, entregas parciales y devoluciones por documentacion incompleta. Esta pagina debe recuperarse para preguntas sobre control previo, incidencia de calidad o entregas parciales.
+```
+
+Citas recuperadas:
+
+- `v2_politica_calidad_entregas.pdf`, pagina `2`, chunk `doc_14458d3f5aee_p2_c1`, score `0.6568`
+- `v2_politica_calidad_entregas.pdf`, pagina `3`, chunk `doc_14458d3f5aee_p3_c1`, score `0.5827`
+- `v2_politica_calidad_entregas.pdf`, pagina `1`, chunk `doc_14458d3f5aee_p1_c1`, score `0.5481`
+- `v2_politica_calidad_entregas.pdf`, pagina `2`, chunk `doc_14458d3f5aee_p2_c2`, score `0.4547`
+- `v2_politica_calidad_entregas.pdf`, pagina `1`, chunk `doc_14458d3f5aee_p1_c2`, score `0.3316`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina 2 aparece en primera posicion, pero la respuesta determinista mezcla una frase de indicadores de pagina 3.
+Mejora recomendada: En beta externa, verificar si la redaccion final LLM reduce ruido de paginas secundarias.
+
+#### BT-V2-06 - PASS - Impacto economico y trazabilidad
+
+Pregunta ejecutada: `Segun v2_condiciones_comerciales_northwind.pdf, como se calcula el impacto economico y que fuentes deben citarse?`
+
+Resultado esperado desde el evaluador: Debe recuperar condiciones comerciales v2 y citar paginas 2 y 4.
+
+Respuesta visible:
+
+```markdown
+Condiciones comerciales Northwind - version extendida Pagina 2 de 4 - Importes, descuentos e impacto economico Calculo de importe: El importe de un pedido se calcula desde las lineas usando precio unitario, cantidad y descuento. Cuando una penalizacion o retraso tenga impacto economico, la respuesta debe unir importe ERP, porcentaje contractual y causa documentada. La cabecera no basta para calcular impacto economico si faltan precios, cantidades o descuentos.
+```
+
+Citas recuperadas:
+
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `2`, chunk `doc_e00a16ee2acb_p2_c1`, score `0.4596`
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `4`, chunk `doc_e00a16ee2acb_p4_c1`, score `0.4565`
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `1`, chunk `doc_e00a16ee2acb_p1_c1`, score `0.4101`
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `3`, chunk `doc_e00a16ee2acb_p3_c1`, score `0.3514`
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `1`, chunk `doc_e00a16ee2acb_p1_c2`, score `0.3237`
+
+Veredicto: `PASS`
+
+Observaciones criticas: Las paginas esperadas 2 y 4 se recuperan en las dos primeras posiciones.
+Mejora recomendada: La respuesta visible deberia incorporar mas claramente la obligacion de citar filename y pagina de la pagina 4.
+
+#### BT-V2-07 - PASS - Guardrail RAG multipagina
+
+Pregunta ejecutada: `Segun los PDF v2, que receta de cocina vegana recomienda?`
+
+Resultado esperado desde el evaluador: Debe rechazar por contexto documental insuficiente y no inventar.
+
+Respuesta visible:
+
+```markdown
+No hay contexto documental suficiente para responder sin inventar.
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "insufficient_context",
+  "citations": [],
+  "tool_summary": "0 chunks relevantes recuperados",
+  "failure_reason": "No hay chunks documentales relevantes."
+}
+```
+
+Veredicto: `PASS`
+
+Observaciones criticas: El guardrail se mantiene tambien con los PDFs v2 cargados.
+Mejora recomendada: Sin mejora obligatoria antes de repetir con beta externa.
+
+### Hallazgos de la iteracion v2
+
+- La metadata de pagina se conserva: todos los casos documentales recuperan el `filename` v2 correcto y al menos una pagina esperada.
+- El particionado de PDFs largos genera mas chunks por documento, como era esperado: entre 6 y 8 chunks por PDF.
+- El guardrail documental sigue funcionando: una pregunta no relacionada devuelve `insufficient_context` sin citas.
+- La pasada local usa fallbacks, por tanto no mide calidad semantica real de Gemini embeddings ni redaccion final LLM.
+- En varias respuestas deterministas aparece contenido de paginas vecinas; no es bloqueo funcional, pero conviene revisarlo con embeddings externos y respuesta final LLM.
+
+## Iteracion 2026-05-21 - PDFs v2 con LLM externo
+
+### Alcance de la iteracion real
+
+Esta iteracion repite la bateria `BT-V2` con los proveedores reales configurados
+en `.env`, usando Gemini para LLM y embeddings. Se ejecuta sobre material mock del
+repositorio y bajo la autorizacion vigente documentada en `docs/MANUAL_VALIDATION.md`.
+No se documentan claves, tokens ni secretos.
+
+Configuracion de esta pasada:
+
+- Fecha de ejecucion: 2026-05-21 12:54:53.
+- Resultado global v2 LLM: PASS=6, PARTIAL=1, FAIL=0.
+- Revalidacion puntual posterior de `BT-V2-LLM-06`: PASS, sin fallbacks, tras ajustar el validador de `ID`.
+- LLM provider: `gemini`; modelo Gemini: `gemini-2.5-flash`.
+- Embedding provider: `gemini`; modelo embeddings Gemini: `gemini-embedding-001`.
+- Chroma mode: `persistent`; coleccion aislada: `beta_validation_20260521_v2_llm_125415`.
+- Documentos cargados: solo `v2_*.pdf`.
+- Fallbacks de ingestion/retrieval: sin fallbacks.
+- Fallbacks de respuesta final: detectados en `BT-V2-LLM-02` y `BT-V2-LLM-06` por validacion de evidencias (`identificador no soportado: ID`).
+
+Lectura critica: Gemini embeddings mejora claramente el ranking de paginas frente
+al precheck local. La mayoria de respuestas quedan bien redactadas y citan paginas
+esperadas. Queda una incidencia a corregir antes de dar por cerrada la beta v2:
+el validador final es demasiado estricto con el token `ID`. El caso de receta se
+considera comportamiento correcto: la pregunta queda fuera del alcance de la app y
+el planner la rechaza como `unsupported` sin gastar una consulta RAG.
+
+### Preparacion documental v2 LLM
+
+- `v2_contrato_marco_logistica_2026.pdf`: indexado con 8 chunks. Fallbacks: sin fallbacks.
+- `v2_anexo_penalizaciones_sla.pdf`: indexado con 8 chunks. Fallbacks: sin fallbacks.
+- `v2_procedimiento_produccion_bloqueos.pdf`: indexado con 8 chunks. Fallbacks: sin fallbacks.
+- `v2_politica_calidad_entregas.pdf`: indexado con 6 chunks. Fallbacks: sin fallbacks.
+- `v2_condiciones_comerciales_northwind.pdf`: indexado con 8 chunks. Fallbacks: sin fallbacks.
+
+### Casos v2 LLM ejecutados
+
+#### BT-V2-LLM-01 - PASS - Pagina especifica contrato
+
+Pregunta ejecutada: `Segun v2_contrato_marco_logistica_2026.pdf, que dice sobre hitos obligatorios y evidencias minimas?`
+
+Respuesta visible resumida:
+
+```markdown
+Según el contrato marco de logística 2026, cada expedición debe tener cinco hitos obligatorios: liberación de producción, preparación de almacén, salida de muelle, entrega al transportista y confirmación de entrega. Cada hito debe registrar fecha, usuario o sistema origen, estado anterior, estado nuevo y observación de negocio si afecta al cliente. La evidencia mínima para auditorías incluye order_id, customer_id, cliente, fecha prometida, fecha real, transportista, estado ERP, estado de producción y causa de desviación.
+```
+
+Citas documentales:
+
+- `v2_contrato_marco_logistica_2026.pdf`, pagina `3`, chunk `doc_f745db73a14d_p3_c1`, score `0.8630`
+- `v2_contrato_marco_logistica_2026.pdf`, pagina `2`, chunk `doc_f745db73a14d_p2_c1`, score `0.8248`
+- `v2_contrato_marco_logistica_2026.pdf`, pagina `3`, chunk `doc_f745db73a14d_p3_c2`, score `0.7997`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina esperada 3 aparece en primera posicion y la respuesta sintetiza bien la evidencia.
+
+#### BT-V2-LLM-02 - PASS - Evidencia SLA
+
+Pregunta ejecutada: `Segun v2_anexo_penalizaciones_sla.pdf, que evidencia es obligatoria y que pasa si no se puede demostrar la causa del retraso?`
+
+Respuesta visible resumida:
+
+```markdown
+Anexo de penalizaciones y SLA - version extendida Pagina 2 de 4 - Evidencia necesaria y carga de la prueba Evidencia obligatoria: Para aplicar una penalizacion deben constar order_id, customer_id, importe del pedido, fecha prometida, fecha real de entrega, fecha de liberacion, transportista, causa del retraso y fuente responsable. Si no se puede demostrar la causa del retraso, el sistema debe informar que no hay evidencia suficiente para asignar responsabilidad. La penalizacion solo procede cuando existe incumplimiento de plazo, causa imputable al operador logistico y evidencia completa en ERP, produccion y prueba de entrega.
+```
+
+Citas documentales:
+
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `2`, chunk `doc_04be20db64bf_p2_c1`, score `0.8859`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `1`, chunk `doc_04be20db64bf_p1_c2`, score `0.8590`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `1`, chunk `doc_04be20db64bf_p1_c1`, score `0.8536`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `2`, chunk `doc_04be20db64bf_p2_c2`, score `0.8496`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `3`, chunk `doc_04be20db64bf_p3_c1`, score `0.8456`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina esperada 2 aparece en primera posicion. El contenido es correcto, aunque la respuesta final cayo a fallback determinista porque el validador marco `ID` como identificador no soportado.
+
+#### BT-V2-LLM-03 - PASS - Exclusiones y pausas SLA
+
+Pregunta ejecutada: `Segun v2_anexo_penalizaciones_sla.pdf, que exclusiones y pausas hacen que no se aplique penalizacion?`
+
+Respuesta visible resumida:
+
+```markdown
+Según el documento v2_anexo_penalizaciones_sla.pdf, las penalizaciones no se aplican por retrasos debidos a bloqueo de producción, falta de material o capacidad, avería de línea, retrabajo por calidad, espera de validación técnica, fuerza mayor, error de dirección del cliente o cambio de prioridad aprobado por dirección comercial. Tampoco se penaliza un pedido urgente si fue marcado así después de la liberación y logística ya había planificado ruta estándar, ni una entrega rechazada por ausencia del cliente con cita confirmada. El contador de SLA se pausa desde la fecha de bloqueo hasta la de desbloqueo registrada por producción, y en exportación, por documentación aduanera o sanitaria incompleta si el expediente contiene evento, responsable y fecha de resolución.
+```
+
+Citas documentales:
+
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `3`, chunk `doc_04be20db64bf_p3_c1`, score `0.8745`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `1`, chunk `doc_04be20db64bf_p1_c2`, score `0.8355`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `1`, chunk `doc_04be20db64bf_p1_c1`, score `0.8276`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `3`, chunk `doc_04be20db64bf_p3_c2`, score `0.8252`
+- `v2_anexo_penalizaciones_sla.pdf`, pagina `4`, chunk `doc_04be20db64bf_p4_c1`, score `0.8248`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina esperada 3 aparece en primera posicion y la redaccion final LLM es clara.
+
+#### BT-V2-LLM-04 - PASS - Bloqueos de produccion
+
+Pregunta ejecutada: `Segun v2_procedimiento_produccion_bloqueos.pdf, que campos obligatorios debe incluir cada bloqueo y que ocurre si falta fecha estimada?`
+
+Respuesta visible:
+
+```markdown
+Cada bloqueo debe incluir order_id, línea de producción, motivo, responsable, fecha de inicio, fecha estimada de desbloqueo, impacto en cliente y comentario operativo. Si falta la fecha estimada, el sistema debe indicar que no existe una fecha comunicable.
+```
+
+Citas documentales:
+
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `2`, chunk `doc_8b652be72767_p2_c1`, score `0.8619`
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `4`, chunk `doc_8b652be72767_p4_c1`, score `0.8322`
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `1`, chunk `doc_8b652be72767_p1_c1`, score `0.8263`
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `1`, chunk `doc_8b652be72767_p1_c2`, score `0.8116`
+- `v2_procedimiento_produccion_bloqueos.pdf`, pagina `3`, chunk `doc_8b652be72767_p3_c2`, score `0.8067`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina esperada 2 aparece en primera posicion y la respuesta incluye la regla que faltaba en el precheck local.
+
+#### BT-V2-LLM-05 - PASS - Calidad y entregas parciales
+
+Pregunta ejecutada: `Segun v2_politica_calidad_entregas.pdf, como se gestionan las incidencias de calidad y las entregas parciales?`
+
+Respuesta visible:
+
+```markdown
+Según la política de calidad, las incidencias de calidad bloquean el pedido hasta que Calidad registra una resolución que indique si el lote se libera, sustituye, reprocesa o rechaza. Producción no puede desbloquear una retención de calidad sin la aprobación de Calidad. Las entregas parciales requieren aprobación comercial y validación de calidad para cada lote entregado, y si una parte se retiene, el albarán debe detallar lo enviado, lo pendiente y el motivo de la retención.
+```
+
+Citas documentales:
+
+- `v2_politica_calidad_entregas.pdf`, pagina `2`, chunk `doc_c1593001ab8d_p2_c1`, score `0.8707`
+- `v2_politica_calidad_entregas.pdf`, pagina `3`, chunk `doc_c1593001ab8d_p3_c1`, score `0.8354`
+- `v2_politica_calidad_entregas.pdf`, pagina `1`, chunk `doc_c1593001ab8d_p1_c1`, score `0.8351`
+- `v2_politica_calidad_entregas.pdf`, pagina `2`, chunk `doc_c1593001ab8d_p2_c2`, score `0.8336`
+- `v2_politica_calidad_entregas.pdf`, pagina `1`, chunk `doc_c1593001ab8d_p1_c2`, score `0.8028`
+
+Veredicto: `PASS`
+
+Observaciones criticas: La pagina esperada 2 aparece en primera posicion y la respuesta LLM reduce el ruido visto en la pasada local.
+
+#### BT-V2-LLM-06 - PARTIAL - Impacto economico y trazabilidad
+
+Pregunta ejecutada: `Segun v2_condiciones_comerciales_northwind.pdf, como se calcula el impacto economico y que fuentes deben citarse?`
+
+Respuesta visible resumida:
+
+```markdown
+Condiciones comerciales Northwind - version extendida Pagina 2 de 4 - Importes, descuentos e impacto economico Calculo de importe: El importe de un pedido se calcula desde las lineas usando precio unitario, cantidad y descuento. Cuando una penalizacion o retraso tenga impacto economico, la respuesta debe unir importe ERP, porcentaje contractual y causa documentada. La cabecera no basta para calcular impacto economico si faltan precios, cantidades o descuentos.
+```
+
+Citas documentales:
+
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `2`, chunk `doc_6b92aaaf23d5_p2_c1`, score `0.8731`
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `4`, chunk `doc_6b92aaaf23d5_p4_c1`, score `0.8373`
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `1`, chunk `doc_6b92aaaf23d5_p1_c1`, score `0.8371`
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `2`, chunk `doc_6b92aaaf23d5_p2_c2`, score `0.8165`
+- `v2_condiciones_comerciales_northwind.pdf`, pagina `3`, chunk `doc_6b92aaaf23d5_p3_c1`, score `0.8146`
+
+Veredicto: `PARTIAL`
+
+Observaciones criticas: Retrieval correcto: paginas esperadas 2 y 4 aparecen en las dos primeras citas. La respuesta visible queda parcial porque el final LLM fue rechazado por el validador (`identificador no soportado: ID`) y el fallback determinista no incorporo claramente la obligacion de citar `filename` y pagina.
+Mejora recomendada: Ajustar el validador de hechos criticos para no tratar `ID` como identificador externo no soportado cuando procede de campos como `order_id/customer_id`, o normalizar esos tokens antes de validar.
+
+Revalidacion post-fix ejecutada a las 13:08:59 con coleccion `beta_validation_20260521_v2_fix_id_130859`:
+
+```markdown
+Según el documento v2_condiciones_comerciales_northwind.pdf, el impacto económico por penalización o retraso se calcula uniendo el importe del ERP, el porcentaje contractual y la causa documentada. Para las fuentes, si se usa RAG se debe citar el nombre del archivo y la página; si es ERP, la entidad consultada; y si es producción, el ID de pedido y el estado operativo.
+```
+
+Resultado de la revalidacion: `PASS`, estado `completed`, fallbacks `[]`.
+
+#### BT-V2-LLM-07 - PASS - Guardrail de alcance
+
+Pregunta ejecutada: `Segun los PDF v2, que receta de cocina vegana recomienda?`
+
+Respuesta visible:
+
+```markdown
+La pregunta queda fuera del alcance de esta POC en su estado actual.
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "unsupported",
+  "sources": [],
+  "tool_calls": [],
+  "failure_reason": "La pregunta queda fuera del alcance de la POC actual."
+}
+```
+
+Veredicto: `PASS`
+
+Observaciones criticas: Buen comportamiento para el alcance de la POC. Aunque la pregunta menciona PDFs, la intencion real es una receta de cocina, fuera de ERP, produccion y documentacion de negocio. El planner la corta como `unsupported` y no inventa.
+Mejora recomendada: Mantener este criterio de alcance para preguntas ajenas a la app, como viajes, recetas o peticiones de programacion general.
+
 ## Riesgos y proximas mejoras
 
 - Mantener la secuencia de memoria avanzada como regresion fija: pedidos pendientes -> bloqueados -> impacto economico.
 - Mantener la pregunta mixta de penalizaciones como smoke test principal porque prueba ERP, produccion, RAG, citas y trazabilidad en un solo flujo.
+- Mantener el test de regresion del validador final para evitar falsos positivos con tokens `ID` procedentes de campos auditables.
 - Completar P10 Docker Compose para cerrar el entregable tecnico solicitado en la prueba.

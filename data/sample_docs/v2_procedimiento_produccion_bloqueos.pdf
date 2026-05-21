@@ -1,0 +1,220 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R] /Count 4 >> endobj
+3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >> endobj
+5 0 obj << /Length 1249 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Procedimiento operativo de produccion - version extendida) Tj
+T*
+(Pagina 1 de 4 - Estados, transiciones y propietarios) Tj
+T*
+() Tj
+T*
+(Estados:) Tj
+T*
+(Una orden puede estar en planned, in_progress, blocked, delayed, quality_hold,) Tj
+T*
+(released o finished. El estado blocked se usa cuando la orden no puede avanzar. El) Tj
+T*
+(estado delayed se usa cuando la orden sigue abierta pero no llegara a la fecha) Tj
+T*
+(estimada. El estado quality_hold se reserva para lote retenido por calidad.) Tj
+T*
+() Tj
+T*
+(Transiciones:) Tj
+T*
+(planned pasa a in_progress cuando se asigna linea. in_progress pasa a blocked si) Tj
+T*
+(falta material, capacidad o aprobacion. in_progress pasa a delayed cuando existe) Tj
+T*
+(riesgo confirmado de fecha. blocked solo puede pasar a in_progress o released con) Tj
+T*
+(fecha y responsable de desbloqueo.) Tj
+T*
+() Tj
+T*
+(Propietarios:) Tj
+T*
+(Produccion posee estados operativos, calidad posee quality_hold, comercial posee) Tj
+T*
+(prioridad de cliente y logistica consume la fecha liberada para calcular entrega.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: PROD-V2-P01. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre estados de produccion, transiciones o propietarios.) Tj
+T*
+ET
+endstream endobj
+6 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >> endobj
+7 0 obj << /Length 1274 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Procedimiento operativo de produccion - version extendida) Tj
+T*
+(Pagina 2 de 4 - Bloqueos y campos obligatorios) Tj
+T*
+() Tj
+T*
+(Motivos de bloqueo:) Tj
+T*
+(Los motivos validos son falta de material, falta de capacidad, incidencia de) Tj
+T*
+(calidad, mantenimiento no planificado, aprobacion tecnica pendiente y discrepancia) Tj
+T*
+(de receta o especificacion. No se debe usar blocked para retrasos menores si la) Tj
+T*
+(orden puede continuar fabricandose.) Tj
+T*
+() Tj
+T*
+(Campos obligatorios:) Tj
+T*
+(Cada bloqueo debe incluir order_id, linea de produccion, motivo, responsable,) Tj
+T*
+(fecha de inicio, fecha estimada de desbloqueo, impacto en cliente y comentario) Tj
+T*
+(operativo. Si falta fecha estimada, el sistema debe responder que no existe fecha) Tj
+T*
+(comunicable.) Tj
+T*
+() Tj
+T*
+(Actualizacion:) Tj
+T*
+(El responsable revisa bloqueos cada turno. Si la fecha estimada cambia, se registra) Tj
+T*
+(un nuevo evento en la traza y no se sobrescribe el evento anterior. La historia de) Tj
+T*
+(eventos debe permitir reconstruir la decision de cada dia.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: PROD-V2-P02. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre motivos de bloqueo, campos obligatorios o fecha comunicable.) Tj
+T*
+ET
+endstream endobj
+8 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >> endobj
+9 0 obj << /Length 1175 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Procedimiento operativo de produccion - version extendida) Tj
+T*
+(Pagina 3 de 4 - Retrasos, prioridades y comunicacion) Tj
+T*
+() Tj
+T*
+(Motivos de retraso:) Tj
+T*
+(Los retrasos se clasifican como averia en linea, cambio de prioridad, retrabajo) Tj
+T*
+(por calidad, espera de validacion tecnica, falta temporal de capacidad o secuencia) Tj
+T*
+(de fabricacion alterada. Delayed no implica que la orden este parada.) Tj
+T*
+() Tj
+T*
+(Prioridades:) Tj
+T*
+(Un cliente prioritario puede adelantar secuencia solo si produccion confirma) Tj
+T*
+(capacidad y calidad confirma lote liberable. Si adelantar un pedido retrasa otro) Tj
+T*
+(cliente, comercial debe aceptar el impacto y dejar rastro en el ERP.) Tj
+T*
+() Tj
+T*
+(Comunicacion:) Tj
+T*
+(Cuando delayed afecta a un cliente prioritario, produccion avisa a comercial y) Tj
+T*
+(logistica antes del cierre del turno. La comunicacion debe incluir nueva fecha) Tj
+T*
+(estimada, motivo y si el pedido puede enviarse parcial.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: PROD-V2-P03. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre delayed, prioridades o comunicacion a comercial y logistica.) Tj
+T*
+ET
+endstream endobj
+10 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 11 0 R >> endobj
+11 0 obj << /Length 1133 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Procedimiento operativo de produccion - version extendida) Tj
+T*
+(Pagina 4 de 4 - Escalado, informes y cierre) Tj
+T*
+() Tj
+T*
+(Escalado:) Tj
+T*
+(Un pedido bloqueado mas de 72 horas se escala a operaciones. Un pedido retrasado) Tj
+T*
+(con impacto en cliente prioritario se escala a operaciones y comercial. Un bloqueo) Tj
+T*
+(por calidad con riesgo sanitario se escala tambien a direccion tecnica.) Tj
+T*
+() Tj
+T*
+(Informes:) Tj
+T*
+(El informe diario agrupa ordenes por estado, motivo, cliente afectado y fecha) Tj
+T*
+(estimada. El informe semanal muestra bloqueos recurrentes, retrasos por linea,) Tj
+T*
+(tiempo medio de desbloqueo y pedidos que han cambiado de prioridad.) Tj
+T*
+() Tj
+T*
+(Cierre:) Tj
+T*
+(Una orden finished debe conservar todos los eventos previos. No se eliminan) Tj
+T*
+(bloqueos cerrados porque pueden justificar pausas de SLA, exclusiones de) Tj
+T*
+(penalizacion o respuestas de auditoria documental.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: PROD-V2-P04. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre escalado, informes de produccion o conservacion de eventos.) Tj
+T*
+ET
+endstream endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000134 00000 n 
+0000000204 00000 n 
+0000000330 00000 n 
+0000001631 00000 n 
+0000001757 00000 n 
+0000003083 00000 n 
+0000003209 00000 n 
+0000004436 00000 n 
+0000004564 00000 n 
+trailer << /Root 1 0 R /Size 12 >>
+startxref
+5750
+%%EOF

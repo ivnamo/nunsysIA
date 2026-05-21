@@ -10,6 +10,8 @@ Para las validaciones beta y ensayos de demo real, el propietario del proyecto a
 
 La autorizacion aplica a material de prueba de este repositorio y a los documentos preparados para la demo. No autoriza publicar claves, tokens, connection strings ni secretos en la documentacion, en capturas o en salidas compartidas.
 
+Autorizacion vigente confirmada el 2026-05-21: esta regla incluye las iteraciones con los PDFs `v2_*.pdf` de `data/sample_docs/` y permite repetir la beta con Gemini/LLM externo y embeddings configurados en `.env` sobre ese material mock.
+
 El informe vivo de resultados beta se mantiene en `docs/BETA_VALIDATION_REPORT.md`.
 
 ## 0. Preparar entorno

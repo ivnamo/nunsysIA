@@ -855,7 +855,7 @@ def _normalize_number(value: str) -> str:
 
 
 def _identifier_facts(text: str) -> set[str]:
-    allowed_common = {"API", "ERP", "LLM", "PDF", "POC", "RAG", "SLA", "JSON"}
+    allowed_common = {"API", "ERP", "ID", "LLM", "PDF", "POC", "RAG", "SLA", "JSON"}
     identifiers = set(re.findall(r"\b[A-Z]{2,}\d*\b", text))
     return {identifier for identifier in identifiers if identifier not in allowed_common}
 

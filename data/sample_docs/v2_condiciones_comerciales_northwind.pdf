@@ -1,0 +1,218 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R] /Count 4 >> endobj
+3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >> endobj
+5 0 obj << /Length 1196 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Condiciones comerciales Northwind - version extendida) Tj
+T*
+(Pagina 1 de 4 - Datos maestros y fuente ERP) Tj
+T*
+() Tj
+T*
+(Clientes:) Tj
+T*
+(Cada cliente se identifica mediante customer_id ERP y nombre comercial. Las) Tj
+T*
+(consultas de negocio deben usar datos del ERP para clientes, pedidos, fechas,) Tj
+T*
+(estado e importes. No se debe inventar un cliente, pedido o descuento si no aparece) Tj
+T*
+(en la base de datos o en un documento cargado.) Tj
+T*
+() Tj
+T*
+(Pedidos:) Tj
+T*
+(Un pedido comercial contiene cabecera, lineas, fecha de pedido, fecha requerida,) Tj
+T*
+(estado ERP e importe calculable desde lineas. La cabecera no basta para calcular) Tj
+T*
+(impacto economico si faltan precios, cantidades o descuentos.) Tj
+T*
+() Tj
+T*
+(Fuente preferente:) Tj
+T*
+(Para importes y estados comerciales manda el ERP. Para reglas de SLA o calidad) Tj
+T*
+(manda el documento contractual correspondiente. Si las fuentes entran en conflicto,) Tj
+T*
+(la respuesta debe explicarlo y pedir validacion humana.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: COM-V2-P01. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre clientes, pedidos o fuente ERP preferente.) Tj
+T*
+ET
+endstream endobj
+6 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >> endobj
+7 0 obj << /Length 1154 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Condiciones comerciales Northwind - version extendida) Tj
+T*
+(Pagina 2 de 4 - Importes, descuentos e impacto economico) Tj
+T*
+() Tj
+T*
+(Calculo de importe:) Tj
+T*
+(El importe de un pedido se calcula desde las lineas usando precio unitario,) Tj
+T*
+(cantidad y descuento. El resultado debe indicar si procede del ERP, de un calculo) Tj
+T*
+(sobre lineas ERP o si no existe evidencia suficiente.) Tj
+T*
+() Tj
+T*
+(Descuentos:) Tj
+T*
+(Los descuentos comerciales se aplican por linea. No se debe aplicar un descuento) Tj
+T*
+(global inventado si las lineas no lo contienen. Si un pedido tiene lineas con) Tj
+T*
+(descuentos distintos, la respuesta debe explicar el calculo agregado.) Tj
+T*
+() Tj
+T*
+(Impacto economico:) Tj
+T*
+(Cuando una penalizacion o retraso tenga impacto economico, la respuesta debe unir) Tj
+T*
+(importe ERP, porcentaje contractual y causa documentada. Si cualquiera de esos tres) Tj
+T*
+(elementos falta, no se calcula impacto definitivo.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: COM-V2-P02. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre calculo de importes, descuentos o impacto economico.) Tj
+T*
+ET
+endstream endobj
+8 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >> endobj
+9 0 obj << /Length 1138 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Condiciones comerciales Northwind - version extendida) Tj
+T*
+(Pagina 3 de 4 - Prioridad comercial y promesas al cliente) Tj
+T*
+() Tj
+T*
+(Prioridad:) Tj
+T*
+(Los pedidos de clientes prioritarios pueden adelantarse si produccion confirma) Tj
+T*
+(capacidad y calidad confirma lote liberado. La prioridad comercial no elimina) Tj
+T*
+(bloqueos de material ni incidencias de calidad.) Tj
+T*
+() Tj
+T*
+(Promesas:) Tj
+T*
+(Un pedido bloqueado por material no debe prometerse al cliente sin fecha estimada) Tj
+T*
+(validada por produccion. Si la pregunta solicita una fecha y no hay fecha estimada,) Tj
+T*
+(la respuesta debe indicar que falta contexto operativo suficiente.) Tj
+T*
+() Tj
+T*
+(Cambios:) Tj
+T*
+(Todo cambio de prioridad debe registrar quien lo aprueba, motivo comercial, pedido) Tj
+T*
+(afectado y posible impacto en otros clientes. Los cambios sin rastro no deben) Tj
+T*
+(usarse para justificar retrasos ni penalizaciones.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: COM-V2-P03. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre prioridad comercial, promesas al cliente o cambios de prioridad.) Tj
+T*
+ET
+endstream endobj
+10 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 11 0 R >> endobj
+11 0 obj << /Length 1168 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Condiciones comerciales Northwind - version extendida) Tj
+T*
+(Pagina 4 de 4 - Trazabilidad y forma de respuesta) Tj
+T*
+() Tj
+T*
+(Trazabilidad:) Tj
+T*
+(Toda respuesta de negocio debe indicar fuentes consultadas, pasos ejecutados y) Tj
+T*
+(tools utilizadas. El razonamiento visible debe ser un resumen auditable y no un) Tj
+T*
+(razonamiento interno sensible. La respuesta debe separar hechos ERP, reglas) Tj
+T*
+(documentales y conclusiones.) Tj
+T*
+() Tj
+T*
+(Fuentes:) Tj
+T*
+(Si se usa RAG, se debe citar filename y pagina. Si se usa ERP, se debe indicar la) Tj
+T*
+(entidad consultada. Si se usa produccion, se debe indicar order_id y estado) Tj
+T*
+(operativo. Una respuesta con documentos pero sin pagina no cumple la regla.) Tj
+T*
+() Tj
+T*
+(Insuficiencia:) Tj
+T*
+(Cuando la evidencia documental o ERP sea parcial, la respuesta debe limitarse a lo) Tj
+T*
+(demostrado y marcar insufficient_context para el resto. No se completan huecos por) Tj
+T*
+(memoria del modelo.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: COM-V2-P04. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre trazabilidad, fuentes, tools o formato de respuesta.) Tj
+T*
+ET
+endstream endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000134 00000 n 
+0000000204 00000 n 
+0000000330 00000 n 
+0000001578 00000 n 
+0000001704 00000 n 
+0000002910 00000 n 
+0000003036 00000 n 
+0000004226 00000 n 
+0000004354 00000 n 
+trailer << /Root 1 0 R /Size 12 >>
+startxref
+5575
+%%EOF

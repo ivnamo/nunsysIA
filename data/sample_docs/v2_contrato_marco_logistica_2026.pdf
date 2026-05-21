@@ -1,0 +1,234 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R] /Count 4 >> endobj
+3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >> endobj
+5 0 obj << /Length 1368 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Contrato marco de logistica 2026 - version extendida) Tj
+T*
+(Pagina 1 de 4 - Alcance, definiciones y reglas base) Tj
+T*
+() Tj
+T*
+(Objeto:) Tj
+T*
+(Este documento regula la preparacion, expedicion, entrega y cierre documental de) Tj
+T*
+(pedidos comerciales durante 2026. Aplica a pedidos standard, pedidos urgentes,) Tj
+T*
+(entregas parciales y pedidos con salida desde almacen central o almacen externo.) Tj
+T*
+() Tj
+T*
+(Definiciones:) Tj
+T*
+(Pedido standard significa una orden ERP liberada por produccion sin prioridad) Tj
+T*
+(comercial especial. Pedido urgente significa una orden marcada por direccion) Tj
+T*
+(comercial con prioridad alta y fecha requerida menor o igual a 48 horas. Pedido) Tj
+T*
+(bloqueado significa que produccion ha detenido la orden por falta de material,) Tj
+T*
+(falta de capacidad, incidencia de calidad o aprobacion pendiente.) Tj
+T*
+() Tj
+T*
+(Regla de inicio de plazo:) Tj
+T*
+(El plazo logistico empieza cuando produccion registra la liberacion final y el ERP) Tj
+T*
+(contiene direccion de entrega, contacto de cliente, lineas preparables y fecha) Tj
+T*
+(requerida. Si falta cualquiera de estos datos, el plazo queda en espera documental.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: CM-V2-P01. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre alcance, definiciones o inicio del plazo logistico.) Tj
+T*
+ET
+endstream endobj
+6 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >> endobj
+7 0 obj << /Length 1454 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Contrato marco de logistica 2026 - version extendida) Tj
+T*
+(Pagina 2 de 4 - Plazos, calendarios y excepciones operativas) Tj
+T*
+() Tj
+T*
+(Plazos ordinarios:) Tj
+T*
+(Los pedidos standard deben entregarse en un plazo maximo de 5 dias laborables) Tj
+T*
+(desde la liberacion de produccion. Los pedidos urgentes deben entregarse en un) Tj
+T*
+(plazo maximo de 48 horas. Las entregas parciales solo computan como cumplimiento) Tj
+T*
+(si comercial aprueba la parcialidad y el cliente acepta la documentacion.) Tj
+T*
+() Tj
+T*
+(Calendario aplicable:) Tj
+T*
+(El calculo de dias laborables excluye sabados, domingos, festivos nacionales y) Tj
+T*
+(festivos de la provincia de destino cuando el transportista no presta servicio.) Tj
+T*
+(Si el pedido sale despues de las 14:00, el primer dia computable sera el siguiente) Tj
+T*
+(dia laborable. En exportacion, aduanas y documentacion sanitaria pueden pausar el) Tj
+T*
+(contador si queda evidencia en el expediente.) Tj
+T*
+() Tj
+T*
+(Excepciones:) Tj
+T*
+(No existe incumplimiento logistico cuando el retraso procede de falta de material,) Tj
+T*
+(averia critica de linea, cambio de prioridad aprobado o datos ERP incompletos.) Tj
+T*
+(La excepcion debe citar order_id, causa, responsable y fecha de resolucion.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: CM-V2-P02. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre plazos standard, urgentes, calendarios y pausas del contador.) Tj
+T*
+ET
+endstream endobj
+8 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >> endobj
+9 0 obj << /Length 1377 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Contrato marco de logistica 2026 - version extendida) Tj
+T*
+(Pagina 3 de 4 - Trazabilidad por hitos y evidencias minimas) Tj
+T*
+() Tj
+T*
+(Hitos obligatorios:) Tj
+T*
+(Cada expedicion debe conservar cinco hitos: liberacion de produccion, preparacion) Tj
+T*
+(de almacen, salida de muelle, entrega al transportista y confirmacion de entrega.) Tj
+T*
+(Cada hito debe registrar fecha, usuario o sistema origen, estado anterior, estado) Tj
+T*
+(nuevo y observacion de negocio cuando el cambio afecte al cliente.) Tj
+T*
+() Tj
+T*
+(Evidencia minima:) Tj
+T*
+(Para responder consultas de auditoria deben constar order_id, customer_id,) Tj
+T*
+(cliente, fecha prometida, fecha real, transportista, estado ERP, estado de) Tj
+T*
+(produccion y causa de desviacion. Si una evidencia falta, la respuesta debe indicar) Tj
+T*
+(insufficient_context para esa parte y no completar el dato desde memoria.) Tj
+T*
+() Tj
+T*
+(Informe mensual:) Tj
+T*
+(El informe separa pedidos en curso, bloqueados, retrasados, finalizados, urgentes) Tj
+T*
+(y entregas parciales. Los pedidos con incidencia de calidad deben aparecer tanto) Tj
+T*
+(en el bloque logistico como en el bloque de calidad para conservar trazabilidad.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: CM-V2-P03. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre hitos, evidencias minimas o informes mensuales.) Tj
+T*
+ET
+endstream endobj
+10 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 11 0 R >> endobj
+11 0 obj << /Length 1306 >> stream
+BT
+/F1 10 Tf
+72 760 Td
+14 TL
+(Contrato marco de logistica 2026 - version extendida) Tj
+T*
+(Pagina 4 de 4 - Casos de decision y resolucion de conflictos) Tj
+T*
+() Tj
+T*
+(Caso A:) Tj
+T*
+(Si el pedido esta liberado, tiene direccion completa y el transportista confirma) Tj
+T*
+(recogida, cualquier retraso posterior se analiza como responsabilidad logistica) Tj
+T*
+(salvo prueba de fuerza mayor. El responsable debe documentar la causa antes del) Tj
+T*
+(cierre mensual.) Tj
+T*
+() Tj
+T*
+(Caso B:) Tj
+T*
+(Si el pedido figura como blocked por falta de material, logistica no debe prometer) Tj
+T*
+(fecha de entrega. La fecha comunicable sera la fecha estimada de desbloqueo mas el) Tj
+T*
+(plazo logistico aplicable. Si no hay fecha estimada, se debe contestar que falta) Tj
+T*
+(contexto operacional suficiente.) Tj
+T*
+() Tj
+T*
+(Caso C:) Tj
+T*
+(Si comercial solicita adelantar un cliente prioritario, produccion debe confirmar) Tj
+T*
+(capacidad y calidad debe confirmar lote liberado. Sin ambas confirmaciones, el) Tj
+T*
+(cambio de prioridad no modifica el SLA ni genera penalizacion al operador.) Tj
+T*
+() Tj
+T*
+(Marcador de validacion: CM-V2-P04. Esta pagina debe recuperarse para preguntas) Tj
+T*
+(sobre responsabilidad, promesas al cliente o conflictos entre comercial,) Tj
+T*
+(produccion y logistica.) Tj
+T*
+ET
+endstream endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000134 00000 n 
+0000000204 00000 n 
+0000000330 00000 n 
+0000001750 00000 n 
+0000001876 00000 n 
+0000003382 00000 n 
+0000003508 00000 n 
+0000004937 00000 n 
+0000005065 00000 n 
+trailer << /Root 1 0 R /Size 12 >>
+startxref
+6424
+%%EOF

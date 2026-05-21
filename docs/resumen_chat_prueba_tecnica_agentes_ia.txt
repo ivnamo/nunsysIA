@@ -42,8 +42,8 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R6 queda cerrada con Planner dividido. El siguiente bloque tecnico
-es R7: dividir DocumentRAGTool y preparar el guion demo
+R7 queda cerrada con DocumentRAGTool dividido. El siguiente bloque tecnico
+es R8: endurecer upload PDF y preparar el guion demo
 final.
 
 Componentes implementados:
@@ -62,6 +62,8 @@ Componentes implementados:
   deterministas extraidas y fallback visible
 - Respuesta final con LLM controlado y fallback determinista
 - RAG documental con citas por chunk
+- RAG como tool determinista con filtros, relevancia y respuesta grounded
+  separados
 - Chainlit con upload de PDFs y comando `/documentos`
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`
 
@@ -176,11 +178,11 @@ La respuesta no debe exponer:
 7. PENDIENTE
 ============
 
-R7 - Dividir DocumentRAGTool:
+R8 - Endurecer upload PDF:
 
-- Mantener RAG como tool determinista, no como agente autonomo.
-- Extraer relevancia, filtros documentales y construccion de respuesta grounded.
-- Validar con tests focalizados RAG, agent graph y `pytest` completo.
+- Sustituir parser multipart manual por `UploadFile` si no rompe Chainlit/API.
+- Mantener limites de tamano, errores controlados y compatibilidad de subida.
+- Validar con tests documentales, Chainlit client y `pytest` completo.
 
 Cierre final:
 

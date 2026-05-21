@@ -10,8 +10,8 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R6 cerrada con Planner dividido**. El siguiente bloque tecnico es
-**R7 - dividir DocumentRAGTool** antes de preparar el guion demo final.
+La POC tiene **R7 cerrada con DocumentRAGTool dividido**. El siguiente bloque
+tecnico es **R8 - endurecer upload PDF** antes de preparar el guion demo final.
 
 Estado declarado y versionado:
 
@@ -156,8 +156,8 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R4 | cerrado | Extraer politica de penalizaciones | Logica documental hardcodeada en builder | `refactor(final-response): extract penalty policy` |
 | R5 | cerrado | Dividir FinalResponseBuilder | God object de respuesta final | `refactor(final-response): split answer builders` |
 | R6 | cerrado | Dividir Planner | God object de planificacion | `refactor(planner): split rule planner from llm planner` |
-| R7 | siguiente | Dividir DocumentRAGTool | Tool demasiado amplia | `refactor(rag): extract relevance and answer building` |
-| R8 | pendiente | Endurecer upload PDF | Parser multipart manual fragil | `refactor(api): use uploadfile for pdf ingestion` |
+| R7 | cerrado | Dividir DocumentRAGTool | Tool demasiado amplia | `refactor(rag): extract relevance and answer building` |
+| R8 | siguiente | Endurecer upload PDF | Parser multipart manual fragil | `refactor(api): use uploadfile for pdf ingestion` |
 | R9 | pendiente | Trazabilidad de replanning | Se pierde historia de intentos | `feat(agents): retain replan attempt traces` |
 | R10 | cerrado | Docker Compose | Runtime no reproducible | `feat(runtime): add docker compose stack` |
 | R11 | pendiente | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
@@ -507,13 +507,12 @@ Problema:
 
 - `DocumentRAGTool` hace retrieval, filtrado, resolucion de filenames, seleccion de frases y construccion de respuesta.
 
-Archivos previstos:
+Archivos modificados:
 
 - `app/tools/rag_tool.py`
-- Modulos nuevos posibles:
-  - `app/rag/relevance.py`
-  - `app/rag/answer_builder.py`
-  - `app/rag/document_filters.py`
+- `app/rag/relevance.py`
+- `app/rag/answer_builder.py`
+- `app/rag/document_filters.py`
 
 Cambio esperado:
 
@@ -530,8 +529,10 @@ Tests minimos:
 
 Beta real:
 
-- Ejecutar `BT-parcial`.
-- Casos obligatorios: BT-05, BT-06, BT-07, BT-10 y BT-V2-LLM-01 a BT-V2-LLM-07.
+- Ejecutar `BT-parcial` si se cambia ranking, filtros de evidencia, umbrales o
+  salida visible.
+- Casos obligatorios para cambios visibles: BT-05, BT-06, BT-07, BT-10 y
+  BT-V2-LLM-01 a BT-V2-LLM-07.
 - Validar ranking de paginas esperadas, no solo respuesta textual.
 
 Criterio de aceptacion:
@@ -539,6 +540,28 @@ Criterio de aceptacion:
 - Respuestas RAG positivas siguen citando `filename`, `page`, `chunk_id`, `score`.
 - Preguntas sin evidencia siguen devolviendo `insufficient_context`.
 - No se mezclan documentos cuando se pregunta por un filename concreto.
+
+Estado:
+
+- Cerrado el 2026-05-21.
+- `DocumentRAGTool` pasa de 440 a 152 lineas y queda como fachada de la tool.
+- Filtros de filename y consultas document-wide: `app/rag/document_filters.py`.
+- Scoring lexico de evidencia y solape tolerante: `app/rag/relevance.py`.
+- Seleccion de frases, resumen y respuesta grounded:
+  `app/rag/answer_builder.py`.
+- Se conservan aliases privados de compatibilidad en `app/tools/rag_tool.py`
+  para no romper imports existentes durante la POC.
+- Tests focalizados:
+  - `tests/unit/test_rag_tool.py`: 6 passed.
+  - `tests/unit/test_rag_ingestion.py`: 2 passed.
+  - `tests/integration/test_api_document_demo_flow.py`: 2 passed.
+  - `tests/integration/test_agent_graph.py`: 11 passed.
+  - `tests/integration/test_query_endpoint.py`: 7 passed.
+  - `tests/integration/test_documents_api.py`: 2 passed.
+- Suite completa: `136 passed, 2 warnings`.
+- No se ejecuta beta adicional porque el refactor no cambia algoritmos,
+  umbrales, prompts ni salidas visibles esperadas; la beta RAG completa queda
+  reservada para cambios de comportamiento o demo final.
 
 ## Fase R8 - Endurecer upload PDF
 
@@ -685,7 +708,7 @@ Estado 2026-05-21:
   - 5 PDFs v2 indexados: contrato, SLA, procedimiento, calidad y condiciones comerciales.
   - ERP + produccion, RAG, mixto, memoria conversacional y guardrail documental pasan sin fallbacks.
   - Bug beta detectado y corregido: con todos los PDFs v2, `receta de cocina vegana` recuperaba un chunk por solape debil con `receta o especificacion`. `DocumentRAGTool` ahora exige mas evidencia cuando la pregunta contiene varios conceptos.
-- R10 queda cerrada; la fase activa actual es R7 tras cerrar R4, R5 y R6.
+- R10 queda cerrada; la fase activa actual es R8 tras cerrar R4, R5, R6 y R7.
 
 ## Fase R11 - Guion demo y cierre
 
@@ -781,3 +804,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R4 | cerrado | Politica de penalizaciones extraida; `pytest`: 136 passed; Docker smoke `beta_docker_r4_20260521` PASS sin fallbacks | este bloque |
 | 2026-05-21 | R5 | cerrado | FinalResponseBuilder dividido en fachada, templates, prompt y grounding; `pytest`: 136 passed | este bloque |
 | 2026-05-21 | R6 | cerrado | PlannerAgent dividido en fachada, modelos, reglas, LLM planner, normalizacion, contexto y utilidades; `pytest`: 136 passed | este bloque |
+| 2026-05-21 | R7 | cerrado | DocumentRAGTool dividido en fachada, filtros, relevancia y answer builder grounded; `pytest`: 136 passed | este bloque |

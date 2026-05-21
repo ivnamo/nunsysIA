@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R6 cerrada con Planner dividido**.
-Siguiente bloque: **R7 - dividir DocumentRAGTool** y preparar guion demo final.
+Estado actual: **R7 cerrada con DocumentRAGTool dividido**.
+Siguiente bloque: **R8 - endurecer upload PDF** y preparar guion demo final.
 
 Este repositorio contiene:
 
@@ -48,7 +48,8 @@ Este repositorio contiene:
 - tests unitarios e integracion del grafo agentic.
 - pipeline RAG PDF -> texto -> chunks -> embeddings -> vector store;
 - adaptador ChromaDB con fallback local en memoria si Chroma no esta disponible;
-- `DocumentRAGTool` con trazabilidad y `insufficient_context`;
+- `DocumentRAGTool` como fachada determinista con trazabilidad,
+  `insufficient_context`, filtros documentales y respuesta grounded extraidos;
 - endpoints `POST /api/documents/upload` y `GET /api/documents`;
 - tests de ingestion, retrieval, tool RAG y endpoints documentales.
 - app Chainlit conectada a `POST /api/query`;
@@ -85,7 +86,7 @@ Disponible para ejecutar actualmente:
 
 Pendiente:
 
-- R7: dividir `DocumentRAGTool` en piezas mas pequenas;
+- R8: endurecer upload PDF;
 - guion demo final.
 
 ## Arquitectura decidida
@@ -395,9 +396,10 @@ Endpoints del mock:
 ## Siguiente bloque
 
 P10 queda cerrada con Docker Compose, ChromaDB HTTP real, secretos por archivo y
-smoke beta con LLM/embeddings reales. R4, R5 y R6 tambien quedan cerradas: la
+smoke beta con LLM/embeddings reales. R4, R5, R6 y R7 tambien quedan cerradas: la
 politica de penalizaciones se extrajo, `FinalResponseBuilder` quedo como
-fachada del nodo final y `PlannerAgent` como fachada del nodo de planificacion.
+fachada del nodo final, `PlannerAgent` como fachada del nodo de planificacion y
+`DocumentRAGTool` como fachada RAG determinista.
 
-- ejecutar R7 sobre `DocumentRAGTool` con tests focalizados;
+- ejecutar R8 sobre upload documental con tests focalizados;
 - preparar guion demo final y documentacion de entrega.

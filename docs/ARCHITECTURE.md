@@ -73,7 +73,7 @@ Las tools son deterministas y devuelven datos estructurados:
 
 - `ERPTool`: consulta Northwind.
 - `ProductionAPITool`: consulta la API mock de produccion.
-- `DocumentRAGTool`: consulta documentos indexados en el vector store documental.
+- `DocumentRAGTool`: fachada determinista que consulta documentos indexados en el vector store documental. La deteccion de filenames y consultas de documento completo vive en `app/rag/document_filters.py`; la evidencia lexica en `app/rag/relevance.py`; y la respuesta grounded en `app/rag/answer_builder.py`.
 - `MemoryTool`: recupera las ultimas 5 interacciones por `conversation_id`. Se usa solo para resolver referencias conversacionales; los datos de negocio actuales deben seguir saliendo de ERP, Produccion o Documentos.
 
 ## RAG

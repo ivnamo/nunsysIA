@@ -18,7 +18,7 @@ evaluables de demo:
 
 Pendiente antes del cierre final:
 
-- refactor R7 de DocumentRAGTool;
+- refactor R8 de upload PDF;
 - guion demo final.
 
 ## Fase 0: Setup y estructura

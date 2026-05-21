@@ -1847,7 +1847,7 @@ Incidencia beta detectada durante esta pasada:
 
 - Con todos los PDFs v2 cargados, la pregunta `Segun el PDF, que receta de cocina vegana recomienda?` recuperaba un chunk de `v2_procedimiento_produccion_bloqueos.pdf` porque el texto contiene `receta o especificacion`.
 - Resultado antes del fix: `completed`, fuente `Documentos`, 1 chunk recuperado. No era una respuesta aceptable porque confundia una receta culinaria con una discrepancia de receta productiva.
-- Fix aplicado: `DocumentRAGTool._has_query_evidence()` exige al menos dos solapes de evidencia cuando la pregunta contiene tres o mas tokens significativos.
+- Fix aplicado: `app.rag.relevance.has_query_evidence()` exige al menos dos solapes de evidencia cuando la pregunta contiene tres o mas tokens significativos.
 - Tests agregados: regresion unitaria de solape debil y regresion de API con documento v2 que contiene `receta o especificacion`.
 
 ### DOCKER-BASELINE-01 - PASS - ERP + produccion
@@ -2060,3 +2060,35 @@ Validacion:
 
 Decision: R6 queda cerrada sin beta adicional porque no cambia salidas visibles
 ni contrato API. Siguiente bloque: R7, dividir `DocumentRAGTool`.
+
+## Iteracion R7 - DocumentRAGTool dividido
+
+Fecha: 2026-05-21.
+
+Objetivo: registrar el refactor mecanico de `DocumentRAGTool` sin cambio de
+comportamiento visible.
+
+Cambio validado:
+
+- `DocumentRAGTool` queda como fachada determinista de la tool RAG.
+- Resolucion de filenames y consultas document-wide:
+  `app/rag/document_filters.py`.
+- Scoring de evidencia y solape lexico: `app/rag/relevance.py`.
+- Seleccion de frases, resumen y respuesta grounded:
+  `app/rag/answer_builder.py`.
+- Se mantienen aliases privados de compatibilidad en `app/tools/rag_tool.py`
+  durante la POC.
+
+Validacion:
+
+- `tests/unit/test_rag_tool.py`: 6 passed.
+- `tests/unit/test_rag_ingestion.py`: 2 passed.
+- `tests/integration/test_api_document_demo_flow.py`: 2 passed.
+- `tests/integration/test_agent_graph.py`: 11 passed.
+- `tests/integration/test_query_endpoint.py`: 7 passed.
+- `tests/integration/test_documents_api.py`: 2 passed.
+- Suite completa: `136 passed, 2 warnings`.
+
+Decision: R7 queda cerrada sin beta adicional porque no cambia algoritmos,
+umbrales, prompts ni salidas visibles esperadas. Siguiente bloque: R8,
+endurecer upload PDF.

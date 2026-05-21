@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R4 cerrada con politica de penalizaciones extraida**.
-Siguiente bloque: **R5 - dividir FinalResponseBuilder** y preparar guion demo final.
+Estado actual: **R5 cerrada con FinalResponseBuilder dividido**.
+Siguiente bloque: **R6 - dividir Planner** y preparar guion demo final.
 
 Este repositorio contiene:
 
@@ -42,7 +42,7 @@ Este repositorio contiene:
 - Planner hibrido con LLM opcional, plan estructurado y fallback determinista;
 - Reasoner/Executor que ejecuta tools ERP y produccion;
 - Validator con replanning limitado por `MAX_REPLANS = 2`;
-- FinalResponseBuilder con `QueryResponse` estructurada;
+- FinalResponseBuilder como fachada con `QueryResponse` estructurada;
 - `fallbacks` visibles en API y Chainlit para auditar rutas alternativas;
 - tests unitarios e integracion del grafo agentic.
 - pipeline RAG PDF -> texto -> chunks -> embeddings -> vector store;
@@ -84,7 +84,7 @@ Disponible para ejecutar actualmente:
 
 Pendiente:
 
-- R5: dividir `FinalResponseBuilder` en piezas mas pequenas;
+- R6: dividir `PlannerAgent` en piezas mas pequenas;
 - guion demo final.
 
 ## Arquitectura decidida
@@ -394,8 +394,9 @@ Endpoints del mock:
 ## Siguiente bloque
 
 P10 queda cerrada con Docker Compose, ChromaDB HTTP real, secretos por archivo y
-smoke beta con LLM/embeddings reales. R4 tambien queda cerrada: la politica de
-penalizaciones se extrajo del `FinalResponseBuilder` y paso smoke Docker.
+smoke beta con LLM/embeddings reales. R4 y R5 tambien quedan cerradas: la
+politica de penalizaciones se extrajo y `FinalResponseBuilder` quedo como
+fachada del nodo final.
 
-- ejecutar R5 con tests focalizados;
+- ejecutar R6 con tests focalizados;
 - preparar guion demo final y documentacion de entrega.

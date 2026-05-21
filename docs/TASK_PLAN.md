@@ -18,7 +18,7 @@ evaluables de demo:
 
 Pendiente antes del cierre final:
 
-- refactor R4 de politica de penalizaciones;
+- refactor R6 de Planner;
 - guion demo final.
 
 ## Fase 0: Setup y estructura

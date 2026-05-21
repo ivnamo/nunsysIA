@@ -10,9 +10,8 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R4 cerrada con politica de penalizaciones extraida**. El
-siguiente bloque tecnico es **R5 - dividir FinalResponseBuilder** antes de
-seguir con hotspots mayores.
+La POC tiene **R5 cerrada con FinalResponseBuilder dividido**. El siguiente
+bloque tecnico es **R6 - dividir Planner** antes de seguir con hotspots mayores.
 
 Estado declarado y versionado:
 
@@ -155,8 +154,8 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R2 | cerrado | Planner sin defaults silenciosos | Responder ALFKI cuando falta cliente | `fix(planner): avoid implicit customer defaults` |
 | R3 | cerrado | Trazabilidad de actions y fallbacks | Tool calls poco explicitas | `fix(traceability): expose tool actions consistently` |
 | R4 | cerrado | Extraer politica de penalizaciones | Logica documental hardcodeada en builder | `refactor(final-response): extract penalty policy` |
-| R5 | siguiente | Dividir FinalResponseBuilder | God object de respuesta final | `refactor(final-response): split answer builders` |
-| R6 | pendiente | Dividir Planner | God object de planificacion | `refactor(planner): split rule planner from llm planner` |
+| R5 | cerrado | Dividir FinalResponseBuilder | God object de respuesta final | `refactor(final-response): split answer builders` |
+| R6 | siguiente | Dividir Planner | God object de planificacion | `refactor(planner): split rule planner from llm planner` |
 | R7 | pendiente | Dividir DocumentRAGTool | Tool demasiado amplia | `refactor(rag): extract relevance and answer building` |
 | R8 | pendiente | Endurecer upload PDF | Parser multipart manual fragil | `refactor(api): use uploadfile for pdf ingestion` |
 | R9 | pendiente | Trazabilidad de replanning | Se pierde historia de intentos | `feat(agents): retain replan attempt traces` |
@@ -420,6 +419,24 @@ Criterio de aceptacion:
 - Menos responsabilidades por archivo.
 - Ningun cambio de contrato API.
 
+Estado 2026-05-21:
+
+- `FinalResponseBuilder` queda como fachada del nodo final, con construccion de
+  `QueryResponse`, fallback LLM y control de timeout.
+- Extraidas plantillas deterministas a `app/agents/final_answer_templates.py`.
+- Extraidos prompt, payload estructurado y restricciones de longitud a
+  `app/agents/final_prompt.py`.
+- Extraidas normalizacion de evidencia, tool calls sanitizadas y grounding a
+  `app/agents/final_grounding.py`.
+- Tamano de `app/agents/final_response.py`: 896 -> 210 lineas.
+- Tests focalizados:
+  - `tests/unit/test_final_response.py`: 13 passed.
+  - `tests/integration/test_agent_graph.py`: 11 passed.
+  - `tests/unit/test_penalty_policy.py`: 3 passed.
+- Suite completa: `136 passed, 2 warnings`.
+- No se ejecuta beta adicional porque el refactor es mecanico y los tests de
+  snapshots/contrato mantienen las mismas salidas visibles.
+
 ## Fase R6 - Dividir Planner
 
 Prioridad: **post guardrails**.
@@ -647,7 +664,7 @@ Estado 2026-05-21:
   - 5 PDFs v2 indexados: contrato, SLA, procedimiento, calidad y condiciones comerciales.
   - ERP + produccion, RAG, mixto, memoria conversacional y guardrail documental pasan sin fallbacks.
   - Bug beta detectado y corregido: con todos los PDFs v2, `receta de cocina vegana` recuperaba un chunk por solape debil con `receta o especificacion`. `DocumentRAGTool` ahora exige mas evidencia cuando la pregunta contiene varios conceptos.
-- R10 queda cerrada; siguiente fase activa: R4.
+- R10 queda cerrada; la fase activa actual es R6 tras cerrar R4 y R5.
 
 ## Fase R11 - Guion demo y cierre
 
@@ -741,3 +758,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R10 | cerrado | Compose stack healthy; 5 PDFs v2 indexados; RAG/ERP/mixto/memoria/guardrail OK sin fallbacks; healthcheck Chroma y secretos por archivo validados | `d27372e`, `4498e00`, `1cba7ac` |
 | 2026-05-21 | R10-fix | cerrado | Falso positivo RAG por solape debil `receta` corregido; `pytest`: 133 passed; Docker baseline `r10b` PASS | este bloque |
 | 2026-05-21 | R4 | cerrado | Politica de penalizaciones extraida; `pytest`: 136 passed; Docker smoke `beta_docker_r4_20260521` PASS sin fallbacks | este bloque |
+| 2026-05-21 | R5 | cerrado | FinalResponseBuilder dividido en fachada, templates, prompt y grounding; `pytest`: 136 passed | este bloque |

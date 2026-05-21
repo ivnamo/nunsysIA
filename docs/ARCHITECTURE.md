@@ -62,6 +62,11 @@ Construye la respuesta final con `answer`, `sources`, `reasoning`, `tool_calls`,
 
 En el estado actual puede usar LLM controlado para redactar en espanol de negocio solo sobre datos ya devueltos por tools. Si el LLM falla, tarda demasiado o introduce identificadores/numeros que no aparecen en las evidencias, se descarta y se usa la respuesta determinista.
 
+La clase se mantiene como fachada del nodo LangGraph. La redaccion
+determinista vive en `final_answer_templates.py`, el prompt y payload
+estructurado en `final_prompt.py`, el grounding/evidencia en
+`final_grounding.py` y la politica de penalizaciones en `penalty_policy.py`.
+
 ## Tools
 
 Las tools son deterministas y devuelven datos estructurados:

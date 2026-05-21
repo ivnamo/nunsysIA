@@ -2004,3 +2004,31 @@ Resultado:
 
 Decision: R4 queda cerrada. Siguiente bloque: R5, dividir
 `FinalResponseBuilder` manteniendolo como fachada del nodo LangGraph.
+
+## Iteracion R5 - FinalResponseBuilder dividido
+
+Fecha: 2026-05-21.
+
+Objetivo: registrar el refactor mecanico de `FinalResponseBuilder` sin cambio
+de comportamiento visible.
+
+Cambio validado:
+
+- `FinalResponseBuilder` queda como fachada del nodo final.
+- Plantillas deterministas: `app/agents/final_answer_templates.py`.
+- Prompt, payload estructurado y restricciones de respuesta:
+  `app/agents/final_prompt.py`.
+- Evidencia, tool calls sanitizadas y grounding:
+  `app/agents/final_grounding.py`.
+- Politica documental de penalizaciones:
+  `app/agents/penalty_policy.py`.
+
+Validacion:
+
+- `tests/unit/test_final_response.py`: 13 passed.
+- `tests/integration/test_agent_graph.py`: 11 passed.
+- `tests/unit/test_penalty_policy.py`: 3 passed.
+- Suite completa: `136 passed, 2 warnings`.
+
+Decision: R5 queda cerrada sin beta adicional porque no cambia salidas visibles
+ni contrato API. Siguiente bloque: R6, dividir `PlannerAgent`.

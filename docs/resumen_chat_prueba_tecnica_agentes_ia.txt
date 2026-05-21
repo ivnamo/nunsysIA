@@ -42,8 +42,8 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R4 queda cerrada con la politica de penalizaciones extraida. El siguiente
-bloque tecnico es R5: dividir FinalResponseBuilder y preparar el guion demo
+R5 queda cerrada con FinalResponseBuilder dividido. El siguiente bloque tecnico
+es R6: dividir Planner y preparar el guion demo
 final.
 
 Componentes implementados:
@@ -175,10 +175,10 @@ La respuesta no debe exponer:
 7. PENDIENTE
 ============
 
-R5 - Dividir FinalResponseBuilder:
+R6 - Dividir Planner:
 
-- Mantener `FinalResponseBuilder` como fachada del nodo LangGraph.
-- Extraer redaccion determinista, grounding y prompt final en piezas mas pequenas.
+- Mantener `PlannerAgent` como fachada del nodo LangGraph.
+- Extraer reglas deterministas, prompt/schema LLM y normalizacion de planes.
 - Validar con tests focalizados y `pytest` completo.
 
 Cierre final:

@@ -18,7 +18,7 @@ evaluables de demo:
 
 Pendiente antes del cierre final:
 
-- refactor R6 de Planner;
+- refactor R7 de DocumentRAGTool;
 - guion demo final.
 
 ## Fase 0: Setup y estructura

@@ -42,8 +42,8 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R5 queda cerrada con FinalResponseBuilder dividido. El siguiente bloque tecnico
-es R6: dividir Planner y preparar el guion demo
+R6 queda cerrada con Planner dividido. El siguiente bloque tecnico
+es R7: dividir DocumentRAGTool y preparar el guion demo
 final.
 
 Componentes implementados:
@@ -58,7 +58,8 @@ Componentes implementados:
 - `DocumentRAGTool`
 - `MemoryTool`
 - LangGraph con Planner, Reasoner/Executor, Validator y FinalResponseBuilder
-- Planner hibrido con LLM opcional y fallback determinista
+- Planner hibrido como fachada del nodo, con LLM opcional, reglas
+  deterministas extraidas y fallback visible
 - Respuesta final con LLM controlado y fallback determinista
 - RAG documental con citas por chunk
 - Chainlit con upload de PDFs y comando `/documentos`
@@ -175,11 +176,11 @@ La respuesta no debe exponer:
 7. PENDIENTE
 ============
 
-R6 - Dividir Planner:
+R7 - Dividir DocumentRAGTool:
 
-- Mantener `PlannerAgent` como fachada del nodo LangGraph.
-- Extraer reglas deterministas, prompt/schema LLM y normalizacion de planes.
-- Validar con tests focalizados y `pytest` completo.
+- Mantener RAG como tool determinista, no como agente autonomo.
+- Extraer relevancia, filtros documentales y construccion de respuesta grounded.
+- Validar con tests focalizados RAG, agent graph y `pytest` completo.
 
 Cierre final:
 

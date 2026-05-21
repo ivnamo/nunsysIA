@@ -2032,3 +2032,31 @@ Validacion:
 
 Decision: R5 queda cerrada sin beta adicional porque no cambia salidas visibles
 ni contrato API. Siguiente bloque: R6, dividir `PlannerAgent`.
+
+## Iteracion R6 - Planner dividido
+
+Fecha: 2026-05-21.
+
+Objetivo: registrar el refactor mecanico de `PlannerAgent` sin cambio de
+comportamiento visible.
+
+Cambio validado:
+
+- `PlannerAgent` queda como fachada del nodo LangGraph.
+- Modelos Pydantic y tools permitidas: `app/agents/planner_models.py`.
+- Planner LLM, prompt, timeout y fallback: `app/agents/planner_llm.py`.
+- Reglas deterministas: `app/agents/planner_rules.py`.
+- Resolucion contextual y memoria acotada: `app/agents/planner_context.py`.
+- Normalizacion de planes y argumentos: `app/agents/planner_normalization.py`.
+- Utilidades de JSON, ids y compactacion de historia:
+  `app/agents/planner_utils.py`.
+
+Validacion:
+
+- `tests/unit/test_planner.py`: 15 passed.
+- `tests/integration/test_agent_graph.py`: 11 passed.
+- `tests/integration/test_query_endpoint.py`: 7 passed.
+- Suite completa: `136 passed, 2 warnings`.
+
+Decision: R6 queda cerrada sin beta adicional porque no cambia salidas visibles
+ni contrato API. Siguiente bloque: R7, dividir `DocumentRAGTool`.

@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R5 cerrada con FinalResponseBuilder dividido**.
-Siguiente bloque: **R6 - dividir Planner** y preparar guion demo final.
+Estado actual: **R6 cerrada con Planner dividido**.
+Siguiente bloque: **R7 - dividir DocumentRAGTool** y preparar guion demo final.
 
 Este repositorio contiene:
 
@@ -39,7 +39,8 @@ Este repositorio contiene:
 - cliente HTTP de produccion;
 - tests unitarios de tools.
 - `AgentState` compartido para LangGraph;
-- Planner hibrido con LLM opcional, plan estructurado y fallback determinista;
+- Planner hibrido como fachada del nodo, con LLM opcional, plan estructurado,
+  reglas deterministas extraidas y fallback visible;
 - Reasoner/Executor que ejecuta tools ERP y produccion;
 - Validator con replanning limitado por `MAX_REPLANS = 2`;
 - FinalResponseBuilder como fachada con `QueryResponse` estructurada;
@@ -84,7 +85,7 @@ Disponible para ejecutar actualmente:
 
 Pendiente:
 
-- R6: dividir `PlannerAgent` en piezas mas pequenas;
+- R7: dividir `DocumentRAGTool` en piezas mas pequenas;
 - guion demo final.
 
 ## Arquitectura decidida
@@ -394,9 +395,9 @@ Endpoints del mock:
 ## Siguiente bloque
 
 P10 queda cerrada con Docker Compose, ChromaDB HTTP real, secretos por archivo y
-smoke beta con LLM/embeddings reales. R4 y R5 tambien quedan cerradas: la
-politica de penalizaciones se extrajo y `FinalResponseBuilder` quedo como
-fachada del nodo final.
+smoke beta con LLM/embeddings reales. R4, R5 y R6 tambien quedan cerradas: la
+politica de penalizaciones se extrajo, `FinalResponseBuilder` quedo como
+fachada del nodo final y `PlannerAgent` como fachada del nodo de planificacion.
 
-- ejecutar R6 con tests focalizados;
+- ejecutar R7 sobre `DocumentRAGTool` con tests focalizados;
 - preparar guion demo final y documentacion de entrega.

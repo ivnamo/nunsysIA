@@ -1,5 +1,5 @@
 ---
-description: Architecture rules for LangGraph agentic workflow
+description: Reglas de arquitectura para el workflow agentic con LangGraph
 globs:
   - "app/agents/**/*.py"
   - "app/tools/**/*.py"
@@ -8,16 +8,16 @@ globs:
 alwaysApply: false
 ---
 
-# Architecture Rules
+# Reglas de Arquitectura
 
-LangGraph is the main orchestrator. LangChain is the toolbox for tools, prompts, retrievers, embeddings, parsers and LLM calls.
+LangGraph es el orquestador principal. LangChain aporta tools, prompts, retrievers, embeddings, parsers y llamadas LLM.
 
-## Fixed Agentic Flow
+## Flujo agentic fijo
 
-The approved flow is:
+El flujo aprobado es:
 
 ```text
-User
+Usuario
 -> FastAPI / Chainlit
 -> LangGraph StateGraph
 -> Planner Agent
@@ -26,49 +26,54 @@ User
 -> FinalResponseBuilder
 ```
 
-Do not replace this flow with a single free-form agent.
+No reemplazar este flujo por un agente libre de una sola pieza.
 
-## Required Nodes
+## Nodos obligatorios
 
-- `Planner Agent`: classifies intent and creates a structured plan.
-- `Reasoner / Executor Agent`: executes deterministic tools and merges results.
-- `Validator Node`: checks sufficiency, schema, sources and traceability.
-- `FinalResponseBuilder`: builds the final API response.
+- `Planner Agent`: clasifica intencion y crea un plan estructurado.
+- `Reasoner / Executor Agent`: ejecuta tools deterministas y combina resultados.
+- `Validator Node`: comprueba suficiencia, schema, fuentes y trazabilidad.
+- `FinalResponseBuilder`: construye la respuesta final de API.
 
 ## Replanning
 
-- Replanning is allowed only when the Validator detects a recoverable issue.
+- El replanning solo se permite cuando el Validator detecta un problema recuperable.
 - `MAX_REPLANS = 2`.
-- Infinite loops are forbidden.
-- If the system cannot answer after the limit, return `partial_answer`, `insufficient_context` or `failed`.
+- Los loops infinitos estan prohibidos.
+- Si el sistema no puede responder tras el limite, devolver `partial_answer`, `insufficient_context` o `failed`.
 
-## Shared LangGraph State
+## Estado compartido de LangGraph
 
-The shared state should include at least:
+El estado compartido debe incluir al menos:
 
 - `question`
+- `conversation_id`
 - `conversation_history`
 - `plan`
 - `tool_results`
 - `sources`
 - `reasoning`
 - `tool_calls`
+- `fallbacks`
 - `attempts`
 - `status`
 - `final_answer`
 - `failure_reason`
 - `confidence`
+- `data`
+- `validation_decision`
+- `response`
 
-Use Pydantic models at API boundaries and for serializable plans. Keep the StateGraph state explicit and testable.
+Usar modelos Pydantic en los limites de API y en planes serializables. Mantener el estado del StateGraph explicito y testeable.
 
-## Module Boundaries
+## Limites de modulo
 
-- `agents/` coordinates.
-- `tools/` calls deterministic capabilities.
-- `api/` translates HTTP into application calls.
-- `rag/` owns document ingestion and retrieval.
-- `erp/` owns ERP database access.
-- `production/` owns production API access.
-- `core/` owns shared config, logging and tracing.
+- `agents/` coordina.
+- `tools/` llama capacidades deterministas.
+- `api/` traduce HTTP a llamadas de aplicacion.
+- `rag/` gestiona ingestion y retrieval documental.
+- `erp/` gestiona acceso a datos ERP.
+- `production/` gestiona acceso a API de produccion.
+- `core/` gestiona configuracion, logging y trazabilidad.
 
-Do not move database queries, HTTP calls or retrieval logic into agent prompt files.
+No mover consultas SQL, llamadas HTTP, retrieval documental ni logica de nodos LangGraph a prompts de agentes.

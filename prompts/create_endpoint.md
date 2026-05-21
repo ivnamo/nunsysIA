@@ -1,6 +1,6 @@
 # Prompt: Crear endpoint FastAPI
 
-Actua como backend implementer senior.
+Actua como Backend Implementer del proyecto.
 
 Objetivo:
 

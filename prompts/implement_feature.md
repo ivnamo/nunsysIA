@@ -1,6 +1,6 @@
 # Prompt: Implementar una fase concreta
 
-Actua como implementador senior en este proyecto.
+Actua como implementador tecnico en este proyecto.
 
 Lee antes de tocar codigo:
 

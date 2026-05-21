@@ -1,6 +1,6 @@
 # Prompt: Depurar fallo
 
-Actua como debugger senior.
+Actua como responsable de depuracion del proyecto.
 
 Contexto:
 
@@ -27,7 +27,7 @@ Tarea:
 
 Restricciones:
 
-- No reescribas media app.
+- No reescribas modulos no relacionados.
 - No ocultes errores con try/except genericos.
 - No elimines trazabilidad.
 - No introduzcas llamadas pagadas en tests basicos.

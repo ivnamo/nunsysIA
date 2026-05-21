@@ -24,7 +24,7 @@ Errores posibles:
 
 Descripcion: recibe una pregunta en lenguaje natural y la procesa mediante el workflow agentic.
 
-La respuesta puede estar redactada por el `FinalResponseBuilder` con LLM controlado, pero siempre debe respetar el mismo schema y usar solo evidencias devueltas por tools. Si el LLM no es seguro, se devuelve la respuesta determinista y el campo `fallbacks` debe indicar `FALLBACK`.
+La respuesta puede estar redactada por el `FinalResponseBuilder` con LLM controlado, pero siempre debe respetar el mismo schema y usar solo evidencias devueltas por tools. Si la salida del LLM no supera las validaciones de grounding, se devuelve la respuesta determinista y el campo `fallbacks` debe indicar el marcador `FALLBACK_*` correspondiente.
 
 Request:
 

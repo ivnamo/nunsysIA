@@ -1,5 +1,5 @@
 ---
-description: RAG rules for document ingestion and retrieval
+description: Reglas RAG para ingestion y retrieval documental
 globs:
   - "app/rag/**/*.py"
   - "app/tools/rag_tool.py"
@@ -7,27 +7,27 @@ globs:
 alwaysApply: false
 ---
 
-# RAG Rules
+# Reglas RAG
 
-RAG is implemented as `DocumentRAGTool`. It is not an autonomous agent.
+RAG se implementa como `DocumentRAGTool`. No es un agente autonomo.
 
 ## Pipeline
 
-The approved pipeline is:
+El pipeline aprobado es:
 
 ```text
 PDF upload
--> text extraction
+-> extraccion de texto
 -> chunking
 -> embeddings
--> ChromaDB
+-> ChromaDB o fallback en memoria
 -> retrieval
--> answer with sources
+-> respuesta con fuentes
 ```
 
 ## Metadata
 
-Every chunk must include:
+Cada chunk debe incluir:
 
 - `document_id`
 - `filename`
@@ -35,19 +35,20 @@ Every chunk must include:
 - `chunk_id`
 - `uploaded_at`
 
-Additional metadata is allowed only if useful and documented.
+Se permite metadata adicional solo si es util y esta documentada.
 
-## Answer Rules
+## Reglas de respuesta
 
-- Document answers must be grounded in retrieved chunks.
-- Include document sources in the response.
-- If there are no relevant chunks, return `insufficient_context`.
-- Do not use model memory as a substitute for the document.
-- Do not answer from general knowledge when the user asks about uploaded documents.
+- Las respuestas documentales deben basarse en chunks recuperados.
+- Incluir fuentes documentales en la respuesta.
+- Incluir citas por chunk en `data.rag.citations` sin texto completo del chunk.
+- Si no hay chunks relevantes, devolver `insufficient_context`.
+- No usar memoria del modelo ni memoria conversacional como sustituto del documento.
+- No responder desde conocimiento general cuando el usuario pregunta por documentos subidos.
 
 ## Retrieval
 
-- Keep retrieval deterministic enough to test.
-- Prefer small, explicit top-k values for the POC.
-- Preserve chunk metadata through retrieval.
-- Tests should cover ingestion, retrieval success and no-context behavior.
+- Mantener retrieval suficientemente determinista para test.
+- Preferir valores `top_k` pequenos y explicitos para la POC.
+- Preservar metadata del chunk durante retrieval.
+- Los tests deben cubrir ingestion, retrieval success, no-context y errores controlados.

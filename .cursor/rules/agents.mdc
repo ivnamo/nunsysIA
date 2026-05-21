@@ -1,70 +1,78 @@
 ---
-description: Agent, planner, executor and validator rules
+description: Reglas para Planner, Executor, Validator y tools
 globs:
   - "app/agents/**/*.py"
   - "app/tools/**/*.py"
 alwaysApply: false
 ---
 
-# Agent Rules
+# Reglas de Agentes
 
-Agents coordinate deterministic capabilities. They must not invent business results.
+Los agentes coordinan capacidades deterministas. No deben inventar resultados de negocio.
 
 ## Planner Agent
 
-The Planner must:
+El Planner debe:
 
-- receive the user question and context;
-- classify intent as `erp`, `production`, `erp_production`, `rag`, `mixed` or `conversation`;
-- select required sources;
-- create a serializable structured plan;
-- select only approved tools:
+- recibir la pregunta del usuario y el contexto conversacional;
+- clasificar la intencion como `erp`, `production`, `erp_production`, `rag`, `mixed`, `conversation` o `unsupported`;
+- seleccionar fuentes requeridas;
+- crear un plan estructurado y serializable;
+- seleccionar solo tools aprobadas:
   - `ERPTool`
   - `ProductionAPITool`
   - `DocumentRAGTool`
   - `MemoryTool`
 
-Plans must be validated with Pydantic.
+Los planes deben validarse con Pydantic y con lista cerrada de acciones permitidas.
 
 ## Reasoner / Executor Agent
 
-The Reasoner / Executor must:
+El Reasoner / Executor debe:
 
-- execute the plan step by step;
-- call deterministic tools;
-- capture every tool call;
-- merge ERP, production and RAG results;
-- produce structured intermediate results.
+- ejecutar el plan paso a paso;
+- llamar tools deterministas;
+- capturar cada tool call;
+- combinar resultados de ERP, produccion, RAG y memoria cuando corresponda;
+- producir resultados intermedios estructurados.
 
-It must not fabricate missing tool outputs.
+No debe fabricar outputs que no hayan devuelto las tools.
+
+## Memoria conversacional
+
+- La memoria conserva las ultimas 5 interacciones por `conversation_id`.
+- Solo resuelve referencias conversacionales.
+- No es fuente de verdad de negocio.
+- Si la respuesta requiere datos actuales, debe combinarse con ERP, Produccion o Documentos.
 
 ## Validator Node
 
-The Validator decides:
+El Validator decide:
 
 - `finish`
 - `replan`
 - `fail`
 
-It must check:
+Debe comprobar:
 
-- sufficient data;
-- required sources were consulted;
-- output schema can be satisfied;
-- traceability is present;
-- max replans was not exceeded.
+- datos suficientes;
+- fuentes requeridas consultadas;
+- schema de salida satisfacible;
+- trazabilidad presente;
+- limite de replans no superado.
 
-## Final Output
+## Salida final
 
-The final output must satisfy the `/api/query` response schema. If context is insufficient, return a controlled status instead of hallucinating.
+La salida final debe cumplir el schema de `/api/query`. Si el contexto es insuficiente, devolver un estado controlado en lugar de inventar.
 
-## Traceability
+## Trazabilidad
 
-Every tool call must record:
+Cada tool call debe registrar:
 
-- tool name;
-- args summary;
-- status;
-- output summary;
-- error summary when applicable;
-- duration when available.
+- nombre de tool;
+- argumentos sanitizados;
+- estado;
+- resumen de salida;
+- resumen de error cuando aplique;
+- duracion cuando este disponible;
+- fuente asociada.

@@ -1,6 +1,6 @@
 # Prompt: Review critico de codigo
 
-Actua como arquitecto senior y reviewer critico.
+Actua como Architect Reviewer y revisor critico.
 
 Lee:
 

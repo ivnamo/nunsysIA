@@ -1,63 +1,64 @@
 ---
-description: Global project rules for the Nunsys agentic POC
+description: Reglas globales del proyecto nunsysIA
 globs:
   - "**/*"
 alwaysApply: true
 ---
 
-# Project Rules
+# Reglas del Proyecto
 
-This repository is a technical POC for an enterprise agentic system. The goal is to answer business questions in natural language by combining ERP data, production API data and PDF documents through RAG.
+Este repositorio es una POC tecnica de un sistema agentic empresarial. El objetivo es responder preguntas de negocio en lenguaje natural combinando datos de ERP, API de produccion y documentos PDF mediante RAG.
 
-## Mandatory Stack
+## Stack obligatorio
 
 - Backend: FastAPI.
-- Agentic orchestration: LangGraph.
-- LLM ecosystem: LangChain.
+- Orquestacion agentic: LangGraph.
+- Ecosistema LLM, tools y RAG: LangChain.
 - UI: Chainlit.
-- Vector store: ChromaDB.
-- Schemas and contracts: Pydantic.
+- Vector store objetivo: ChromaDB.
+- Schemas y contratos: Pydantic.
 - Tests: pytest.
-- Packaging and runtime: Docker and Docker Compose.
+- Runtime objetivo de cierre: Docker y Docker Compose.
 
-Do not introduce alternative frameworks, orchestration layers, vector stores or UI frameworks without explicit approval.
+No introducir frameworks alternativos, capas de orquestacion paralelas, vector stores alternativos ni frameworks UI distintos sin aprobacion explicita. El fallback en memoria ya documentado para ChromaDB queda permitido solo para desarrollo, tests y validacion local.
 
-## Global Constraints
+## Restricciones globales
 
-- Do not implement architecture outside the agreed design.
-- Do not create parallel architectures.
-- Do not mix API route handlers with business logic.
-- Do not invent ERP, production or document data.
-- Do not answer without sources when the question requires ERP, production or RAG evidence.
-- Do not use LLM memory as a substitute for database/API/document retrieval.
-- Keep modules small and focused.
-- Use Pydantic for request, response, plan and tool schemas.
-- Every user-facing answer from `/api/query` must include traceability fields.
-- Every tool call must be recorded in a structured way.
-- Keep documentation in Spanish unless code identifiers or technical terms are clearer in English.
+- No implementar arquitectura fuera del diseno acordado.
+- No crear arquitecturas paralelas.
+- No mezclar handlers de rutas API con logica de negocio.
+- No inventar datos de ERP, produccion o documentos.
+- No responder sin fuentes cuando la pregunta requiere evidencia de ERP, produccion o RAG.
+- No usar memoria del modelo ni memoria conversacional como sustituto de base de datos, API o documentos.
+- Mantener modulos pequenos y enfocados.
+- Usar Pydantic para requests, responses, planes y schemas de tools.
+- Toda respuesta de `/api/query` debe incluir campos de trazabilidad.
+- Toda tool call debe registrarse de forma estructurada.
+- Mantener la documentacion en espanol salvo identificadores de codigo o terminos tecnicos.
 
-## Expected Modularity
+## Modularidad esperada
 
-- `api/` exposes thin FastAPI routes.
-- `agents/` contains LangGraph nodes, state and prompts.
-- `tools/` contains deterministic LangChain tools.
-- `rag/` contains document loading, chunking, embeddings, ChromaDB and retrieval.
-- `erp/` contains database access and ERP repositories.
-- `production/` contains production API clients and schemas.
-- `core/` contains config, logging and tracing.
+- `api/` expone rutas FastAPI finas.
+- `agents/` contiene nodos LangGraph, estado y prompts.
+- `tools/` contiene tools deterministas.
+- `rag/` contiene carga documental, chunking, embeddings, ChromaDB y retrieval.
+- `erp/` contiene acceso a datos ERP y repositorios.
+- `production/` contiene clientes y schemas de la API de produccion.
+- `core/` contiene configuracion, logging y trazabilidad.
 
-## Response Discipline
+## Disciplina de respuesta
 
-Responses must distinguish:
+Las respuestas deben distinguir:
 
-- data obtained from sources;
-- visible reasoning summary;
-- tool calls executed;
-- errors or missing context;
-- final status.
+- datos obtenidos de fuentes;
+- resumen de razonamiento visible;
+- tool calls ejecutadas;
+- fallbacks usados;
+- errores o contexto insuficiente;
+- estado final.
 
-Never expose hidden chain-of-thought. Use concise visible reasoning suitable for audit.
+No exponer chain-of-thought interno. Usar razonamiento visible conciso y apto para auditoria.
 
-## Git Workflow
+## Flujo Git
 
 Seguir `.cursor/rules/git-workflow.mdc`: `develop` para construccion, `main` para estado estable, `feature/*` para tareas acotadas. Remoto: `https://github.com/ivnamo/nunsysIA.git`.

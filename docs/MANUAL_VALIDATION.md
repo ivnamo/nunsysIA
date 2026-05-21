@@ -28,7 +28,7 @@ Resultado esperado:
 115 passed, 2 warnings
 ```
 
-Las warnings actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
+Las advertencias actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
 
 ## 1. Arrancar servicios
 
@@ -75,7 +75,7 @@ status
 ok
 ```
 
-Nota ERP: no necesitas levantar Postgres para esta POC. El backend crea un SQLite en memoria con `data/northwind_seed.sql` al iniciar el servicio de consultas. `ERP_DATABASE_URL` queda como configuracion reservada para el cierre Docker/Postgres.
+Nota ERP: no necesitas levantar Postgres para esta POC. El backend crea un SQLite en memoria con `data/northwind_seed.sql` al iniciar el servicio de consultas. `ERP_DATABASE_URL` queda como configuracion reservada para persistencia externa futura.
 
 Nota para Windows: evita `--reload` durante la validacion manual. Uvicorn puede detectar cambios dentro de `.venv` por OneDrive, antivirus o paquetes como `pywin32`, y reiniciar el proceso aunque la aplicacion este bien. Si necesitas modo desarrollo con recarga, limita el watch:
 
@@ -137,8 +137,8 @@ Resultado esperado:
 Nota sobre `fallbacks`:
 
 - Si aparece `FALLBACK_VECTOR_STORE_IN_MEMORY`, los PDFs se han indexado en memoria del proceso, no en ChromaDB.
-- Ese modo sirve para desarrollo rapido, pero los documentos se pierden al reiniciar FastAPI.
-- Para una demo evaluable con ChromaDB real, `fallbacks` no debe contener `FALLBACK_VECTOR_STORE_IN_MEMORY`.
+- Ese modo sirve para desarrollo local, pero los documentos se pierden al reiniciar FastAPI.
+- Para validar con ChromaDB real, `fallbacks` no debe contener `FALLBACK_VECTOR_STORE_IN_MEMORY`.
 
 ## 3. Validar ERP + produccion por API
 
@@ -494,7 +494,7 @@ Resultado esperado:
 - `.env` no aparece como archivo tracked;
 - `git diff -- .env` no muestra secretos.
 
-## 8. Troubleshooting rapido
+## 8. Resolucion de incidencias
 
 ### Chainlit muestra Internal Server Error y falta `asyncpg`
 
@@ -561,7 +561,7 @@ Notas:
 - El fallo real esta en el backend, no en la UI.
 - Si acabas de actualizar codigo, reinicia el proceso de FastAPI porque `uvicorn app.main:app --port 8000` no recarga cambios automaticamente.
 
-Validacion rapida:
+Validacion de diagnostico:
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:8000/health"
@@ -653,7 +653,7 @@ GEMINI_API_TRANSPORT=rest
 LLM_TIMEOUT_SECONDS=45
 ```
 
-Despues reinicia backend y Chainlit. El factory del LLM esta configurado con `retries=0` para que un modelo invalido falle rapido y el Planner pueda caer al fallback determinista.
+Despues reinicia backend y Chainlit. El factory del LLM esta configurado con `retries=0` para que un modelo invalido falle sin reintentos prolongados y el Planner pueda caer al fallback determinista.
 
 ### Gemini intenta conectar a `127.0.0.1:9`
 
@@ -719,7 +719,7 @@ Causas habituales:
 - `CHROMA_HOST=chromadb` se esta usando fuera de Docker Compose. En local con HTTP deberia apuntar normalmente a `localhost`.
 - `CHROMA_MODE=persistent` no tiene permisos para escribir en `CHROMA_PERSIST_DIRECTORY`.
 
-Checks rapidos:
+Checks de diagnostico:
 
 ```powershell
 .\.venv\Scripts\python.exe -c "import importlib.util; print(importlib.util.find_spec('chromadb') is not None)"

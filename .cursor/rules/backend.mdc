@@ -1,5 +1,5 @@
 ---
-description: Backend and FastAPI rules
+description: Reglas de backend y FastAPI
 globs:
   - "app/api/**/*.py"
   - "app/main.py"
@@ -7,45 +7,50 @@ globs:
 alwaysApply: false
 ---
 
-# Backend Rules
+# Reglas de Backend
 
-FastAPI is the only backend framework for this POC.
+FastAPI es el unico framework backend para esta POC.
 
-## Required Endpoints
+## Endpoints requeridos
 
 - `GET /health`
 - `POST /api/query`
 - `POST /api/documents/upload`
 - `GET /api/documents`
 
-Do not add extra public endpoints unless they support the agreed POC scope.
+No anadir endpoints publicos adicionales salvo que soporten el alcance acordado de la POC.
 
-## Route Design
+## Diseno de rutas
 
-- Routes must be thin.
-- Routes validate input, call an application service or graph entrypoint, and return Pydantic responses.
-- Do not put SQL, production API calls, ChromaDB calls or LangGraph node logic inside route handlers.
-- Use clear HTTP status codes.
-- Use controlled error responses.
+- Las rutas deben ser finas.
+- Las rutas validan input, llaman un servicio de aplicacion o entrypoint del grafo y devuelven respuestas Pydantic.
+- No incluir SQL, llamadas a API de produccion, llamadas a ChromaDB ni logica de nodos LangGraph dentro de route handlers.
+- Usar codigos HTTP claros.
+- Usar respuestas de error controladas.
 
 ## Schemas
 
-- Use Pydantic for all request and response models.
-- The `/api/query` response must expose:
-  - `answer`
-  - `sources`
-  - `reasoning`
-  - `tool_calls`
-  - `status`
-  - `confidence` when possible
+Usar Pydantic para todos los modelos request/response.
 
-## Error Handling
+La respuesta de `/api/query` debe exponer:
 
-- Do not leak stack traces to users.
-- Do not return raw LangChain or LangGraph objects.
-- Do not expose environment variables, connection strings or secrets.
-- Convert tool failures into structured statuses such as `tool_error`, `partial_answer`, `insufficient_context` or `failed`.
+- `answer`
+- `sources`
+- `reasoning`
+- `tool_calls`
+- `fallbacks`
+- `confidence`
+- `status`
+- `data`
+- `failure_reason`
+
+## Manejo de errores
+
+- No filtrar stack traces al usuario.
+- No devolver objetos raw de LangChain, LangGraph o ChromaDB.
+- No exponer variables de entorno, connection strings ni secretos.
+- Convertir fallos de tools en estados estructurados como `tool_error`, `partial_answer`, `insufficient_context` o `failed`.
 
 ## Testing
 
-Every endpoint must have at least one success test and one relevant error or edge-case test.
+Cada endpoint debe tener al menos un test success y un test relevante de error o caso limite.

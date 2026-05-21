@@ -1,42 +1,43 @@
 ---
-description: Testing rules for the POC
+description: Reglas de testing de la POC
 globs:
   - "tests/**/*.py"
   - "app/**/*.py"
 alwaysApply: false
 ---
 
-# Testing Rules
+# Reglas de Testing
 
-Use pytest for all tests.
+Usar pytest para todos los tests.
 
-## Test Style
+## Estilo de test
 
-- Tests must be small, deterministic and readable.
-- Mock LLM calls when possible.
-- Do not require paid LLM calls for basic tests.
-- Prefer fixed fixtures and seed data.
-- Test behavior, not implementation details.
+- Tests pequenos, deterministas y legibles.
+- Mockear llamadas LLM cuando sea posible.
+- No requerir llamadas pagadas a LLM en tests basicos.
+- Preferir fixtures y seed data fijos.
+- Probar comportamiento, no detalles internos innecesarios.
 
-## Minimum Test Coverage
+## Cobertura minima
 
-Create tests for:
+Crear o mantener tests para:
 
 - health endpoint;
-- `/api/query` request and response schema;
-- Planner output shape;
-- Validator routing decisions;
+- schema request/response de `/api/query`;
+- forma del output del Planner;
+- decisiones de routing del Validator;
 - `ERPTool`;
 - `ProductionAPITool`;
-- RAG ingestion;
-- RAG retrieval;
-- insufficient context behavior;
-- controlled tool errors.
+- ingestion RAG;
+- retrieval RAG;
+- `insufficient_context`;
+- memoria conversacional por `conversation_id`;
+- errores controlados de tools.
 
-## Regression Tests
+## Tests de regresion
 
-When fixing a bug, add or update a test that would have caught it.
+Cuando se corrija un bug, agregar o actualizar un test que lo habria detectado.
 
-## Boundaries
+## Limites
 
-Do not make unit tests depend on Docker when a mock or fixture is enough. Integration tests may depend on Docker Compose when explicitly marked or documented.
+No hacer que tests unitarios dependan de Docker cuando un mock o fixture sea suficiente. Los tests de integracion pueden depender de Docker Compose solo si estan marcados o documentados explicitamente.

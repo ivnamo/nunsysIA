@@ -2,7 +2,7 @@
 
 ## Principio Principal
 
-No pedir a Cursor "haz toda la app". Trabajar por fases pequenas, verificables y alineadas con las reglas del proyecto.
+No solicitar a Cursor una implementacion completa sin desglose. Trabajar por fases pequenas, verificables y alineadas con las reglas del proyecto.
 
 ## Antes de Implementar
 
@@ -57,7 +57,7 @@ Detalle completo en `.cursor/rules/git-workflow.mdc`.
 
 ## Reviews
 
-Pedir reviews criticos, no solo validaciones superficiales.
+Solicitar revisiones criticas, no solo validaciones superficiales.
 
 El review debe comprobar:
 
@@ -75,7 +75,7 @@ Al depurar:
 - leer el error completo;
 - identificar causa raiz;
 - aplicar fix minimo;
-- no refactorizar media app;
+- no refactorizar modulos no relacionados;
 - agregar test de regresion si procede.
 
 ## Cambios Masivos

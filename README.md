@@ -11,9 +11,9 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Fase actual: **P10 - Docker Compose**. P9 queda cerrada a nivel funcional.
+Estado actual: **P9 cerrada a nivel funcional**. Siguiente bloque: **P10 - Docker Compose**.
 
-Este repositorio contiene por ahora:
+Este repositorio contiene:
 
 - reglas de Cursor en `.cursor/rules/`;
 - documentacion tecnica en `docs/`;
@@ -81,7 +81,7 @@ Disponible para ejecutar actualmente:
 - PDFs mock realistas en `data/sample_docs/` para probar RAG multi-documento.
 - follow-ups conversacionales simples por `conversation_id`, por ejemplo preguntar despues `Y en que estado estan?`.
 
-Pendiente todavia:
+Pendiente:
 
 - Docker Compose.
 - guion demo final.
@@ -95,7 +95,7 @@ Pendiente todavia:
 - Vector store inicial: ChromaDB.
 - Schemas: Pydantic.
 - Tests: pytest.
-- Runtime objetivo: Docker Compose.
+- Runtime objetivo de cierre: Docker Compose.
 
 Flujo objetivo:
 
@@ -205,7 +205,7 @@ EMBEDDING_PROVIDER=gemini
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
 
-El ERP de la POC actual se crea en memoria con SQLite y el seed `data/northwind_seed.sql` al construir el workflow. `ERP_DATABASE_URL` existe en configuracion para el endurecimiento posterior con Postgres/Docker, pero no alimenta todavia el repositorio ERP runtime. No uses `DATABASE_URL` para el ERP: Chainlit reserva esa variable para su propia persistencia interna con `asyncpg`.
+El ERP de la POC actual se crea en memoria con SQLite y el seed `data/northwind_seed.sql` al construir el workflow. `ERP_DATABASE_URL` existe en configuracion para un posible cableado posterior con persistencia externa, pero aun no alimenta el repositorio ERP runtime. No uses `DATABASE_URL` para el ERP: Chainlit reserva esa variable para su propia persistencia interna con `asyncpg`.
 
 La arquitectura tambien permite OpenAI sin tocar el grafo ni las tools:
 
@@ -312,9 +312,9 @@ Endpoints del mock:
 - `GET /production/orders?status=delayed`
 - `GET /production/orders/{order_id}`
 
-## Siguiente fase
+## Siguiente bloque
 
-P9 queda cerrada a nivel funcional con memoria conversacional simple. La siguiente fase es P10: Docker Compose.
+P9 queda cerrada a nivel funcional con memoria conversacional simple. El siguiente bloque pendiente es P10: Docker Compose.
 
-- cerrar Docker Compose.
+- cerrar Docker Compose;
 - preparar guion demo final y documentacion de entrega.

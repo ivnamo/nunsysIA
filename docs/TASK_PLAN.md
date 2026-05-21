@@ -4,7 +4,7 @@ Este plan guia la implementacion por fases. No se debe avanzar a la siguiente fa
 
 ## Estado actual
 
-El repositorio ya ha superado las fases 0 a 9 a nivel funcional y entra en **P10 - Docker Compose**. P9 queda cubierta con los comportamientos evaluables de demo:
+El repositorio ya ha superado las fases 0 a 9 a nivel funcional y queda preparado para **P10 - Docker Compose**. P9 queda cubierta con los comportamientos evaluables de demo:
 
 - Planner hibrido con LLM opcional y fallback determinista.
 - RAG multi-documento con PDFs mock realistas.
@@ -67,7 +67,7 @@ Riesgos:
 
 ## Fase 2: ERP Northwind
 
-Estado: completada con Northwind reducido y SQLite en memoria para tests/demo. PostgreSQL queda como objetivo de Docker Compose si se decide endurecer persistencia.
+Estado: completada con Northwind reducido y SQLite en memoria para tests/demo. PostgreSQL queda fuera del runtime actual y solo seria una mejora posterior si se decide endurecer persistencia.
 
 Objetivo: preparar ERP simulado con datos controlados.
 
@@ -226,11 +226,11 @@ Riesgos:
 
 - Exponer chain-of-thought o secretos.
 
-## Fase P9: Funcionalidad evaluable de producto
+## Fase P9: Funcionalidad evaluable de la POC
 
-Estado: en curso.
+Estado: completada a nivel funcional.
 
-Objetivo: convertir la POC en una demo funcional y defendible, no solo una arquitectura minima.
+Objetivo: convertir la POC en una demo funcional, trazable y reproducible, ademas de una arquitectura minima.
 
 Tareas:
 
@@ -260,6 +260,8 @@ Riesgos:
 - Redaccion final demasiado tecnica.
 
 ## Fase P10: Docker Compose
+
+Estado: pendiente.
 
 Objetivo: levantar la POC completa.
 
@@ -299,7 +301,7 @@ Riesgos:
 
 ## Fase P12: README y demo final
 
-Objetivo: dejar entrega defendible.
+Objetivo: dejar la entrega documentada y reproducible.
 
 Tareas:
 

@@ -100,7 +100,7 @@ La respuesta publica devuelve documentos usados en `data.rag.documents` y citas 
 ## Configuracion de base de datos
 
 - El workflow actual crea el ERP con SQLite en memoria y carga `data/northwind_seed.sql` en cada servicio de consulta.
-- `ERP_DATABASE_URL` se lee en `app.core.config` y queda reservado para el cierre con Postgres/Docker, pero aun no esta cableado al runtime ERP.
+- `ERP_DATABASE_URL` se lee en `app.core.config` y queda reservado para persistencia externa futura, pero aun no esta cableado al runtime ERP.
 - `DATABASE_URL` no debe usarse para el ERP en local, porque Chainlit la reserva para su propio data layer con `asyncpg`.
 - `DATABASE_URL` queda soportada solo como fallback legacy en `app.core.config`.
 
@@ -128,7 +128,7 @@ No se debe exponer chain-of-thought interno.
 
 ## Estado Actual de Implementacion
 
-Implementado y validado manualmente:
+Implementado en el repositorio y cubierto por tests/checklist manual:
 
 - FastAPI con endpoints principales.
 - Mock API de produccion.
@@ -141,13 +141,13 @@ Implementado y validado manualmente:
 - Respuesta final con LLM controlado y fallback determinista.
 - Memoria conversacional simple con traza `Memoria`.
 
-Pendiente para cierre de producto:
+Pendiente para cierre tecnico:
 
 - Docker Compose completo.
 
-## Por Que Encaja con una POC Senior
+## Justificacion de Arquitectura
 
-La arquitectura separa responsabilidades, controla los loops agentic, obliga a trazabilidad y permite probar cada pieza de forma aislada. Es suficientemente expresiva para demostrar criterio senior sin sobredimensionar.
+La arquitectura separa responsabilidades, controla los ciclos agentic, obliga a trazabilidad y permite probar cada pieza de forma aislada. El alcance es suficiente para demostrar integracion ERP, produccion, RAG y UI sin introducir componentes fuera del diseno acordado.
 
 ## Fuera de Alcance Consciente
 

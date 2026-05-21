@@ -4,7 +4,7 @@ Este documento refleja el estado actual del repositorio. Para el desglose histor
 
 ## Estado actual
 
-La POC esta en **P10 - Docker Compose**. P9 queda cerrada a nivel funcional.
+La POC tiene **P9 cerrada a nivel funcional**. El siguiente bloque pendiente es **P10 - Docker Compose**.
 
 Ya existe codigo funcional para:
 
@@ -24,7 +24,7 @@ Ya existe codigo funcional para:
 ## Pendiente real
 
 - Cerrar Docker Compose con backend, API mock de produccion, ChromaDB y Chainlit.
-- Decidir si el ERP pasa de SQLite en memoria a Postgres dentro del compose o si se conserva SQLite para demo.
+- Mantener el ERP con SQLite en memoria para la demo salvo decision explicita de cambiar persistencia.
 - Preparar guion demo final de 3-5 minutos.
 
 ## Decisiones vigentes
@@ -35,9 +35,9 @@ Ya existe codigo funcional para:
 | LangGraph para orquestacion | Vigente | `MAX_REPLANS = 2` esta fijado en `app/agents/state.py`. |
 | LangChain para LLM/tools/embeddings | Vigente | Gemini y OpenAI son opcionales; tests no dependen de llamadas pagadas. |
 | ChromaDB como vector store objetivo | Vigente | Soporta `persistent` embebido y `http`; sin cliente o servidor disponible hay fallback en memoria. |
-| ERP con SQLite en memoria | Vigente para P9 | Se carga desde `data/northwind_seed.sql`; `ERP_DATABASE_URL` queda reservado para Docker/Postgres. |
+| ERP con SQLite en memoria | Vigente | Se carga desde `data/northwind_seed.sql`; `ERP_DATABASE_URL` queda reservado para persistencia externa futura. |
 | Chainlit como UI de demo | Vigente | Muestra respuesta, fuentes, citas, pasos, tool calls y fallbacks. |
-| Memoria conversacional | Vigente para P9 | In-memory por proceso, maximo 5 turnos por `conversation_id`; sirve para resolver referencias, no como fuente de verdad. |
+| Memoria conversacional | Vigente | In-memory por proceso, maximo 5 turnos por `conversation_id`; sirve para resolver referencias, no como fuente de verdad. |
 
 ## Plan inmediato
 

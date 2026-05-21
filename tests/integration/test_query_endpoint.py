@@ -63,6 +63,11 @@ def test_query_endpoint_answers_erp_production_question(client: TestClient) -> N
         "ProductionAPITool",
         "ProductionAPITool",
     ]
+    assert [call["action"] for call in payload["tool_calls"]] == [
+        "get_pending_orders_by_customer",
+        "get_status_for_erp_orders",
+        "get_status_for_erp_orders",
+    ]
     assert payload["data"] == {
         "erp_orders_count": 2,
         "erp_order_ids": [10248, 10252],
@@ -118,6 +123,12 @@ def test_query_endpoint_keeps_conversation_memory_by_id(client: TestClient) -> N
         "ERPTool",
         "ProductionAPITool",
         "ProductionAPITool",
+    ]
+    assert [call["action"] for call in payload["tool_calls"]] == [
+        "recall",
+        "get_pending_orders_by_customer",
+        "get_status_for_erp_orders",
+        "get_status_for_erp_orders",
     ]
     assert payload["data"]["memory"]["customer_id"] == "ALFKI"
 
@@ -209,6 +220,7 @@ def test_query_endpoint_answers_document_question_after_upload(
     assert payload["sources"] == ["Documentos"]
     assert "penalizacion" in payload["answer"]
     assert payload["tool_calls"][0]["tool"] == "DocumentRAGTool"
+    assert payload["tool_calls"][0]["action"] == "query"
     assert payload["data"]["rag"]["status"] == "completed"
     assert payload["data"]["rag"]["chunks_count"] >= 1
     assert payload["data"]["rag"]["documents"] == ["contrato.pdf"]

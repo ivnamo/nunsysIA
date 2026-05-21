@@ -210,6 +210,7 @@ def test_agent_graph_returns_insufficient_context_when_rag_tool_is_not_configure
     assert response.status == "insufficient_context"
     assert response.sources == []
     assert response.tool_calls[0].status == "skipped"
+    assert response.tool_calls[0].action == "query"
     assert "contexto documental suficiente" in response.answer
 
 

@@ -31,7 +31,12 @@ class ProductionAPITool:
         try:
             order = self._client.get_order(tool_input.order_id)
         except ProductionAPIError as exc:
-            return self._error_result(tool_input.model_dump(), str(exc), started_at)
+            return self._error_result(
+                tool_input.model_dump(),
+                str(exc),
+                started_at,
+                action="get_status_for_erp_orders",
+            )
 
         data = order.model_dump(mode="json") if order else None
         output_summary = (
@@ -43,6 +48,7 @@ class ProductionAPITool:
             data=data,
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action="get_status_for_erp_orders",
                 args=tool_input.model_dump(),
                 status="success",
                 output_summary=output_summary,
@@ -56,7 +62,12 @@ class ProductionAPITool:
         try:
             orders = self._client.list_orders(status=tool_input.status)
         except ProductionAPIError as exc:
-            return self._error_result(tool_input.model_dump(), str(exc), started_at)
+            return self._error_result(
+                tool_input.model_dump(),
+                str(exc),
+                started_at,
+                action="list_orders",
+            )
 
         data = [order.model_dump(mode="json") for order in orders]
         status_suffix = f" con estado {tool_input.status}" if tool_input.status else ""
@@ -64,6 +75,7 @@ class ProductionAPITool:
             data=data,
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action="list_orders",
                 args=tool_input.model_dump(),
                 status="success",
                 output_summary=f"{len(data)} pedidos de produccion encontrados{status_suffix}",

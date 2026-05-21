@@ -151,7 +151,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R0 | en curso | Crear este plan vivo | Evitar refactor improvisado | `docs(refactor): add phased implementation plan` |
 | R1 | validado en tests / beta pendiente | Guardrail documental en planes mixtos | Responder penalizaciones sin evidencia RAG | `fix(agents): enforce document evidence in mixed plans` |
 | R2 | validado en tests / beta pendiente | Planner sin defaults silenciosos | Responder ALFKI cuando falta cliente | `fix(planner): avoid implicit customer defaults` |
-| R3 | pendiente | Trazabilidad de actions y fallbacks | Tool calls poco explicitas | `fix(traceability): expose tool actions consistently` |
+| R3 | validado en tests / beta pendiente | Trazabilidad de actions y fallbacks | Tool calls poco explicitas | `fix(traceability): expose tool actions consistently` |
 | R4 | pendiente | Extraer politica de penalizaciones | Logica documental hardcodeada en builder | `refactor(final-response): extract penalty policy` |
 | R5 | pendiente | Dividir FinalResponseBuilder | God object de respuesta final | `refactor(final-response): split answer builders` |
 | R6 | pendiente | Dividir Planner | God object de planificacion | `refactor(planner): split rule planner from llm planner` |
@@ -307,6 +307,17 @@ Criterio de aceptacion:
 
 - `tool_calls` permite auditar tool + action sin depender solo de `output_summary`.
 - Chainlit muestra labels como `ERPTool.get_pending_orders_by_customer` cuando aplique.
+
+Estado 2026-05-21:
+
+- `ERPTool`, `ProductionAPITool`, `DocumentRAGTool` y `MemoryTool` declaran `tool_call.action`.
+- `ReasonerExecutorAgent` completa `action` desde el `PlanStep` cuando una tool o skipped no lo aporta.
+- Agregadas/regresadas aserciones de `action` en tests de tools, endpoint y grafo.
+- Validado con pytest focalizado:
+  - `tests/unit/test_erp_tool.py tests/unit/test_production_tool.py tests/unit/test_rag_tool.py tests/unit/test_memory_tool.py tests/unit/test_traceability.py`: 25 passed.
+  - `tests/integration/test_query_endpoint.py`: 7 passed, 1 warning externa de LangGraph.
+  - `tests/integration/test_agent_graph.py`: 11 passed, 1 warning externa de LangGraph.
+- Pendiente antes de cerrar fase: `BT-smoke` con LLM real y revision visual en Chainlit.
 
 ## Fase R4 - Extraer politica de penalizaciones
 
@@ -678,3 +689,4 @@ Criterio de aceptacion:
 | 2026-05-21 | Beta | en curso | Beta real integrada como criterio de aceptacion por fase | pendiente |
 | 2026-05-21 | R1 | validado en tests / beta pendiente | Guardrail mixto documental implementado; unit validator 6 passed; integration agent graph 11 passed | pendiente |
 | 2026-05-21 | R2 | validado en tests / beta pendiente | Planner sin default ALFKI; unit planner 15 passed; query endpoint 7 passed; agent graph 11 passed | pendiente |
+| 2026-05-21 | R3 | validado en tests / beta pendiente | Tool actions visibles; unit tools/traceability 25 passed; query endpoint 7 passed; agent graph 11 passed | pendiente |

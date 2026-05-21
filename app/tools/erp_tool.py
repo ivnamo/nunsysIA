@@ -40,6 +40,7 @@ class ERPTool:
             data=data,
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action="get_pending_orders_by_customer",
                 args=tool_input.model_dump(),
                 status="success",
                 output_summary=f"{len(data)} pedidos pendientes encontrados",
@@ -61,6 +62,7 @@ class ERPTool:
             data=data,
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action="get_customers_for_production_orders",
                 args=tool_input.model_dump(),
                 status="success",
                 output_summary=output_summary,
@@ -77,6 +79,7 @@ class ERPTool:
             data=data,
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action="get_orders_by_month",
                 args=tool_input.model_dump(),
                 status="success",
                 output_summary=f"{len(data)} pedidos encontrados para el mes",

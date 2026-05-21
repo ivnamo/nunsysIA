@@ -82,6 +82,7 @@ class MemoryTool:
             },
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action="recall",
                 args={
                     "query": tool_input.query,
                     "max_turns": tool_input.max_turns,

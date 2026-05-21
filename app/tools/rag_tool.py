@@ -133,6 +133,7 @@ class DocumentRAGTool:
                 data=data.model_dump(mode="json"),
                 tool_call=ToolCallTrace(
                     tool=self.name,
+                    action="query",
                     args=tool_input.model_dump(),
                     status="success",
                     output_summary="0 chunks relevantes recuperados",
@@ -153,6 +154,7 @@ class DocumentRAGTool:
             data=data.model_dump(mode="json"),
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action="query",
                 args=tool_input.model_dump(),
                 status="success",
                 output_summary=(
@@ -174,6 +176,7 @@ class DocumentRAGTool:
             data=None,
             tool_call=ToolCallTrace(
                 tool=self.name,
+                action="query",
                 args=tool_input.model_dump(),
                 status="error",
                 output_summary="Error al consultar documentos",

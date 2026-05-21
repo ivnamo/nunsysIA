@@ -31,6 +31,7 @@ def test_erp_tool_get_pending_orders_returns_structured_data_and_trace(
     assert [order["order_id"] for order in result.data] == [10248, 10252]
     assert [order["amount"] for order in result.data] == ["440.00", "1863.00"]
     assert result.tool_call.tool == "ERPTool"
+    assert result.tool_call.action == "get_pending_orders_by_customer"
     assert result.tool_call.args == {"customer_id": "ALFKI"}
     assert result.tool_call.status == "success"
     assert result.tool_call.source == "ERP"
@@ -43,6 +44,7 @@ def test_erp_tool_get_customer_by_order_returns_customer(
     result = erp_tool.get_customer_by_order(CustomerByOrderInput(order_id=10301))
 
     assert result.data["customer_id"] == "ANATR"
+    assert result.tool_call.action == "get_customers_for_production_orders"
     assert result.tool_call.status == "success"
 
 
@@ -52,6 +54,7 @@ def test_erp_tool_get_orders_by_month_returns_all_controlled_orders(
     result = erp_tool.get_orders_by_month(OrdersByMonthInput(year=2026, month=5))
 
     assert [order["order_id"] for order in result.data] == [10248, 10252, 10255, 10301, 10312]
+    assert result.tool_call.action == "get_orders_by_month"
     assert result.tool_call.output_summary == "5 pedidos encontrados para el mes"
 
 

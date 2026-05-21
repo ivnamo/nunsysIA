@@ -39,6 +39,7 @@ def test_document_rag_tool_returns_grounded_answer_and_trace() -> None:
         for fallback in result.data["fallbacks"]
     )
     assert result.tool_call.tool == "DocumentRAGTool"
+    assert result.tool_call.action == "query"
     assert result.tool_call.source == "Documentos"
     assert result.tool_call.status == "success"
     assert "FALLBACK" in result.tool_call.output_summary
@@ -126,6 +127,7 @@ def test_document_rag_tool_returns_insufficient_context_without_relevant_chunks(
     assert result.data["status"] == "insufficient_context"
     assert result.data["chunks"] == []
     assert any("FALLBACK" in fallback for fallback in result.data["fallbacks"])
+    assert result.tool_call.action == "query"
     assert result.tool_call.output_summary == "0 chunks relevantes recuperados"
 
 
@@ -138,6 +140,7 @@ def test_document_rag_tool_returns_tool_error_when_embedding_fails() -> None:
     result = tool.query(DocumentRAGInput(query="penalizacion retrasos"))
 
     assert result.data is None
+    assert result.tool_call.action == "query"
     assert result.tool_call.status == "error"
     assert result.tool_call.source == "Documentos"
     assert "embeddings" in result.tool_call.error

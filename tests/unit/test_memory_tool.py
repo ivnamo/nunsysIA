@@ -64,6 +64,7 @@ def test_memory_tool_returns_public_history_and_facts() -> None:
     )
 
     assert result.tool_call.tool == "MemoryTool"
+    assert result.tool_call.action == "recall"
     assert result.tool_call.source == "Memoria"
     assert result.tool_call.status == "success"
     assert result.data["status"] == "found"

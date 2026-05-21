@@ -88,6 +88,7 @@ def test_production_tool_get_order_status_returns_structured_data_and_trace(
         "estimated_finish_date": "2026-05-30",
     }
     assert result.tool_call.tool == "ProductionAPITool"
+    assert result.tool_call.action == "get_status_for_erp_orders"
     assert result.tool_call.args == {"order_id": 10252}
     assert result.tool_call.status == "success"
     assert result.tool_call.source == "Produccion"
@@ -99,6 +100,7 @@ def test_production_tool_list_orders_filters_by_status(
     result = production_tool.list_orders(ProductionOrdersInput(status="blocked"))
 
     assert [order["order_id"] for order in result.data] == [10252, 10312]
+    assert result.tool_call.action == "list_orders"
     assert result.tool_call.args == {"status": "blocked"}
     assert result.tool_call.output_summary == "2 pedidos de produccion encontrados con estado blocked"
 
@@ -128,6 +130,7 @@ def test_production_tool_returns_success_with_none_for_missing_order(
     result = production_tool.get_order_status(ProductionOrderInput(order_id=99999))
 
     assert result.data is None
+    assert result.tool_call.action == "get_status_for_erp_orders"
     assert result.tool_call.status == "success"
     assert result.tool_call.output_summary == "Pedido no encontrado en produccion"
 
@@ -145,6 +148,7 @@ def test_production_tool_returns_error_trace_for_api_error() -> None:
     result = tool.get_order_status(ProductionOrderInput(order_id=10252))
 
     assert result.data is None
+    assert result.tool_call.action == "get_status_for_erp_orders"
     assert result.tool_call.status == "error"
     assert result.tool_call.error is not None
     assert "status 500" in result.tool_call.error

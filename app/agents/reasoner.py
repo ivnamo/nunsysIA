@@ -78,6 +78,7 @@ class ReasonerExecutorAgent:
 
         execution.add_skipped(
             tool=step.tool,
+            action=step.action,
             source="Memoria",
             args=step.args,
             summary=f"{step.tool} no esta implementada en esta fase",
@@ -102,11 +103,16 @@ class ReasonerExecutorAgent:
                 )
             )
             execution.data["memory"] = result.data
-            execution.add_result(result, "Consulta memoria conversacional")
+            execution.add_result(
+                result,
+                "Consulta memoria conversacional",
+                action=step.action,
+            )
             return
 
         execution.add_skipped(
             tool="MemoryTool",
+            action=step.action,
             source="Memoria",
             args=step.args,
             summary=f"Accion de memoria no soportada: {step.action}",
@@ -118,7 +124,11 @@ class ReasonerExecutorAgent:
                 PendingOrdersByCustomerInput.model_validate(step.args)
             )
             execution.data["erp_orders"] = result.data
-            execution.add_result(result, "Consulta ERP de pedidos pendientes")
+            execution.add_result(
+                result,
+                "Consulta ERP de pedidos pendientes",
+                action=step.action,
+            )
             return
 
         if step.action == "get_orders_by_month":
@@ -130,7 +140,11 @@ class ReasonerExecutorAgent:
                 "year": step.args.get("year"),
                 "month": step.args.get("month"),
             }
-            execution.add_result(result, "Consulta ERP de pedidos por mes")
+            execution.add_result(
+                result,
+                "Consulta ERP de pedidos por mes",
+                action=step.action,
+            )
             return
 
         if step.action == "calculate_order_amount":
@@ -139,6 +153,7 @@ class ReasonerExecutorAgent:
             if not order_ids:
                 execution.add_skipped(
                     tool="ERPTool",
+                    action=step.action,
                     source="ERP",
                     args=step.args,
                     summary="No hay pedidos referenciados para calcular importe",
@@ -154,6 +169,7 @@ class ReasonerExecutorAgent:
                 execution.add_result(
                     result,
                     f"Consulta ERP de importe para pedido {order_id}",
+                    action=step.action,
                 )
             return
 
@@ -169,12 +185,14 @@ class ReasonerExecutorAgent:
                 execution.add_result(
                     result,
                     f"Consulta ERP de cliente para pedido {order_id}",
+                    action=step.action,
                 )
             execution.data["customers_by_order"] = customers_by_order
             return
 
         execution.add_skipped(
             tool="ERPTool",
+            action=step.action,
             source="ERP",
             args=step.args,
             summary=f"Accion ERP no soportada: {step.action}",
@@ -190,7 +208,11 @@ class ReasonerExecutorAgent:
                 ProductionOrdersInput.model_validate(step.args)
             )
             execution.data["production_orders"] = result.data
-            execution.add_result(result, "Consulta API de produccion por estado")
+            execution.add_result(
+                result,
+                "Consulta API de produccion por estado",
+                action=step.action,
+            )
             return
 
         if step.action == "get_status_for_order_ids":
@@ -201,6 +223,7 @@ class ReasonerExecutorAgent:
             execution.add_result(
                 result,
                 "Consulta API de produccion para pedidos referenciados",
+                action=step.action,
             )
             return
 
@@ -210,6 +233,7 @@ class ReasonerExecutorAgent:
             if not erp_orders:
                 execution.add_skipped(
                     tool="ProductionAPITool",
+                    action=step.action,
                     source="Produccion",
                     args={},
                     summary="No hay pedidos ERP para consultar en produccion",
@@ -226,12 +250,14 @@ class ReasonerExecutorAgent:
                 execution.add_result(
                     result,
                     f"Consulta API de produccion para pedido {order_id}",
+                    action=step.action,
                 )
             execution.data["production_by_order"] = production_by_order
             return
 
         execution.add_skipped(
             tool="ProductionAPITool",
+            action=step.action,
             source="Produccion",
             args=step.args,
             summary=f"Accion de produccion no soportada: {step.action}",
@@ -246,6 +272,7 @@ class ReasonerExecutorAgent:
             }
             execution.add_skipped(
                 tool="DocumentRAGTool",
+                action=step.action,
                 source="Documentos",
                 args=step.args,
                 summary="DocumentRAGTool no esta configurada en este grafo",
@@ -255,11 +282,16 @@ class ReasonerExecutorAgent:
         if step.action == "query":
             result = self._rag_tool.query(DocumentRAGInput.model_validate(step.args))
             execution.data["rag"] = result.data
-            execution.add_result(result, "Consulta RAG documental con chunks recuperados")
+            execution.add_result(
+                result,
+                "Consulta RAG documental con chunks recuperados",
+                action=step.action,
+            )
             return
 
         execution.add_skipped(
             tool="DocumentRAGTool",
+            action=step.action,
             source="Documentos",
             args=step.args,
             summary=f"Accion RAG no soportada: {step.action}",
@@ -275,22 +307,32 @@ class _ExecutionContext:
         self.fallbacks: list[str] = []
         self.data: dict[str, Any] = {}
 
-    def add_result(self, result: ToolResult, reasoning_step: str) -> None:
+    def add_result(
+        self,
+        result: ToolResult,
+        reasoning_step: str,
+        action: str | None = None,
+    ) -> None:
         self.tool_results.append(result.model_dump(mode="json"))
-        self.tool_calls.append(result.tool_call)
-        self._add_source(result.tool_call.source)
+        tool_call = result.tool_call
+        if action and tool_call.action is None:
+            tool_call = tool_call.model_copy(update={"action": action})
+        self.tool_calls.append(tool_call)
+        self._add_source(tool_call.source)
         self._add_fallbacks_from_result(result)
         self.reasoning.append(reasoning_step)
 
     def add_skipped(
         self,
         tool: str,
+        action: str | None,
         source: SourceName,
         args: dict[str, Any],
         summary: str,
     ) -> None:
         tool_call = ToolCallTrace(
             tool=tool,
+            action=action,
             args=args,
             status="skipped",
             output_summary=summary,

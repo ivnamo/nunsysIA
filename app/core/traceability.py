@@ -97,6 +97,25 @@ def build_public_data_summary(data: dict[str, Any]) -> dict[str, Any] | None:
                 str(fallback) for fallback in rag.get("fallbacks", [])
             ]
 
+    if data.get("memory"):
+        memory = data["memory"]
+        turns = _as_list(memory.get("turns"))
+        memory_summary: dict[str, Any] = {
+            "status": memory.get("status"),
+            "turns_count": len(turns),
+        }
+        facts = memory.get("facts")
+        if isinstance(facts, dict):
+            if facts.get("customer_id"):
+                memory_summary["customer_id"] = str(facts["customer_id"])
+            order_ids = _memory_order_ids(facts.get("order_ids"))
+            if order_ids:
+                memory_summary["order_ids"] = order_ids
+            documents = facts.get("documents")
+            if isinstance(documents, list):
+                memory_summary["documents"] = [str(document) for document in documents]
+        summary["memory"] = memory_summary
+
     return summary or None
 
 
@@ -212,3 +231,17 @@ def _rag_citations(chunks: list[Any]) -> list[dict[str, Any]]:
             }
         )
     return citations
+
+
+def _memory_order_ids(values: Any) -> list[int]:
+    order_ids: list[int] = []
+    if not isinstance(values, list):
+        return order_ids
+    for value in values:
+        try:
+            order_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if order_id not in order_ids:
+            order_ids.append(order_id)
+    return order_ids

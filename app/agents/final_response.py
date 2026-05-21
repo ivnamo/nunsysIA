@@ -119,6 +119,9 @@ class FinalResponseBuilder:
         if data.get("erp_orders"):
             return self._answer_erp_orders(data)
 
+        if data.get("memory"):
+            return self._answer_memory(data)
+
         if status == "partial_answer":
             return "La consulta produjo una respuesta parcial; revisa la traza para ver fuentes faltantes."
 
@@ -339,6 +342,24 @@ class FinalResponseBuilder:
         return "Penalizaciones estimadas por pedido: " + "; ".join(lines) + "."
 
     @staticmethod
+    def _answer_memory(data: dict[str, Any]) -> str:
+        memory = data.get("memory") or {}
+        turns = memory.get("turns") or []
+        if not turns:
+            return "No hay historial conversacional previo para resumir."
+
+        summaries = []
+        for turn in turns[-3:]:
+            question = str(turn.get("question") or "")
+            answer = str(turn.get("answer") or "")
+            if question and answer:
+                summaries.append(f"Pregunta: {question} Respuesta: {answer}")
+
+        if not summaries:
+            return "Hay historial conversacional, pero no contiene respuestas resumibles."
+        return "Resumen del historial reciente: " + " | ".join(summaries)
+
+    @staticmethod
     def _confidence(status: QueryStatus) -> float | None:
         if status == "completed":
             return 0.9
@@ -516,6 +537,14 @@ def _normalized_evidence(data: dict[str, Any]) -> dict[str, Any]:
 
     if data.get("rag"):
         evidence["rag"] = _normalize_rag_evidence(_as_dict(data.get("rag")))
+
+    if data.get("memory"):
+        memory = _as_dict(data.get("memory"))
+        evidence["memory"] = {
+            "status": memory.get("status"),
+            "facts": _clean_mapping(memory.get("facts") or {}),
+            "turns_count": len(_as_list(memory.get("turns"))),
+        }
 
     return evidence
 

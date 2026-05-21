@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -6,7 +7,7 @@ import pytest
 from app.rag.vector_store import ChromaDocumentVectorStore, VectorStoreError
 
 
-def test_chroma_vector_store_uses_persistent_client(monkeypatch, tmp_path) -> None:
+def test_chroma_vector_store_uses_persistent_client(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
     class FakeClient:
@@ -28,8 +29,9 @@ def test_chroma_vector_store_uses_persistent_client(monkeypatch, tmp_path) -> No
 
     fake_chromadb = SimpleNamespace(PersistentClient=persistent_client)
     monkeypatch.setitem(sys.modules, "chromadb", fake_chromadb)
+    monkeypatch.setattr(Path, "mkdir", lambda *args, **kwargs: None)
 
-    persist_directory = tmp_path / "chroma"
+    persist_directory = "data/chroma-test"
 
     ChromaDocumentVectorStore(
         mode="persistent",
@@ -40,7 +42,7 @@ def test_chroma_vector_store_uses_persistent_client(monkeypatch, tmp_path) -> No
     )
 
     assert captured["client_type"] == "persistent"
-    assert captured["client_kwargs"] == {"path": str(persist_directory.resolve())}
+    assert captured["client_kwargs"] == {"path": str(Path(persist_directory).resolve())}
     assert captured["collection_name"] == "documents"
     assert captured["collection_metadata"] == {"hnsw:space": "cosine"}
 

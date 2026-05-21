@@ -25,10 +25,10 @@ Ejecutar tests automatizados:
 Resultado esperado:
 
 ```text
-96 passed, 1 warning
+115 passed, 2 warnings
 ```
 
-La warning actual viene de LangGraph/LangChain (`allowed_objects`); no bloquea la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
+Las warnings actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
 
 ## 1. Arrancar servicios
 
@@ -259,7 +259,69 @@ Checks esperados:
 - `answer`: menciona cada pedido del mes y si aplica o no penalizacion segun estado y motivo.
 - `answer`: para `10252`, `10301` y `10312` indica que no aplica penalizacion por exclusion documental.
 
-## 4. Validar RAG por API
+## 4. Validar memoria conversacional por API
+
+La memoria se guarda por `conversation_id` y solo mantiene las ultimas 5 interacciones del proceso FastAPI actual.
+
+Primero crea contexto:
+
+```powershell
+$body = @{
+  question = "Que pedidos pendientes tiene el cliente ALFKI?"
+  conversation_id = "manual-memory-001"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:8000/api/query" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $body |
+  ConvertTo-Json -Depth 10
+```
+
+Despues pregunta un follow-up:
+
+```powershell
+$body = @{
+  question = "Y en que estado estan?"
+  conversation_id = "manual-memory-001"
+} | ConvertTo-Json
+
+$response = Invoke-RestMethod -Uri "http://localhost:8000/api/query" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $body
+
+$response | ConvertTo-Json -Depth 10
+```
+
+Checks esperados:
+
+- `status`: `completed`
+- `sources`: incluye `Memoria`, `ERP` y `Produccion`
+- `tool_calls[0].tool`: `MemoryTool`
+- `data.memory.customer_id`: `ALFKI`
+- `answer`: menciona `10248` y `10252` con estado de produccion.
+
+Validar aislamiento entre conversaciones:
+
+```powershell
+$body = @{
+  question = "Y en que estado estan?"
+  conversation_id = "manual-memory-002"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:8000/api/query" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $body |
+  ConvertTo-Json -Depth 10
+```
+
+Check esperado:
+
+- `status`: `unsupported`, porque esa conversacion no tiene historial previo.
+
+## 5. Validar RAG por API
 
 ### Penalizaciones por retrasos
 
@@ -354,7 +416,7 @@ Checks esperados:
 - `answer`: indica que no hay contexto documental suficiente
 - no inventa una receta.
 
-## 5. Validar desde Chainlit
+## 6. Validar desde Chainlit
 
 Abrir:
 
@@ -398,18 +460,29 @@ Segun el PDF, hay alguna penalizacion por retrasos?
 Que dice el documento sobre plazos de entrega standard?
 ```
 
+Para memoria conversacional, en la misma sesion de Chainlit envia estas dos preguntas seguidas:
+
+```text
+Que pedidos pendientes tiene el cliente ALFKI?
+```
+
+```text
+Y en que estado estan?
+```
+
 Checks esperados en UI:
 
 - respuesta clara;
 - `Estado: completed` o `insufficient_context` cuando corresponda;
 - fuentes visibles;
+- en el follow-up aparecen `Memoria`, `ERP` y `Produccion`;
 - citas documentales visibles en respuestas RAG;
 - pasos ejecutados;
 - tool calls visibles;
 - seccion `FALLBACKS` visible cuando se usa planner por reglas, respuesta determinista, vector store en memoria o embeddings deterministas;
 - sin razonamiento interno sensible.
 
-## 6. Validar que no hay secretos en Git
+## 7. Validar que no hay secretos en Git
 
 ```powershell
 git status --short
@@ -421,7 +494,7 @@ Resultado esperado:
 - `.env` no aparece como archivo tracked;
 - `git diff -- .env` no muestra secretos.
 
-## 7. Troubleshooting rapido
+## 8. Troubleshooting rapido
 
 ### Chainlit muestra Internal Server Error y falta `asyncpg`
 

@@ -4,17 +4,17 @@ Este plan guia la implementacion por fases. No se debe avanzar a la siguiente fa
 
 ## Estado actual
 
-El repositorio ya ha superado las fases 0 a 8 y se encuentra en **P9 - funcionalidad evaluable de producto**. La prioridad actual no es Docker todavia, sino cerrar los comportamientos que se van a evaluar en la demo:
+El repositorio ya ha superado las fases 0 a 9 a nivel funcional y entra en **P10 - Docker Compose**. P9 queda cubierta con los comportamientos evaluables de demo:
 
 - Planner hibrido con LLM opcional y fallback determinista.
 - RAG multi-documento con PDFs mock realistas.
 - Chainlit con subida de documentos al espacio documental.
 - Validacion manual reproducible.
 - Guardrails para no inventar y devolver `insufficient_context`.
+- Memoria conversacional simple de ultimas 5 interacciones por `conversation_id`.
 
 Pendiente antes del cierre:
 
-- memoria conversacional de ultimas 5 interacciones;
 - Docker Compose completo;
 - guion demo final.
 
@@ -243,7 +243,7 @@ Tareas:
 - Mejorar respuesta final con LLM controlado. Estado: completada.
 - Incluir citas documentales visibles por chunk. Estado: completada.
 - Alinear documentacion principal con el estado real del repo. Estado: completada.
-- Implementar memoria conversacional simple.
+- Implementar memoria conversacional simple. Estado: completada.
 
 Criterio de aceptacion:
 
@@ -251,6 +251,7 @@ Criterio de aceptacion:
 - `pytest` pasa sin llamadas pagadas.
 - Las respuestas incluyen trazabilidad.
 - Las consultas sin evidencia documental devuelven `insufficient_context`.
+- Los follow-ups simples por `conversation_id` recuperan contexto con fuente `Memoria`.
 
 Riesgos:
 
@@ -283,7 +284,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`96 passed, 1 warning`).
+- Mantener suite automatizada versionada actual (`115 passed, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.

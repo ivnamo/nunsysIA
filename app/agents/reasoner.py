@@ -9,6 +9,7 @@ from app.tools.erp_tool import (
     OrdersByMonthInput,
     PendingOrdersByCustomerInput,
 )
+from app.tools.memory_tool import MemoryRecallInput, MemoryTool
 from app.tools.production_tool import (
     ProductionAPITool,
     ProductionOrderInput,
@@ -23,17 +24,19 @@ class ReasonerExecutorAgent:
         erp_tool: ERPTool,
         production_tool: ProductionAPITool,
         rag_tool: DocumentRAGTool | None = None,
+        memory_tool: MemoryTool | None = None,
     ) -> None:
         self._erp_tool = erp_tool
         self._production_tool = production_tool
         self._rag_tool = rag_tool
+        self._memory_tool = memory_tool or MemoryTool()
 
     def __call__(self, state: AgentState) -> AgentState:
         plan = ExecutionPlan.model_validate(state.get("plan") or {})
         execution = _ExecutionContext()
 
         for step in plan.steps:
-            self._execute_step(step, execution)
+            self._execute_step(step, execution, state)
 
         return {
             **state,
@@ -49,7 +52,16 @@ class ReasonerExecutorAgent:
             "status": "executing",
         }
 
-    def _execute_step(self, step: PlanStep, execution: "_ExecutionContext") -> None:
+    def _execute_step(
+        self,
+        step: PlanStep,
+        execution: "_ExecutionContext",
+        state: AgentState,
+    ) -> None:
+        if step.tool == "MemoryTool":
+            self._execute_memory_step(step, execution, state)
+            return
+
         if step.tool == "ERPTool":
             self._execute_erp_step(step, execution)
             return
@@ -67,6 +79,35 @@ class ReasonerExecutorAgent:
             source="Memoria",
             args=step.args,
             summary=f"{step.tool} no esta implementada en esta fase",
+        )
+
+    def _execute_memory_step(
+        self,
+        step: PlanStep,
+        execution: "_ExecutionContext",
+        state: AgentState,
+    ) -> None:
+        if step.action == "recall":
+            try:
+                max_turns = int(step.args.get("max_turns") or 5)
+            except (TypeError, ValueError):
+                max_turns = 5
+            result = self._memory_tool.recall(
+                MemoryRecallInput(
+                    query=str(step.args.get("query") or state.get("question") or ""),
+                    conversation_history=state.get("conversation_history", []),
+                    max_turns=max_turns,
+                )
+            )
+            execution.data["memory"] = result.data
+            execution.add_result(result, "Consulta memoria conversacional")
+            return
+
+        execution.add_skipped(
+            tool="MemoryTool",
+            source="Memoria",
+            args=step.args,
+            summary=f"Accion de memoria no soportada: {step.action}",
         )
 
     def _execute_erp_step(self, step: PlanStep, execution: "_ExecutionContext") -> None:

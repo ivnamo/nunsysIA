@@ -117,6 +117,32 @@ El razonamiento interno no debe devolverse al usuario.
 }
 ```
 
+## Ejemplo Memoria Conversacional
+
+```json
+{
+  "sources": ["Memoria", "ERP", "Produccion"],
+  "reasoning": [
+    "Consulta memoria conversacional",
+    "Consulta ERP de pedidos pendientes",
+    "Consulta API de produccion para pedido 10248",
+    "Consulta API de produccion para pedido 10252"
+  ],
+  "tool_calls": [
+    {
+      "tool": "MemoryTool",
+      "args": {"query": "Y en que estado estan?", "max_turns": 5},
+      "status": "success",
+      "output_summary": "Memoria conversacional: 1 interacciones recuperadas",
+      "source": "Memoria"
+    }
+  ],
+  "status": "completed"
+}
+```
+
+La memoria solo resuelve referencias conversacionales. Si la respuesta requiere datos de negocio actuales, deben aparecer tambien las tools deterministas correspondientes.
+
 ## Estados Posibles
 
 - `completed`: respuesta completa.
@@ -152,6 +178,10 @@ El campo `data` puede usarse para facilitar demo y auditoria, pero debe contener
 - `rag.documents`
 - `rag.citations` con `filename`, `page`, `chunk_id` y `score`
 - `rag.fallbacks`
+- `memory.status`
+- `memory.turns_count`
+- `memory.customer_id`
+- `memory.order_ids`
 
 No debe contener importes detallados, textos completos de chunks, connection strings, errores raw, prompts ni objetos internos.
 

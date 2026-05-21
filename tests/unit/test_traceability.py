@@ -95,3 +95,29 @@ def test_build_public_data_summary_does_not_return_raw_rows() -> None:
             ],
         },
     }
+
+
+def test_build_public_data_summary_includes_memory_summary_without_turn_text() -> None:
+    summary = build_public_data_summary(
+        {
+            "memory": {
+                "status": "found",
+                "turns": [
+                    {
+                        "question": "Que pedidos pendientes tiene ALFKI?",
+                        "answer": "El cliente ALFKI tiene 2 pedidos pendientes.",
+                    }
+                ],
+                "facts": {"customer_id": "ALFKI", "order_ids": [10248, 10252]},
+            }
+        }
+    )
+
+    assert summary == {
+        "memory": {
+            "status": "found",
+            "turns_count": 1,
+            "customer_id": "ALFKI",
+            "order_ids": [10248, 10252],
+        }
+    }

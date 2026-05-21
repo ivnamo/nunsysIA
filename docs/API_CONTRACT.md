@@ -37,6 +37,8 @@ Request:
 
 El repositorio mantiene este request de demo en `query.json`.
 
+`conversation_id` permite memoria conversacional en memoria de proceso. El backend conserva las ultimas 5 interacciones de cada conversacion y puede usarlas para resolver follow-ups breves. Si la memoria se consulta, la respuesta incluye fuente `Memoria` y una tool call `MemoryTool`; la memoria no sustituye a ERP, Produccion o Documentos como fuente de datos de negocio actuales.
+
 Response `200`:
 
 ```json
@@ -132,6 +134,19 @@ En respuestas RAG completadas, `data.rag` debe incluir citas documentales por ch
 }
 ```
 
+En respuestas que usen memoria conversacional, `data.memory` debe resumir solo metadatos publicos:
+
+```json
+{
+  "memory": {
+    "status": "found",
+    "turns_count": 1,
+    "customer_id": "ALFKI",
+    "order_ids": [10248, 10252]
+  }
+}
+```
+
 ## `POST /api/documents/upload`
 
 Descripcion: sube un PDF para indexarlo en el vector store documental. En local puede usarse el fallback en memoria si ChromaDB no esta instalado o disponible.
@@ -202,6 +217,7 @@ Errores posibles:
 - `data` debe ser un resumen publico de evidencias para auditoria y demo.
 - `fallbacks` debe listar cualquier ruta alternativa usada: planner por reglas, respuesta determinista, embeddings deterministas o vector store en memoria.
 - En respuestas RAG, `data.rag.documents` resume los documentos usados y `data.rag.citations` expone `filename`, `page`, `chunk_id` y `score` por chunk recuperado.
+- En respuestas con memoria, `data.memory` resume conteos e identificadores; no debe exponer todo el historial.
 - No devolver secretos.
 - Mantener respuestas compatibles con Pydantic.
 - Los errores deben ser comprensibles y trazables.

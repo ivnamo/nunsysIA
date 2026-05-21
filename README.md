@@ -11,7 +11,7 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Fase actual: **P9 - funcionalidad evaluable de producto**.
+Fase actual: **P10 - Docker Compose**. P9 queda cerrada a nivel funcional.
 
 Este repositorio contiene por ahora:
 
@@ -60,7 +60,8 @@ Este repositorio contiene por ahora:
 - PDFs mock realistas en `data/sample_docs/`;
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
 - citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
-- suite automatizada versionada actual: `96 passed, 1 warning`.
+- memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
+- suite automatizada versionada actual: `115 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -78,11 +79,12 @@ Disponible para ejecutar actualmente:
 - marcadores `FALLBACK_*` cuando se usa planner por reglas, respuesta determinista, embeddings deterministas o vector store en memoria;
 - payload de demo `query.json` para probar `/api/query`.
 - PDFs mock realistas en `data/sample_docs/` para probar RAG multi-documento.
+- follow-ups conversacionales simples por `conversation_id`, por ejemplo preguntar despues `Y en que estado estan?`.
 
 Pendiente todavia:
 
-- memoria conversacional de ultimas 5 interacciones;
 - Docker Compose.
+- guion demo final.
 
 ## Arquitectura decidida
 
@@ -312,8 +314,7 @@ Endpoints del mock:
 
 ## Siguiente fase
 
-La fase actual sigue siendo P9: funcionalidad evaluable de producto.
+P9 queda cerrada a nivel funcional con memoria conversacional simple. La siguiente fase es P10: Docker Compose.
 
-- implementar memoria conversacional de ultimas 5 interacciones;
-- despues cerrar Docker Compose.
+- cerrar Docker Compose.
 - preparar guion demo final y documentacion de entrega.

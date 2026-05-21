@@ -72,6 +72,49 @@ def test_query_endpoint_answers_erp_production_question(client: TestClient) -> N
     assert all("error" in call for call in payload["tool_calls"])
 
 
+def test_query_endpoint_keeps_conversation_memory_by_id(client: TestClient) -> None:
+    first_response = client.post(
+        "/api/query",
+        json={
+            "question": "Que pedidos pendientes tiene el cliente ALFKI?",
+            "conversation_id": "memory-api-001",
+        },
+    )
+    assert first_response.status_code == 200
+
+    second_response = client.post(
+        "/api/query",
+        json={
+            "question": "Y en que estado estan?",
+            "conversation_id": "memory-api-001",
+        },
+    )
+
+    assert second_response.status_code == 200
+    payload = second_response.json()
+    assert payload["status"] == "completed"
+    assert payload["sources"] == ["Memoria", "ERP", "Produccion"]
+    assert "10248" in payload["answer"]
+    assert "10252" in payload["answer"]
+    assert [call["tool"] for call in payload["tool_calls"]] == [
+        "MemoryTool",
+        "ERPTool",
+        "ProductionAPITool",
+        "ProductionAPITool",
+    ]
+    assert payload["data"]["memory"]["customer_id"] == "ALFKI"
+
+    isolated_response = client.post(
+        "/api/query",
+        json={
+            "question": "Y en que estado estan?",
+            "conversation_id": "memory-api-002",
+        },
+    )
+    assert isolated_response.status_code == 200
+    assert isolated_response.json()["status"] == "unsupported"
+
+
 def test_query_endpoint_answers_document_question_after_upload(
     client: TestClient,
 ) -> None:

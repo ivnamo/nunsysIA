@@ -119,6 +119,33 @@ def test_planner_marks_out_of_scope_query_as_unsupported() -> None:
     assert state["plan"]["steps"] == []
 
 
+def test_planner_uses_memory_for_contextual_follow_up() -> None:
+    planner = PlannerAgent()
+
+    state = planner(
+        {
+            "question": "Y en que estado estan?",
+            "attempts": 0,
+            "conversation_history": [
+                {
+                    "question": "Que pedidos pendientes tiene el cliente ALFKI?",
+                    "answer": "El cliente ALFKI tiene 2 pedidos pendientes: 10248, 10252.",
+                    "facts": {"customer_id": "ALFKI", "order_ids": [10248, 10252]},
+                }
+            ],
+        }
+    )
+
+    assert state["intent"] == "erp_production"
+    assert state["plan"]["expected_sources"] == ["Memoria", "ERP", "Produccion"]
+    assert [step["tool"] for step in state["plan"]["steps"]] == [
+        "MemoryTool",
+        "ERPTool",
+        "ProductionAPITool",
+    ]
+    assert state["plan"]["steps"][1]["args"] == {"customer_id": "ALFKI"}
+
+
 def test_planner_uses_llm_plan_when_it_matches_allowed_contract() -> None:
     chat_model = _FakeChatModel(
         """

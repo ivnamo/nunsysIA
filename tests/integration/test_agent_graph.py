@@ -59,6 +59,40 @@ def test_agent_graph_answers_pending_orders_with_production_status(
     ]
 
 
+def test_agent_graph_uses_memory_to_resolve_follow_up(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        question="Y en que estado estan?",
+        conversation_id="demo-memory",
+        conversation_history=[
+            {
+                "question": "Que pedidos pendientes tiene el cliente ALFKI?",
+                "answer": "El cliente ALFKI tiene 2 pedidos pendientes: 10248, 10252.",
+                "status": "completed",
+                "sources": ["ERP"],
+                "facts": {"customer_id": "ALFKI", "order_ids": [10248, 10252]},
+            }
+        ],
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Memoria", "ERP", "Produccion"]
+    assert "10248" in response.answer
+    assert "10252" in response.answer
+    assert [call.tool for call in response.tool_calls] == [
+        "MemoryTool",
+        "ERPTool",
+        "ProductionAPITool",
+        "ProductionAPITool",
+    ]
+    assert response.data["memory"]["customer_id"] == "ALFKI"
+    assert response.data["memory"]["order_ids"] == [10248, 10252]
+
+
 def test_agent_graph_answers_blocked_orders_with_erp_customer_context(
     erp_tool: ERPTool,
     production_tool: ProductionAPITool,

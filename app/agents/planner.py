@@ -1,5 +1,6 @@
 import json
 import re
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from typing import Any, Literal
 
@@ -23,6 +24,7 @@ _ALLOWED_TOOL_ACTIONS: dict[str, set[str]] = {
         "get_status_for_erp_orders",
     },
     "DocumentRAGTool": {"query"},
+    "MemoryTool": {"recall"},
 }
 _ALLOWED_SOURCES = {"ERP", "Produccion", "Documentos", "Memoria"}
 _PRODUCTION_STATUSES = {"in_progress", "blocked", "delayed", "finished"}
@@ -75,11 +77,11 @@ class PlannerAgent:
         state: AgentState,
     ) -> tuple[ExecutionPlan, str | None]:
         if _is_order_penalty_query(normalized):
-            return self._build_rule_based_plan(question, normalized), None
+            return self._build_rule_based_plan(question, normalized, state), None
 
         if self._chat_model is None:
             return (
-                self._build_rule_based_plan(question, normalized),
+                self._build_rule_based_plan(question, normalized, state),
                 "FALLBACK_PLANNER_RULE_BASED: LLM planner no configurado; plan creado por reglas.",
             )
 
@@ -88,7 +90,7 @@ class PlannerAgent:
             return llm_plan, None
 
         return (
-            self._build_rule_based_plan(question, normalized),
+            self._build_rule_based_plan(question, normalized, state),
             _planner_fallback(llm_error),
         )
 
@@ -177,6 +179,12 @@ Allowed tool actions:
 - ProductionAPITool.list_orders(args: {{"status": "blocked|delayed|in_progress|finished"}})
 - ProductionAPITool.get_status_for_erp_orders(args: {{}})
 - DocumentRAGTool.query(args: {{"query": "<question>", "top_k": 5}})
+- MemoryTool.recall(args: {{"query": "<question>", "max_turns": 5}})
+
+Memory rules:
+- Use MemoryTool only to resolve short conversational references.
+- Do not treat memory as a source of business truth; after resolving references, use ERP, Produccion or Documentos tools for current facts.
+- For pure conversation summaries, MemoryTool can be the only tool.
 
 Source names:
 ERP, Produccion, Documentos, Memoria
@@ -207,6 +215,7 @@ Output schema:
 }}
 
 Previous failure reason: {failure_reason}
+Conversation history: {_compact_history_for_prompt(state)}
 User question: {question}
 """.strip()
 
@@ -224,7 +233,20 @@ User question: {question}
         finally:
             executor.shutdown(wait=False, cancel_futures=True)
 
-    def _build_rule_based_plan(self, question: str, normalized: str) -> ExecutionPlan:
+    def _build_rule_based_plan(
+        self,
+        question: str,
+        normalized: str,
+        state: AgentState,
+    ) -> ExecutionPlan:
+        contextual_plan = _build_contextual_rule_based_plan(
+            question=question,
+            normalized=normalized,
+            history=state.get("conversation_history", []),
+        )
+        if contextual_plan is not None:
+            return contextual_plan
+
         if _is_order_penalty_query(normalized):
             return ExecutionPlan(
                 intent="mixed",
@@ -380,6 +402,207 @@ User question: {question}
         return matches[0] if matches else None
 
 
+def _build_contextual_rule_based_plan(
+    question: str,
+    normalized: str,
+    history: list[dict[str, Any]],
+) -> ExecutionPlan | None:
+    if not history:
+        return None
+
+    normalized_ascii = _strip_accents(normalized)
+    if not _looks_like_contextual_followup(normalized_ascii):
+        return None
+
+    facts = _conversation_facts(history)
+    customer_id = facts.get("customer_id")
+    order_ids = facts.get("order_ids", [])
+    memory_step = PlanStep(
+        step_id=1,
+        tool="MemoryTool",
+        action="recall",
+        args={"query": question, "max_turns": 5},
+    )
+
+    if "penaliz" in normalized_ascii and order_ids:
+        return ExecutionPlan(
+            intent="mixed",
+            steps=[
+                memory_step,
+                PlanStep(
+                    step_id=2,
+                    tool="ERPTool",
+                    action="get_orders_by_month",
+                    args={"year": 2026, "month": 5},
+                ),
+                PlanStep(
+                    step_id=3,
+                    tool="ProductionAPITool",
+                    action="get_status_for_erp_orders",
+                ),
+                PlanStep(
+                    step_id=4,
+                    tool="DocumentRAGTool",
+                    action="query",
+                    args={
+                        "query": (
+                            "penalizaciones por retrasos no aplicacion bloqueo "
+                            "produccion falta material falta capacidad averia linea"
+                        ),
+                        "top_k": 5,
+                    },
+                ),
+            ],
+            expected_sources=["Memoria", "ERP", "Produccion", "Documentos"],
+            answer_requirements=[
+                "Resolver la referencia con memoria y responder con fuentes actuales.",
+            ],
+        )
+
+    if any(
+        marker in normalized_ascii
+        for marker in ("estado", "producci", "bloquead", "retrasad")
+    ) and customer_id:
+        return ExecutionPlan(
+            intent="erp_production",
+            steps=[
+                memory_step,
+                PlanStep(
+                    step_id=2,
+                    tool="ERPTool",
+                    action="get_pending_orders_by_customer",
+                    args={"customer_id": customer_id},
+                ),
+                PlanStep(
+                    step_id=3,
+                    tool="ProductionAPITool",
+                    action="get_status_for_erp_orders",
+                ),
+            ],
+            expected_sources=["Memoria", "ERP", "Produccion"],
+            answer_requirements=[
+                "Usar memoria solo para resolver el cliente y consultar datos actuales.",
+            ],
+        )
+
+    if "pendient" in normalized_ascii and customer_id:
+        return ExecutionPlan(
+            intent="erp",
+            steps=[
+                memory_step,
+                PlanStep(
+                    step_id=2,
+                    tool="ERPTool",
+                    action="get_pending_orders_by_customer",
+                    args={"customer_id": customer_id},
+                ),
+            ],
+            expected_sources=["Memoria", "ERP"],
+            answer_requirements=[
+                "Usar memoria solo para resolver el cliente y consultar ERP.",
+            ],
+        )
+
+    if _is_memory_summary_query(normalized_ascii):
+        return ExecutionPlan(
+            intent="conversation",
+            steps=[memory_step],
+            expected_sources=["Memoria"],
+            answer_requirements=["Resumir de forma breve el historial disponible."],
+        )
+
+    return None
+
+
+def _conversation_facts(history: list[dict[str, Any]]) -> dict[str, Any]:
+    facts: dict[str, Any] = {}
+    order_ids: list[int] = []
+
+    for turn in history:
+        turn_facts = turn.get("facts") if isinstance(turn, dict) else None
+        if isinstance(turn_facts, dict):
+            customer_id = turn_facts.get("customer_id")
+            if isinstance(customer_id, str) and re.fullmatch(r"[A-Z]{5}", customer_id):
+                facts["customer_id"] = customer_id
+
+            for order_id in turn_facts.get("order_ids", []):
+                try:
+                    normalized_order_id = int(order_id)
+                except (TypeError, ValueError):
+                    continue
+                if normalized_order_id not in order_ids:
+                    order_ids.append(normalized_order_id)
+
+        if "customer_id" not in facts:
+            for field in ("question", "answer"):
+                value = turn.get(field) if isinstance(turn, dict) else None
+                if isinstance(value, str):
+                    customer_id = PlannerAgent._extract_customer_id(value)
+                    if customer_id:
+                        facts["customer_id"] = customer_id
+                        break
+
+    if order_ids:
+        facts["order_ids"] = order_ids
+    return facts
+
+
+def _looks_like_contextual_followup(normalized_ascii: str) -> bool:
+    text = normalized_ascii.strip(" ?!¡¿")
+    return text.startswith(("y ", "cuales", "que pasa", "entonces")) or any(
+        marker in text
+        for marker in (
+            " esos",
+            " esas",
+            " ellos",
+            " ellas",
+            " anteriores",
+            " anterior",
+            " lo anterior",
+            " la anterior",
+            " ultima",
+            " ultimo",
+        )
+    )
+
+
+def _is_memory_summary_query(normalized_ascii: str) -> bool:
+    return any(
+        marker in normalized_ascii
+        for marker in ("resume lo anterior", "resumen de lo anterior", "que hemos visto")
+    )
+
+
+def _compact_history_for_prompt(state: AgentState) -> str:
+    compact_history = []
+    for turn in state.get("conversation_history", [])[-5:]:
+        if not isinstance(turn, dict):
+            continue
+        compact_history.append(
+            {
+                "question": _short_text(str(turn.get("question") or ""), 180),
+                "answer": _short_text(str(turn.get("answer") or ""), 240),
+                "facts": turn.get("facts") if isinstance(turn.get("facts"), dict) else {},
+            }
+        )
+    return json.dumps(compact_history, ensure_ascii=True)
+
+
+def _strip_accents(value: str) -> str:
+    return "".join(
+        character
+        for character in unicodedata.normalize("NFD", value)
+        if unicodedata.category(character) != "Mn"
+    )
+
+
+def _short_text(value: str, max_length: int) -> str:
+    normalized = " ".join(value.split())
+    if len(normalized) <= max_length:
+        return normalized
+    return normalized[: max_length - 3].rstrip() + "..."
+
+
 def _message_content(response: Any) -> str:
     content = getattr(response, "content", response)
     if isinstance(content, str):
@@ -444,6 +667,17 @@ def _normalize_step_args(step: PlanStep, question: str) -> dict[str, Any]:
                 maximum=1,
             )
         return args
+
+    if step.tool == "MemoryTool" and step.action == "recall":
+        return {
+            "query": str(step.args.get("query") or question),
+            "max_turns": _bounded_int(
+                step.args.get("max_turns"),
+                default=5,
+                minimum=1,
+                maximum=5,
+            ),
+        }
 
     return {}
 

@@ -1,3 +1,5 @@
+from typing import Any
+
 from langgraph.graph import END, StateGraph
 
 from app.agents.final_response import FinalResponseBuilder
@@ -61,6 +63,7 @@ def run_agent_graph(
     production_tool: ProductionAPITool,
     question: str,
     conversation_id: str | None = None,
+    conversation_history: list[dict[str, Any]] | None = None,
     rag_tool: DocumentRAGTool | None = None,
     chat_model: ChatModel | None = None,
     llm_timeout_seconds: float = 8.0,
@@ -76,7 +79,7 @@ def run_agent_graph(
         {
             "question": question,
             "conversation_id": conversation_id,
-            "conversation_history": [],
+            "conversation_history": conversation_history or [],
             "attempts": 0,
             "tool_results": [],
             "sources": [],

@@ -69,7 +69,7 @@ Las tools son deterministas y devuelven datos estructurados:
 - `ERPTool`: consulta Northwind.
 - `ProductionAPITool`: consulta la API mock de produccion.
 - `DocumentRAGTool`: consulta documentos indexados en el vector store documental.
-- `MemoryTool`: previsto para recuperar las ultimas interacciones; todavia no esta implementado ni se usa en planes deterministas. Si apareciera en un plan, el executor lo marcaria como `skipped`.
+- `MemoryTool`: recupera las ultimas 5 interacciones por `conversation_id`. Se usa solo para resolver referencias conversacionales; los datos de negocio actuales deben seguir saliendo de ERP, Produccion o Documentos.
 
 ## RAG
 
@@ -139,10 +139,10 @@ Implementado y validado manualmente:
 - Trazabilidad estructurada y sanitizada.
 - Planner hibrido con LLM opcional.
 - Respuesta final con LLM controlado y fallback determinista.
+- Memoria conversacional simple con traza `Memoria`.
 
 Pendiente para cierre de producto:
 
-- memoria conversacional de 5 interacciones;
 - Docker Compose completo.
 
 ## Por Que Encaja con una POC Senior

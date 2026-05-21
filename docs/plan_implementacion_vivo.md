@@ -4,7 +4,7 @@ Este documento refleja el estado actual del repositorio. Para el desglose histor
 
 ## Estado actual
 
-La POC esta en **P9 - funcionalidad evaluable de producto**.
+La POC esta en **P10 - Docker Compose**. P9 queda cerrada a nivel funcional.
 
 Ya existe codigo funcional para:
 
@@ -17,12 +17,12 @@ Ya existe codigo funcional para:
 - FinalResponseBuilder con LLM controlado y fallback determinista.
 - RAG PDF con ChromaDB como objetivo y fallback en memoria cuando Chroma no esta disponible.
 - Chainlit conectado al backend, con subida de PDFs y comando `/documentos`.
+- Memoria conversacional simple de ultimas 5 interacciones por `conversation_id`.
 - Trazabilidad publica: fuentes, pasos, tool calls, fallbacks, estado, confianza y resumen de evidencias.
-- Tests automatizados versionados: `96 passed, 1 warning` en la validacion local actual.
+- Tests automatizados versionados: `115 passed, 2 warnings` en la validacion local actual.
 
 ## Pendiente real
 
-- Implementar memoria conversacional simple para las ultimas 5 interacciones por `conversation_id`.
 - Cerrar Docker Compose con backend, API mock de produccion, ChromaDB y Chainlit.
 - Decidir si el ERP pasa de SQLite en memoria a Postgres dentro del compose o si se conserva SQLite para demo.
 - Preparar guion demo final de 3-5 minutos.
@@ -37,21 +37,17 @@ Ya existe codigo funcional para:
 | ChromaDB como vector store objetivo | Vigente | Soporta `persistent` embebido y `http`; sin cliente o servidor disponible hay fallback en memoria. |
 | ERP con SQLite en memoria | Vigente para P9 | Se carga desde `data/northwind_seed.sql`; `ERP_DATABASE_URL` queda reservado para Docker/Postgres. |
 | Chainlit como UI de demo | Vigente | Muestra respuesta, fuentes, citas, pasos, tool calls y fallbacks. |
+| Memoria conversacional | Vigente para P9 | In-memory por proceso, maximo 5 turnos por `conversation_id`; sirve para resolver referencias, no como fuente de verdad. |
 
 ## Plan inmediato
 
-1. Memoria conversacional.
-   - Guardar por `conversation_id` las ultimas 5 interacciones.
-   - Usarla solo como contexto acotado, sin convertirla en fuente de verdad.
-   - Mostrar `Memoria` en trazabilidad si se consulta.
-
-2. Docker Compose.
+1. Docker Compose.
    - Crear `Dockerfile`.
    - Crear `docker-compose.yml`.
    - Incluir servicios para backend, produccion mock, Chainlit y ChromaDB.
    - Ajustar variables por entorno Docker frente a local.
 
-3. Cierre de demo.
+2. Cierre de demo.
    - Ejecutar `pytest`.
    - Ejecutar checklist de `docs/MANUAL_VALIDATION.md`.
    - Confirmar que no hay secretos en Git.

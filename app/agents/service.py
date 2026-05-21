@@ -7,6 +7,7 @@ from app.production.client import ProductionAPIClient
 from app.rag.ingestion import DocumentIngestionService
 from app.schemas.query import QueryRequest, QueryResponse
 from app.tools.erp_tool import ERPTool
+from app.tools.memory_tool import ConversationMemoryStore
 from app.tools.production_tool import ProductionAPITool
 from app.tools.rag_tool import DocumentRAGTool
 
@@ -19,15 +20,18 @@ class QueryWorkflowService:
         rag_tool: DocumentRAGTool | None = None,
         chat_model: ChatModel | None = None,
         llm_timeout_seconds: float = 8.0,
+        memory_store: ConversationMemoryStore | None = None,
     ) -> None:
         self._erp_tool = erp_tool
         self._production_tool = production_tool
         self._rag_tool = rag_tool
         self._chat_model = chat_model
         self._llm_timeout_seconds = llm_timeout_seconds
+        self._memory_store = memory_store or ConversationMemoryStore()
 
     def run(self, request: QueryRequest) -> QueryResponse:
-        return run_agent_graph(
+        conversation_history = self._memory_store.history(request.conversation_id)
+        response = run_agent_graph(
             erp_tool=self._erp_tool,
             production_tool=self._production_tool,
             rag_tool=self._rag_tool,
@@ -35,7 +39,14 @@ class QueryWorkflowService:
             llm_timeout_seconds=self._llm_timeout_seconds,
             question=request.question,
             conversation_id=request.conversation_id,
+            conversation_history=conversation_history,
         )
+        self._memory_store.remember(
+            conversation_id=request.conversation_id,
+            question=request.question,
+            response=response,
+        )
+        return response
 
 
 def create_query_workflow_service(

@@ -29,13 +29,17 @@ _PRODUCTION_STATUSES = {"in_progress", "blocked", "delayed", "finished"}
 
 
 def normalize_plan(plan: ExecutionPlan, question: str) -> ExecutionPlan | None:
-    if plan.intent == "unsupported":
+    if plan.intent in {"unsupported", "clarification"}:
+        default_requirement = (
+            _default_clarification_requirement(question)
+            if plan.intent == "clarification"
+            else "Explicar que la pregunta esta fuera del alcance actual."
+        )
         return ExecutionPlan(
-            intent="unsupported",
+            intent=plan.intent,
             steps=[],
             expected_sources=[],
-            answer_requirements=plan.answer_requirements
-            or ["Explicar que la pregunta esta fuera del alcance actual."],
+            answer_requirements=plan.answer_requirements or [default_requirement],
         )
 
     normalized_steps = []
@@ -180,3 +184,13 @@ def _source_for_tool(tool: str) -> str | None:
 
 def _is_customer_id(value: str) -> bool:
     return len(value) == 5 and all("A" <= character <= "Z" for character in value)
+
+
+def _default_clarification_requirement(question: str) -> str:
+    normalized = question.lower()
+    if "pedido" in normalized or "pendient" in normalized:
+        return (
+            "Pedir un cliente concreto o pedidos concretos para consultar "
+            "pedidos sin inventar."
+        )
+    return "Pedir el dato concreto que falta para continuar."

@@ -1,6 +1,6 @@
 from app.agents.planner_context import (
+    build_contextual_clarification_plan,
     build_contextual_rule_based_plan,
-    build_contextual_unsupported_plan,
 )
 from app.agents.planner_llm import build_llm_plan, planner_fallback
 from app.agents.planner_models import ExecutionPlan, PlanStep, PlanTool
@@ -43,12 +43,12 @@ class PlannerAgent:
         normalized: str,
         state: AgentState,
     ) -> tuple[ExecutionPlan, str | None]:
-        contextual_unsupported_plan = build_contextual_unsupported_plan(
+        contextual_clarification_plan = build_contextual_clarification_plan(
             normalized=normalized,
             history=state.get("conversation_history", []),
         )
-        if contextual_unsupported_plan is not None:
-            return contextual_unsupported_plan, None
+        if contextual_clarification_plan is not None:
+            return contextual_clarification_plan, None
 
         contextual_plan = build_contextual_rule_based_plan(
             question=question,

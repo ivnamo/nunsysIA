@@ -115,6 +115,30 @@ def test_validator_fails_rag_when_context_is_insufficient() -> None:
     assert state["validation_decision"] == "fail"
 
 
+def test_validator_finishes_clarification_without_replanning() -> None:
+    validator = ValidatorNode()
+
+    state = validator(
+        {
+            "plan": {
+                "intent": "clarification",
+                "steps": [],
+                "expected_sources": [],
+                "answer_requirements": ["Pedir el cliente concreto."],
+            },
+            "sources": [],
+            "tool_calls": [],
+            "reasoning": [],
+            "attempts": 0,
+        }
+    )
+
+    assert state["status"] == "needs_clarification"
+    assert state["validation_decision"] == "fail"
+    assert "Falta informacion" in state["failure_reason"]
+    assert state.get("attempts") == 0
+
+
 def test_validator_fails_mixed_plan_when_document_context_is_insufficient() -> None:
     validator = ValidatorNode()
 

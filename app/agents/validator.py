@@ -15,6 +15,14 @@ class ValidatorNode:
                 "failure_reason": "La pregunta queda fuera del alcance de la POC actual.",
             }
 
+        if plan.intent == "clarification":
+            return {
+                **state,
+                "status": "needs_clarification",
+                "validation_decision": "fail",
+                "failure_reason": "Falta informacion concreta para responder sin inventar.",
+            }
+
         tool_calls = state.get("tool_calls", [])
         failed_calls = [call for call in tool_calls if call.status == "error"]
         if failed_calls:

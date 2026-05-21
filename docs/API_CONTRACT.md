@@ -113,6 +113,12 @@ Estados posibles:
 - `tool_error`
 - `failed`
 - `unsupported`
+- `needs_clarification`
+
+`needs_clarification` se usa cuando la pregunta es de dominio, pero falta un
+dato imprescindible para consultar sin inventar, por ejemplo cliente, pedido,
+periodo o contexto conversacional previo. En ese caso no se ejecutan tools y la
+respuesta debe pedir una aclaracion concreta.
 
 Errores posibles:
 

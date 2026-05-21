@@ -32,6 +32,9 @@ def build_deterministic_answer(
     if status == "unsupported":
         return _unsupported_answer(plan)
 
+    if status == "needs_clarification":
+        return _clarification_answer(plan)
+
     if status == "insufficient_context":
         return "No hay contexto documental suficiente para responder sin inventar."
 
@@ -76,6 +79,8 @@ def confidence_for_status(status: QueryStatus) -> float | None:
         return 0.9
     if status in {"partial_answer", "insufficient_context"}:
         return 0.45
+    if status == "needs_clarification":
+        return 0.6
     return None
 
 
@@ -99,20 +104,23 @@ def translated_status_text(text: str) -> str:
 
 
 def _unsupported_answer(plan: ExecutionPlan) -> str:
+    return "La pregunta queda fuera del alcance de esta POC en su estado actual."
+
+
+def _clarification_answer(plan: ExecutionPlan) -> str:
     requirements_text = " ".join(plan.answer_requirements).lower()
     if "cliente concreto" in requirements_text:
         return (
-            "La pregunta necesita un cliente concreto o contexto "
-            "conversacional previo para consultar pedidos pendientes. "
+            "Para consultar pedidos pendientes necesito un cliente concreto "
+            "o contexto conversacional previo. "
             "Indica el cliente o los pedidos concretos."
         )
     if "contexto conversacional previo" in requirements_text:
         return (
-            "La pregunta necesita contexto conversacional previo; en esta "
-            "conversacion no hay pedidos referenciados, asi que queda fuera "
-            "del alcance actual. Indica el cliente o los pedidos concretos."
+            "Necesito contexto conversacional previo para resolver a que "
+            "pedidos te refieres. Indica el cliente o los pedidos concretos."
         )
-    return "La pregunta queda fuera del alcance de esta POC en su estado actual."
+    return "Necesito un dato mas para responder sin inventar. Indica el cliente, pedido o periodo concreto."
 
 
 def _answer_erp_orders(data: dict[str, Any]) -> str:

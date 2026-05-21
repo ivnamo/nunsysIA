@@ -10,7 +10,7 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R11 cerrada** y queda lista para demo/revision tecnica. El guion
+La POC tiene **R12 cerrada** y queda lista para demo/revision tecnica. El guion
 final esta en `docs/DEMO_SCRIPT.md`.
 
 Estado declarado y versionado:
@@ -23,7 +23,7 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `142 passed, 2 warnings`.
+- Suite automatizada declarada: `145 passed, 2 warnings`.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
   beta con LLM/embeddings reales.
 
@@ -161,7 +161,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R9 | cerrado | Trazabilidad de replanning | Se pierde historia de intentos | `feat(agents): retain replan attempt traces` |
 | R10 | cerrado | Docker Compose | Runtime no reproducible | `feat(runtime): add docker compose stack` |
 | R11 | cerrado | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
-| R12 | pendiente | Contrato de clarificacion | Ambiguedad tratada como fuera de dominio | `feat(agent): add clarification status for ambiguous queries` |
+| R12 | cerrado | Contrato de clarificacion | Ambiguedad tratada como fuera de dominio | `feat(agent): add clarification status for ambiguous queries` |
 | R13 | pendiente | Planner flexible con tools existentes | Routing rigido ante sinonimos de negocio | `feat(planner): broaden flexible business routing` |
 | R14 | pendiente | Modelos y validadores de Query DSL | LLM demasiado cerca de SQL/HTTP libre | `feat(tools): add safe query dsl models` |
 | R15 | pendiente | ERPQueryTool y ProductionQueryTool | Consultas abiertas sin schema cerrado | `feat(tools): add safe ERP and production query dsl` |
@@ -238,7 +238,7 @@ Archivos previstos:
 
 Cambio esperado:
 
-- Si la pregunta requiere cliente y no hay `customer_id` explicito ni memoria que lo resuelva, devolver `unsupported` o pedir concrecion en la respuesta final.
+- Si la pregunta requiere cliente y no hay `customer_id` explicito ni memoria que lo resuelva, no asumir defaults y pedir concrecion de forma controlada.
 - Mantener los casos de demo con `ALFKI` explicito.
 - Marcar como fallback visible el planner determinista cuando no hay LLM, tambien para rutas especiales.
 
@@ -265,7 +265,8 @@ Estado 2026-05-21:
 
 - Eliminado el default silencioso a `ALFKI` en reglas deterministas del planner.
 - Eliminado el default silencioso a `ALFKI` al normalizar planes LLM con `customer_id` ausente o invalido.
-- La respuesta final `unsupported` pide cliente concreto o contexto conversacional previo.
+- La ambiguedad quedo protegida sin asumir `ALFKI`; desde R12 se expresa como
+  `needs_clarification`.
 - Agregadas regresiones en `tests/unit/test_planner.py` y `tests/integration/test_query_endpoint.py`.
 - Validado con pytest focalizado:
   - `tests/unit/test_planner.py`: 15 passed.
@@ -896,6 +897,35 @@ Criterio de aceptacion:
 - `Que dice el PDF sobre satelites?` sigue devolviendo
   `insufficient_context` si pasa por RAG sin evidencia.
 
+Estado:
+
+- Cerrado el 2026-05-21.
+- `QueryStatus` y `WorkflowStatus` incluyen `needs_clarification`.
+- El planner acepta el intent interno `clarification` y lo normaliza como plan
+  sin tool calls.
+- `ValidatorNode` convierte `clarification` en `needs_clarification` sin
+  replanning.
+- `FinalResponseBuilder` no invoca LLM para aclaraciones; responde con una
+  pregunta concreta y sin consultar tools.
+- `unsupported` queda reservado para preguntas fuera de dominio.
+- Tests focalizados:
+  - `tests/unit/test_planner.py`: 16 passed.
+  - `tests/unit/test_validator.py`: 8 passed.
+  - `tests/unit/test_final_response.py`: 14 passed.
+  - `tests/integration/test_query_endpoint.py`: 7 passed.
+  - `tests/integration/test_agent_graph.py`: 12 passed.
+  - `tests/unit/test_chainlit_client.py tests/unit/test_chainlit_formatting.py`: 12 passed.
+- Suite completa: `145 passed, 2 warnings`.
+- Smoke Docker con Gemini real y ChromaDB HTTP en coleccion
+  `beta_r12_clarification_20260521`:
+  - `Que pedidos pendientes hay?`: `needs_clarification`, sin tool calls ni
+    fallbacks, pide cliente o pedidos concretos.
+  - `Y en que estado estan?` sin historial: `needs_clarification`, sin tool
+    calls ni fallbacks.
+  - `Hazme una receta vegana`: `unsupported`, sin tool calls ni fallbacks.
+  - ALFKI ERP+produccion: `completed`, fuentes `ERP` y `Produccion`, sin
+    fallbacks.
+
 ## Fase R13 - Planner flexible con tools existentes
 
 Prioridad: **despues de R12, antes de DSL**.
@@ -1241,3 +1271,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R8 | cerrado | Upload PDF endurecido con UploadFile, compatibilidad application/pdf y tests de errores 400/413; `pytest`: 139 passed | este bloque |
 | 2026-05-21 | R9 | cerrado | Replanning visible en `data.replanning` sin planes raw ni chain-of-thought; `pytest`: 142 passed | este bloque |
 | 2026-05-21 | R11 | cerrado | Guion demo final creado; Docker smoke final con Gemini/Chroma PASS sin fallbacks; `pytest`: 142 passed | este bloque |
+| 2026-05-21 | R12 | cerrado | `needs_clarification` implementado para ambiguedades de dominio; Docker smoke Gemini PASS; `pytest`: 145 passed | este bloque |

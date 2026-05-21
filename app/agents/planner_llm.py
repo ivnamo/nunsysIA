@@ -57,10 +57,12 @@ Goal:
 - Classify the user question.
 - Build a serializable execution plan using only the allowed tools and actions.
 - The executor has deterministic tools; never invent data.
+- If the question is in domain but lacks a required customer, order, period or
+  conversational reference, return clarification with no steps.
 - If the question is outside ERP, production, RAG documents, or short conversation, return unsupported.
 
 Allowed intents:
-erp, production, erp_production, rag, mixed, conversation, unsupported
+erp, production, erp_production, rag, mixed, conversation, clarification, unsupported
 
 Allowed tool actions:
 - ERPTool.get_pending_orders_by_customer(args: {{"customer_id": "ALFKI"}})
@@ -82,6 +84,8 @@ Source names:
 ERP, Produccion, Documentos, Memoria
 
 Business examples:
+- Ambiguous pending orders without customer or context: clarification, no steps.
+- Isolated follow-up without conversation history: clarification, no steps.
 - Pending orders for a customer: ERPTool.get_pending_orders_by_customer.
 - Pending orders plus production status: ERP first, then ProductionAPITool.get_status_for_erp_orders.
 - Blocked orders and reason: ProductionAPITool.list_orders(status=blocked), then ERPTool.get_customers_for_production_orders.
@@ -94,7 +98,7 @@ Business examples:
 
 Output schema:
 {{
-  "intent": "erp|production|erp_production|rag|mixed|conversation|unsupported",
+  "intent": "erp|production|erp_production|rag|mixed|conversation|clarification|unsupported",
   "steps": [
     {{
       "step_id": 1,

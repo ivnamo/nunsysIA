@@ -193,6 +193,7 @@ def _query_status(status: str) -> QueryStatus:
         "tool_error",
         "failed",
         "unsupported",
+        "needs_clarification",
     }
     return status if status in allowed else "failed"
 

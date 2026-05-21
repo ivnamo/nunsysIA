@@ -15,6 +15,8 @@ evaluables de demo:
 - Validacion manual reproducible.
 - Guardrails para no inventar y devolver `insufficient_context`.
 - Memoria conversacional simple de ultimas 5 interacciones por `conversation_id`.
+- Clarificaciones controladas con `needs_clarification` cuando una pregunta de
+  dominio necesita cliente, pedido o contexto previo.
 
 Pendiente antes del cierre final:
 
@@ -23,9 +25,9 @@ Pendiente antes del cierre final:
 
 Extension opcional post-cierre:
 
-- R12-R18 en `docs/plan_implementacion_vivo.md`: flexibilidad
-  conversacional, `needs_clarification`, Query DSL segura, joins controlados y
-  tests reales opt-in con LLM. No bloquea la revision actual.
+- R13-R18 en `docs/plan_implementacion_vivo.md`: planner flexible, Query DSL
+  segura, joins controlados y tests reales opt-in con LLM. No bloquea la
+  revision actual.
 
 ## Fase 0: Setup y estructura
 
@@ -310,7 +312,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`142 passed, 2 warnings`).
+- Mantener suite automatizada versionada actual (`145 passed, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.
@@ -353,7 +355,7 @@ ERP/Produccion mediante una DSL validada.
 
 Tareas:
 
-- Anadir `needs_clarification` al contrato publico.
+- Mantener `needs_clarification` ya incorporado en R12 para ambiguedades de dominio.
 - Ampliar routing del planner con sinonimos de negocio y normalizacion de
   cliente/pedido.
 - Crear modelos y validadores de Query DSL antes de ejecutar nada.

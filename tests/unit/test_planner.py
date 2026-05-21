@@ -46,12 +46,12 @@ def test_planner_creates_erp_production_plan_for_pending_orders() -> None:
     ]
 
 
-def test_planner_marks_pending_orders_without_customer_as_unsupported() -> None:
+def test_planner_marks_pending_orders_without_customer_as_clarification() -> None:
     planner = PlannerAgent()
 
     state = planner({"question": "Que pedidos pendientes hay?", "attempts": 0})
 
-    assert state["intent"] == "unsupported"
+    assert state["intent"] == "clarification"
     assert state["plan"]["steps"] == []
     assert "cliente concreto" in state["plan"]["answer_requirements"][0]
 
@@ -80,9 +80,30 @@ def test_planner_does_not_default_llm_pending_order_plan_to_alfki() -> None:
     state = planner({"question": "Que pedidos pendientes hay?", "attempts": 0})
 
     assert chat_model.calls == 1
-    assert state["intent"] == "unsupported"
+    assert state["intent"] == "clarification"
     assert state["plan"]["steps"] == []
     assert "ALFKI" not in str(state["plan"])
+
+
+def test_planner_normalizes_llm_clarification_for_pending_orders() -> None:
+    chat_model = _FakeChatModel(
+        """
+        {
+          "intent": "clarification",
+          "steps": [],
+          "expected_sources": [],
+          "answer_requirements": []
+        }
+        """
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner({"question": "Que pedidos pendientes hay?", "attempts": 0})
+
+    assert chat_model.calls == 1
+    assert state["intent"] == "clarification"
+    assert state["plan"]["steps"] == []
+    assert "cliente concreto" in state["plan"]["answer_requirements"][0]
 
 
 def test_planner_creates_blocked_orders_plan() -> None:
@@ -245,7 +266,7 @@ def test_planner_uses_memory_and_amounts_for_economic_impact_follow_up() -> None
     assert state["plan"]["steps"][1]["args"] == {"order_ids": [10252]}
 
 
-def test_planner_marks_isolated_contextual_follow_up_as_unsupported_before_llm() -> None:
+def test_planner_marks_isolated_contextual_follow_up_as_clarification_before_llm() -> None:
     chat_model = _FakeChatModel(
         """
         {
@@ -269,7 +290,7 @@ def test_planner_marks_isolated_contextual_follow_up_as_unsupported_before_llm()
     state = planner({"question": "Y en que estado estan?", "attempts": 0})
 
     assert chat_model.calls == 0
-    assert state["intent"] == "unsupported"
+    assert state["intent"] == "clarification"
     assert state["plan"]["steps"] == []
     assert "contexto conversacional previo" in state["plan"]["answer_requirements"][0]
 

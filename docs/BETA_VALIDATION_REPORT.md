@@ -2253,3 +2253,80 @@ Validacion automatizada local posterior:
 
 Decision: R11 queda cerrada. La POC queda lista para demo/revision tecnica con
 guion en `docs/DEMO_SCRIPT.md`.
+
+## Iteracion R12 - Clarificaciones controladas con Docker y Gemini real
+
+Fecha: 2026-05-21.
+
+Objetivo:
+
+- Validar que las preguntas de dominio ambiguas no se tratan como fuera de
+  dominio ni disparan tools sin datos suficientes.
+- Mantener `unsupported` para preguntas fuera de alcance.
+- Confirmar que el caso ERP + produccion de demo no se rompe.
+
+Runtime:
+
+- Docker Compose con `docker-compose.secrets.yml`.
+- `LLM_PROVIDER=gemini`.
+- `EMBEDDING_PROVIDER=deterministic` porque R12 no cambia RAG ni embeddings.
+- ChromaDB HTTP activo.
+- Coleccion: `beta_r12_clarification_20260521`.
+- Backend, production mock y ChromaDB: `healthy`.
+
+Casos ejecutados:
+
+### R12-AMBIG-PENDING - PASS
+
+Pregunta: `Que pedidos pendientes hay?`
+
+Resultado:
+
+- `status`: `needs_clarification`
+- `sources`: `[]`
+- `tool_calls`: `[]`
+- `fallbacks_count`: `0`
+- respuesta: pide cliente concreto o pedidos concretos.
+
+### R12-ISOLATED-FOLLOWUP - PASS
+
+Pregunta: `Y en que estado estan?` en una conversacion sin historial.
+
+Resultado:
+
+- `status`: `needs_clarification`
+- `sources`: `[]`
+- `tool_calls`: `[]`
+- `fallbacks_count`: `0`
+- respuesta: pide contexto conversacional previo, cliente o pedidos concretos.
+
+### R12-OUT-OF-DOMAIN - PASS
+
+Pregunta: `Hazme una receta vegana`
+
+Resultado:
+
+- `status`: `unsupported`
+- `sources`: `[]`
+- `tool_calls`: `[]`
+- `fallbacks_count`: `0`
+
+### R12-ERP-PROD - PASS
+
+Pregunta: `Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion"]`
+- `tool_calls`: `ERPTool.get_pending_orders_by_customer` y
+  `ProductionAPITool.get_status_for_erp_orders`
+- `fallbacks_count`: `0`
+
+Validacion automatizada local posterior:
+
+- Suite completa: `145 passed, 2 warnings`.
+
+Decision: R12 queda cerrada. La POC diferencia ahora entre ambiguedad de dominio
+(`needs_clarification`), falta de evidencia documental (`insufficient_context`)
+y fuera de alcance (`unsupported`).

@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R11 cerrada: POC lista para revision tecnica**.
-Siguiente bloque: **demo/revision con evaluador**.
+Estado actual: **R12 cerrada: POC lista para revision tecnica con clarificaciones controladas**.
+Siguiente bloque: **R13 planner flexible con tools existentes**, si se decide ampliar la demo.
 
 Este repositorio contiene:
 
@@ -67,7 +67,8 @@ Este repositorio contiene:
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
 - citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
 - memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
-- suite automatizada versionada actual: `142 passed, 2 warnings`.
+- estado publico `needs_clarification` para ambiguedades de dominio sin ejecutar tools ni inventar datos.
+- suite automatizada versionada actual: `145 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -86,6 +87,7 @@ Disponible para ejecutar actualmente:
 - payload de demo `query.json` para probar `/api/query`.
 - PDFs mock realistas en `data/sample_docs/` para probar RAG multi-documento.
 - follow-ups conversacionales simples por `conversation_id`, por ejemplo preguntar despues `Y en que estado estan?`.
+- clarificaciones controladas cuando falta cliente, pedido o contexto conversacional previo.
 
 Cierre:
 
@@ -410,3 +412,7 @@ chain-of-thought.
 
 R11 queda cerrada con `docs/DEMO_SCRIPT.md` y smoke final Docker con Gemini real,
 Chroma HTTP y 5 PDFs v2. La POC queda lista para demo/revision tecnica.
+
+R12 queda cerrada con `needs_clarification` para preguntas de dominio ambiguas:
+si falta cliente, pedido o contexto conversacional, el sistema pide una
+aclaracion concreta sin ejecutar tools. Suite actual: `145 passed, 2 warnings`.

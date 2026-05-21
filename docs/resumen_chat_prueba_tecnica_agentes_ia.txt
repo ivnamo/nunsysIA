@@ -42,8 +42,9 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R11 queda cerrada. La POC queda lista para demo/revision tecnica con guion
-final en `docs/DEMO_SCRIPT.md`.
+R12 queda cerrada. La POC queda lista para demo/revision tecnica con guion
+final en `docs/DEMO_SCRIPT.md` y clarificaciones controladas para preguntas
+de dominio ambiguas.
 
 Componentes implementados:
 
@@ -68,10 +69,12 @@ Componentes implementados:
   `application/pdf`
 - Replanning visible en `data.replanning` sin planes raw ni chain-of-thought
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`
+- Estado `needs_clarification` para pedir cliente, pedido o contexto cuando
+  faltan datos imprescindibles.
 
 Suite versionada actual:
 
-- `142 passed, 2 warnings`
+- `145 passed, 2 warnings`
 - Smoke final Docker con Gemini real y ChromaDB HTTP: PASS sin fallbacks en
   casos ERP+produccion, RAG, mixto, memoria y guardrail.
 
@@ -112,6 +115,7 @@ Estados permitidos:
 - tool_error
 - failed
 - unsupported
+- needs_clarification
 
 
 4. CASOS DE DEMO CUBIERTOS
@@ -139,7 +143,7 @@ Memoria conversacional:
 
 - Primera consulta: pedidos pendientes de ALFKI.
 - Follow-up con el mismo `conversation_id`: `Y en que estado estan?`.
-- Conversacion distinta sin historial: `unsupported`.
+- Conversacion distinta sin historial: `needs_clarification`.
 
 
 5. TRAZABILIDAD

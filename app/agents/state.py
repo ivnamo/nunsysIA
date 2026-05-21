@@ -13,6 +13,7 @@ AgentIntent = Literal[
     "rag",
     "mixed",
     "conversation",
+    "clarification",
     "unsupported",
 ]
 
@@ -26,6 +27,7 @@ WorkflowStatus = Literal[
     "tool_error",
     "failed",
     "unsupported",
+    "needs_clarification",
 ]
 
 ValidationDecision = Literal["finish", "replan", "fail"]

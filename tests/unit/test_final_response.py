@@ -250,6 +250,38 @@ def test_final_response_does_not_call_llm_for_insufficient_context() -> None:
     )
 
 
+def test_final_response_does_not_call_llm_for_needs_clarification() -> None:
+    chat_model = _FakeChatModel('{"answer": "Invento ALFKI"}')
+    builder = FinalResponseBuilder(chat_model=chat_model)
+
+    state = builder(
+        {
+            "question": "Que pedidos pendientes hay?",
+            "plan": {
+                "intent": "clarification",
+                "steps": [],
+                "expected_sources": [],
+                "answer_requirements": [
+                    "Pedir un cliente concreto o contexto conversacional previo "
+                    "para consultar pedidos pendientes."
+                ],
+            },
+            "status": "needs_clarification",
+            "data": {},
+            "sources": [],
+            "reasoning": [],
+            "tool_calls": [],
+            "failure_reason": "Falta informacion concreta para responder sin inventar.",
+        }
+    )
+
+    assert chat_model.calls == 0
+    assert state["response"].status == "needs_clarification"
+    assert "cliente concreto" in state["response"].answer
+    assert "ALFKI" not in state["response"].answer
+    assert state["response"].tool_calls == []
+
+
 def _erp_production_state() -> dict:
     return {
         "question": "Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?",

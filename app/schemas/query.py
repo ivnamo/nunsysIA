@@ -12,6 +12,7 @@ QueryStatus = Literal[
     "tool_error",
     "failed",
     "unsupported",
+    "needs_clarification",
 ]
 
 

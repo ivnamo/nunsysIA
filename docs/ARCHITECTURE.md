@@ -46,7 +46,7 @@ Interfaz conversacional para demo y pruebas manuales. Muestra respuesta, fuentes
 
 ### Planner Agent
 
-Clasifica la intencion de la pregunta y genera un plan estructurado. En la fase actual `PlannerAgent` es una fachada del nodo LangGraph: los modelos Pydantic viven en `planner_models.py`, el planner LLM y su timeout en `planner_llm.py`, las reglas deterministas en `planner_rules.py`/`planner_context.py` y la normalizacion de planes en `planner_normalization.py`. Puede usar Gemini/OpenAI si estan configurados, pero solo acepta planes que cumplan el schema Pydantic y una lista cerrada de tools/actions. Si el LLM falla, tarda demasiado o propone una accion no permitida, cae al planner determinista y lo declara como fallback visible. No ejecuta tools ni inventa datos.
+Clasifica la intencion de la pregunta y genera un plan estructurado. En la fase actual `PlannerAgent` es una fachada del nodo LangGraph: los modelos Pydantic viven en `planner_models.py`, el planner LLM y su timeout en `planner_llm.py`, las reglas deterministas en `planner_rules.py`/`planner_context.py` y la normalizacion de planes en `planner_normalization.py`. Puede usar Gemini/OpenAI si estan configurados, pero solo acepta planes que cumplan el schema Pydantic y una lista cerrada de tools/actions. Si el LLM falla, tarda demasiado o propone una accion no permitida, cae al planner determinista y lo declara como fallback visible. No ejecuta tools ni inventa datos. Cuando la pregunta es de dominio pero falta cliente, pedido, periodo o contexto conversacional, devuelve el intent interno `clarification` sin pasos.
 
 ### Reasoner / Executor Agent
 
@@ -54,13 +54,16 @@ Ejecuta el plan usando tools deterministas. Fusiona resultados de ERP, produccio
 
 ### Validator Node
 
-Comprueba si hay datos suficientes, fuentes requeridas, schema valido y trazabilidad. Puede pedir replanning hasta `MAX_REPLANS = 2`; cuando lo hace, registra eventos publicos en `data.replanning` con intento, estado y motivo sanitizado, sin exponer planes raw ni chain-of-thought.
+Comprueba si hay datos suficientes, fuentes requeridas, schema valido y trazabilidad. Puede pedir replanning hasta `MAX_REPLANS = 2`; cuando lo hace, registra eventos publicos en `data.replanning` con intento, estado y motivo sanitizado, sin exponer planes raw ni chain-of-thought. El intent `clarification` se cierra como `needs_clarification` sin ejecutar tools ni replanificar.
 
 ### FinalResponseBuilder
 
 Construye la respuesta final con `answer`, `sources`, `reasoning`, `tool_calls`, `fallbacks`, `status` y `confidence` cuando sea posible. Los fallbacks no deben ocultarse: si el planner cae a reglas, si la respuesta final cae a determinista, si ChromaDB no esta disponible o si se usan embeddings deterministas, debe quedar visible.
 
 En el estado actual puede usar LLM controlado para redactar en espanol de negocio solo sobre datos ya devueltos por tools. Si el LLM falla, tarda demasiado o introduce identificadores/numeros que no aparecen en las evidencias, se descarta y se usa la respuesta determinista.
+
+Para `needs_clarification`, `unsupported`, `insufficient_context` y errores, la
+respuesta es determinista y no invoca el LLM final.
 
 La clase se mantiene como fachada del nodo LangGraph. La redaccion
 determinista vive en `final_answer_templates.py`, el prompt y payload
@@ -148,11 +151,12 @@ Implementado en el repositorio y cubierto por tests/checklist manual:
 - Respuesta final con LLM controlado y fallback determinista.
 - Memoria conversacional simple con traza `Memoria`.
 - Docker Compose con backend, mock de produccion, Chainlit y ChromaDB HTTP real.
+- `needs_clarification` para ambiguedades de dominio sin consultar tools.
 
-Pendiente para cierre tecnico:
+Extension opcional post-cierre:
 
-- Guion demo final y refactors incrementales documentados en
-  `docs/plan_implementacion_vivo.md`.
+- R13-R18 del plan vivo: planner mas flexible, Query DSL segura, joins
+  controlados y tests reales opt-in.
 
 ## Justificacion de Arquitectura
 

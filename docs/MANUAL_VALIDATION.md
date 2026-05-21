@@ -37,7 +37,7 @@ Ejecutar tests automatizados:
 Resultado esperado:
 
 ```text
-142 passed, 2 warnings
+145 passed, 2 warnings
 ```
 
 Las advertencias actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
@@ -387,7 +387,9 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/query" `
 
 Check esperado:
 
-- `status`: `unsupported`, porque esa conversacion no tiene historial previo.
+- `status`: `needs_clarification`, porque esa conversacion no tiene historial previo.
+- `tool_calls`: vacio; el sistema no consulta ERP ni Produccion hasta que se
+  concrete cliente o pedidos.
 
 ## 5. Validar RAG por API
 
@@ -650,7 +652,8 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/query" `
 Resultado esperado:
 
 - HTTP 200;
-- `status` puede ser `completed`, `insufficient_context` o `tool_error`;
+- `status` puede ser `completed`, `needs_clarification`, `insufficient_context`
+  o `tool_error`;
 - si hay fallo de LLM, embeddings o Chroma, debe aparecer como respuesta controlada con `tool_calls`, no como 500.
 - si se usa cualquier ruta alternativa, debe aparecer `fallbacks` con marcadores `FALLBACK_*`.
 

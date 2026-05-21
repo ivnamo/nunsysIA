@@ -202,6 +202,9 @@ La memoria solo resuelve referencias conversacionales. Si la respuesta requiere 
 - `tool_error`: fallo controlado de una tool.
 - `failed`: fallo no recuperable.
 - `unsupported`: pregunta fuera del alcance de la POC actual.
+- `needs_clarification`: pregunta de dominio con datos insuficientes para
+  consultar sin inventar. No debe ejecutar tools; debe pedir una aclaracion
+  concreta.
 
 ## Reglas de Seguridad
 

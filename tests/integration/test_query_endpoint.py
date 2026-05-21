@@ -87,7 +87,7 @@ def test_query_endpoint_does_not_assume_customer_for_pending_orders(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == "unsupported"
+    assert payload["status"] == "needs_clarification"
     assert payload["sources"] == []
     assert payload["tool_calls"] == []
     assert "cliente concreto" in payload["answer"]
@@ -141,7 +141,7 @@ def test_query_endpoint_keeps_conversation_memory_by_id(client: TestClient) -> N
     )
     assert isolated_response.status_code == 200
     isolated_payload = isolated_response.json()
-    assert isolated_payload["status"] == "unsupported"
+    assert isolated_payload["status"] == "needs_clarification"
     assert "contexto conversacional previo" in isolated_payload["answer"]
 
 

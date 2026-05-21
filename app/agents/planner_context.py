@@ -162,7 +162,7 @@ def build_contextual_rule_based_plan(
     return None
 
 
-def build_contextual_unsupported_plan(
+def build_contextual_clarification_plan(
     normalized: str,
     history: list[dict[str, Any]],
 ) -> ExecutionPlan | None:
@@ -171,22 +171,22 @@ def build_contextual_unsupported_plan(
         return None
 
     return ExecutionPlan(
-        intent="unsupported",
+        intent="clarification",
         steps=[],
         expected_sources=[],
         answer_requirements=[
-            "Explicar que la pregunta necesita contexto conversacional previo y pedir que se concrete el cliente o los pedidos.",
+            "Pedir contexto conversacional previo, cliente o pedidos concretos para resolver la referencia.",
         ],
     )
 
 
 def missing_customer_plan() -> ExecutionPlan:
     return ExecutionPlan(
-        intent="unsupported",
+        intent="clarification",
         steps=[],
         expected_sources=[],
         answer_requirements=[
-            "Explicar que la pregunta necesita un cliente concreto o contexto conversacional previo para consultar pedidos pendientes.",
+            "Pedir un cliente concreto o contexto conversacional previo para consultar pedidos pendientes.",
         ],
     )
 

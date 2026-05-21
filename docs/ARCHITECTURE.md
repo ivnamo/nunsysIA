@@ -54,7 +54,7 @@ Ejecuta el plan usando tools deterministas. Fusiona resultados de ERP, produccio
 
 ### Validator Node
 
-Comprueba si hay datos suficientes, fuentes requeridas, schema valido y trazabilidad. Puede pedir replanning hasta `MAX_REPLANS = 2`.
+Comprueba si hay datos suficientes, fuentes requeridas, schema valido y trazabilidad. Puede pedir replanning hasta `MAX_REPLANS = 2`; cuando lo hace, registra eventos publicos en `data.replanning` con intento, estado y motivo sanitizado, sin exponer planes raw ni chain-of-thought.
 
 ### FinalResponseBuilder
 

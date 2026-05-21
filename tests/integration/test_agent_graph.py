@@ -21,6 +21,22 @@ class _FailingEmbeddingModel:
         raise RuntimeError("embedding provider unavailable")
 
 
+class _FakeMessage:
+    def __init__(self, content: str) -> None:
+        self.content = content
+
+
+class _SequenceChatModel:
+    def __init__(self, responses: list[str]) -> None:
+        self._responses = responses
+        self.calls = 0
+
+    def invoke(self, input: object, **kwargs: object) -> _FakeMessage:
+        response = self._responses[min(self.calls, len(self._responses) - 1)]
+        self.calls += 1
+        return _FakeMessage(response)
+
+
 @pytest.fixture()
 def erp_tool() -> ERPTool:
     connection = create_sqlite_connection()
@@ -329,6 +345,82 @@ def test_agent_graph_returns_tool_error_when_rag_embedding_fails(
     assert response.sources == ["Documentos"]
     assert response.tool_calls[0].status == "error"
     assert "fiable" in response.answer
+
+
+def test_agent_graph_exposes_replan_trace_without_raw_attempt_data(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    chat_model = _SequenceChatModel(
+        [
+            """
+            {
+              "intent": "erp_production",
+              "steps": [
+                {
+                  "step_id": 1,
+                  "tool": "ERPTool",
+                  "action": "get_pending_orders_by_customer",
+                  "args": {"customer_id": "ALFKI"},
+                  "required": true
+                }
+              ],
+              "expected_sources": ["ERP", "Produccion"],
+              "answer_requirements": []
+            }
+            """,
+            """
+            {
+              "intent": "erp_production",
+              "steps": [
+                {
+                  "step_id": 1,
+                  "tool": "ERPTool",
+                  "action": "get_pending_orders_by_customer",
+                  "args": {"customer_id": "ALFKI"},
+                  "required": true
+                },
+                {
+                  "step_id": 2,
+                  "tool": "ProductionAPITool",
+                  "action": "get_status_for_erp_orders",
+                  "args": {},
+                  "required": true
+                }
+              ],
+              "expected_sources": ["ERP", "Produccion"],
+              "answer_requirements": []
+            }
+            """,
+            "{}",
+        ]
+    )
+
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        question="Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?",
+        chat_model=chat_model,
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["ERP", "Produccion"]
+    assert response.data["replanning"] == {
+        "replans_count": 1,
+        "max_replans": 2,
+        "events": [
+            {
+                "attempt": 1,
+                "decision": "replan",
+                "status": "partial_answer",
+                "failure_reason": "Faltan fuentes obligatorias: Produccion.",
+                "max_replans": 2,
+            }
+        ],
+    }
+    assert "steps" not in str(response.data["replanning"])
+    assert "raw" not in str(response.data["replanning"]).lower()
+    assert chat_model.calls >= 2
 
 
 def _production_transport() -> httpx.MockTransport:

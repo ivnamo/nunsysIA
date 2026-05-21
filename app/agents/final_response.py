@@ -56,6 +56,10 @@ class FinalResponseBuilder:
         if final_fallback and final_fallback not in fallbacks:
             fallbacks.append(final_fallback)
 
+        public_data = dict(state.get("data", {}))
+        if state.get("replan_history"):
+            public_data["replanning"] = state["replan_history"]
+
         response = QueryResponse(
             answer=answer,
             sources=_sources(state.get("sources", [])),
@@ -64,7 +68,7 @@ class FinalResponseBuilder:
             fallbacks=fallbacks,
             confidence=confidence_for_status(status),
             status=status,
-            data=build_public_data_summary(state.get("data", {})),
+            data=build_public_data_summary(public_data),
             failure_reason=sanitize_failure_reason(state.get("failure_reason")),
         )
         return {

@@ -48,5 +48,6 @@ class AgentState(TypedDict, total=False):
     failure_reason: str | None
     confidence: float | None
     data: dict[str, Any]
+    replan_history: list[dict[str, Any]]
     validation_decision: ValidationDecision
     response: QueryResponse

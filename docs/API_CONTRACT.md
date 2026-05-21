@@ -162,6 +162,30 @@ En respuestas de impacto economico, `data` puede incluir un resumen publico sin 
 }
 ```
 
+Si el grafo solicita replanning, `data.replanning` debe exponer solo un resumen
+sanitizado de los intentos:
+
+```json
+{
+  "replanning": {
+    "replans_count": 1,
+    "max_replans": 2,
+    "events": [
+      {
+        "attempt": 1,
+        "decision": "replan",
+        "status": "partial_answer",
+        "failure_reason": "Faltan fuentes obligatorias: Produccion.",
+        "max_replans": 2
+      }
+    ]
+  }
+}
+```
+
+No debe incluir planes completos, prompts, chain-of-thought ni payloads raw de
+tools.
+
 ## `POST /api/documents/upload`
 
 Descripcion: sube un PDF para indexarlo en el vector store documental. En local puede usarse el fallback en memoria si ChromaDB no esta instalado o disponible.

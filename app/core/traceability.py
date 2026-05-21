@@ -125,6 +125,15 @@ def build_public_data_summary(data: dict[str, Any]) -> dict[str, Any] | None:
                 memory_summary["documents"] = [str(document) for document in documents]
         summary["memory"] = memory_summary
 
+    if data.get("replanning"):
+        replans = _public_replan_events(data.get("replanning"))
+        if replans:
+            summary["replanning"] = {
+                "replans_count": len(replans),
+                "max_replans": replans[-1].get("max_replans"),
+                "events": replans,
+            }
+
     return summary or None
 
 
@@ -270,3 +279,37 @@ def _amount_total(rows: list[Any]) -> str | None:
     if not found:
         return None
     return f"{total:.2f}"
+
+
+def _public_replan_events(events: Any) -> list[dict[str, Any]]:
+    public_events: list[dict[str, Any]] = []
+    for event in _as_list(events):
+        if not isinstance(event, dict):
+            continue
+        public_event: dict[str, Any] = {}
+        attempt = _bounded_int(event.get("attempt"), minimum=1, maximum=10)
+        max_replans = _bounded_int(event.get("max_replans"), minimum=0, maximum=10)
+        if attempt is not None:
+            public_event["attempt"] = attempt
+        decision = str(event.get("decision") or "")
+        if decision in {"replan", "fail"}:
+            public_event["decision"] = decision
+        status = str(event.get("status") or "")
+        if status:
+            public_event["status"] = _short_text(status, max_length=80)
+        failure_reason = sanitize_failure_reason(str(event.get("failure_reason") or ""))
+        if failure_reason:
+            public_event["failure_reason"] = failure_reason
+        if max_replans is not None:
+            public_event["max_replans"] = max_replans
+        if public_event:
+            public_events.append(public_event)
+    return public_events
+
+
+def _bounded_int(value: Any, minimum: int, maximum: int) -> int | None:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return max(minimum, min(maximum, number))

@@ -140,3 +140,39 @@ def test_build_public_data_summary_includes_economic_impact_without_raw_lines() 
         "order_amount_order_ids": [10252, 10248],
         "economic_impact_total": "2303.00",
     }
+
+
+def test_build_public_data_summary_includes_sanitized_replanning_events() -> None:
+    summary = build_public_data_summary(
+        {
+            "replanning": [
+                {
+                    "attempt": 1,
+                    "decision": "replan",
+                    "status": "partial_answer",
+                    "failure_reason": (
+                        "Faltan fuentes obligatorias: Produccion. "
+                        "postgresql://user:pass@localhost/db"
+                    ),
+                    "max_replans": 2,
+                    "raw_plan": {"unsafe": "not public"},
+                }
+            ]
+        }
+    )
+
+    assert summary == {
+        "replanning": {
+            "replans_count": 1,
+            "max_replans": 2,
+            "events": [
+                {
+                    "attempt": 1,
+                    "decision": "replan",
+                    "status": "partial_answer",
+                    "failure_reason": "[redacted]",
+                    "max_replans": 2,
+                }
+            ],
+        }
+    }

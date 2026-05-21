@@ -2119,3 +2119,33 @@ Validacion:
 Decision: R8 queda cerrada sin beta LLM real porque no cambia planner, RAG,
 embeddings, respuesta visible ni contrato de `/api/query`. Siguiente bloque:
 R9, trazabilidad de replanning.
+
+## Iteracion R9 - Trazabilidad de replanning
+
+Fecha: 2026-05-21.
+
+Objetivo: hacer visible el replanning en la traza publica sin exponer planes
+raw, prompts ni chain-of-thought.
+
+Cambio validado:
+
+- `AgentState` conserva `replan_history`.
+- `ValidatorNode` registra eventos cuando decide `replan`.
+- `FinalResponseBuilder` incorpora esos eventos al resumen publico.
+- `build_public_data_summary()` expone `data.replanning` con intento,
+  decision, status, motivo sanitizado y `max_replans`.
+- Se prueba un grafo real con LLM simulado que falla el primer plan, replantea y
+  completa la respuesta.
+
+Validacion:
+
+- `tests/unit/test_validator.py`: 7 passed.
+- `tests/unit/test_traceability.py`: 7 passed.
+- `tests/integration/test_agent_graph.py`: 12 passed.
+- `tests/integration/test_query_endpoint.py`: 7 passed.
+- `tests/unit/test_final_response.py`: 13 passed.
+- Suite completa: `142 passed, 2 warnings`.
+
+Decision: R9 queda cerrada sin beta LLM real porque no cambia routing,
+retrieval ni respuesta visible normal; amplia la trazabilidad publica en rutas
+con replan. Siguiente bloque: R11, guion demo y cierre.

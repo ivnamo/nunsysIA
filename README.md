@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R8 cerrada con upload PDF endurecido**.
-Siguiente bloque: **R9 - trazabilidad de replanning** y preparar guion demo final.
+Estado actual: **R9 cerrada con trazabilidad de replanning**.
+Siguiente bloque: **R11 - guion demo y cierre**.
 
 Este repositorio contiene:
 
@@ -42,7 +42,8 @@ Este repositorio contiene:
 - Planner hibrido como fachada del nodo, con LLM opcional, plan estructurado,
   reglas deterministas extraidas y fallback visible;
 - Reasoner/Executor que ejecuta tools ERP y produccion;
-- Validator con replanning limitado por `MAX_REPLANS = 2`;
+- Validator con replanning limitado por `MAX_REPLANS = 2` y eventos publicos
+  de replanning en `data.replanning`;
 - FinalResponseBuilder como fachada con `QueryResponse` estructurada;
 - `fallbacks` visibles en API y Chainlit para auditar rutas alternativas;
 - tests unitarios e integracion del grafo agentic.
@@ -58,14 +59,15 @@ Este repositorio contiene:
 - renderizado de respuesta, fuentes, pasos y tool calls en UI.
 - normalizacion de trazas publicas;
 - sanitizacion de argumentos, errores y failure reasons;
-- resumen publico de evidencias en `data` sin filas raw ni objetos internos.
+- resumen publico de evidencias en `data` sin filas raw ni objetos internos,
+  incluyendo eventos de replanning cuando los haya.
 - abstraccion LLM para Gemini/OpenAI con fallback determinista;
 - Planner hibrido: LLM opcional + schema Pydantic + lista cerrada de tools/actions;
 - PDFs mock realistas en `data/sample_docs/`;
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
 - citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
 - memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
-- suite automatizada versionada actual: `139 passed, 2 warnings`.
+- suite automatizada versionada actual: `142 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -87,8 +89,7 @@ Disponible para ejecutar actualmente:
 
 Pendiente:
 
-- R9: trazabilidad de replanning;
-- guion demo final.
+- R11: guion demo final y cierre.
 
 ## Arquitectura decidida
 
@@ -397,11 +398,12 @@ Endpoints del mock:
 ## Siguiente bloque
 
 P10 queda cerrada con Docker Compose, ChromaDB HTTP real, secretos por archivo y
-smoke beta con LLM/embeddings reales. R4, R5, R6, R7 y R8 tambien quedan cerradas: la
+smoke beta con LLM/embeddings reales. R4, R5, R6, R7, R8 y R9 tambien quedan cerradas: la
 politica de penalizaciones se extrajo, `FinalResponseBuilder` quedo como
 fachada del nodo final, `PlannerAgent` como fachada del nodo de planificacion y
 `DocumentRAGTool` como fachada RAG determinista. El upload documental usa
 `UploadFile` para multipart y conserva el modo directo `application/pdf`.
+Los replans quedan resumidos en `data.replanning` sin exponer planes raw ni
+chain-of-thought.
 
-- ejecutar R9 sobre trazabilidad de replanning con tests focalizados;
 - preparar guion demo final y documentacion de entrega.

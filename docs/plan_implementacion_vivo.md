@@ -10,9 +10,8 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R8 cerrada con upload PDF endurecido**. El siguiente bloque
-tecnico es **R9 - trazabilidad de replanning** antes de preparar el guion demo
-final.
+La POC tiene **R9 cerrada con trazabilidad de replanning**. El siguiente bloque
+tecnico es **R11 - guion demo y cierre**.
 
 Estado declarado y versionado:
 
@@ -24,7 +23,7 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `139 passed, 2 warnings`.
+- Suite automatizada declarada: `142 passed, 2 warnings`.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
   beta con LLM/embeddings reales.
 
@@ -159,9 +158,9 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R6 | cerrado | Dividir Planner | God object de planificacion | `refactor(planner): split rule planner from llm planner` |
 | R7 | cerrado | Dividir DocumentRAGTool | Tool demasiado amplia | `refactor(rag): extract relevance and answer building` |
 | R8 | cerrado | Endurecer upload PDF | Parser multipart manual fragil | `refactor(api): use uploadfile for pdf ingestion` |
-| R9 | siguiente | Trazabilidad de replanning | Se pierde historia de intentos | `feat(agents): retain replan attempt traces` |
+| R9 | cerrado | Trazabilidad de replanning | Se pierde historia de intentos | `feat(agents): retain replan attempt traces` |
 | R10 | cerrado | Docker Compose | Runtime no reproducible | `feat(runtime): add docker compose stack` |
-| R11 | pendiente | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
+| R11 | siguiente | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
 
 ## Fase R1 - Guardrail documental en planes mixtos
 
@@ -623,13 +622,15 @@ Problema:
 
 - El replanning existe y respeta `MAX_REPLANS = 2`, pero la traza publica se centra en el intento final.
 
-Archivos previstos:
+Archivos modificados:
 
 - `app/agents/state.py`
-- `app/agents/reasoner.py`
+- `app/agents/graph.py`
+- `app/agents/final_response.py`
 - `app/agents/validator.py`
 - `app/core/traceability.py`
 - `tests/unit/test_validator.py`
+- `tests/unit/test_traceability.py`
 - `tests/integration/test_agent_graph.py`
 
 Cambio esperado:
@@ -647,6 +648,25 @@ Criterio de aceptacion:
 
 - Si hay replan, queda visible que ocurrio y por que.
 - No se rompe `QueryResponse`.
+
+Estado:
+
+- Cerrado el 2026-05-21.
+- `AgentState` incluye `replan_history` y el grafo lo inicializa vacio.
+- `ValidatorNode` agrega eventos publicos cuando decide `replan`.
+- `FinalResponseBuilder` entrega esos eventos al resumen publico `data`.
+- `app/core/traceability.py` sanitiza y expone solo `attempt`, `decision`,
+  `status`, `failure_reason` y `max_replans` en `data.replanning`.
+- No se exponen planes raw, prompts ni chain-of-thought.
+- Tests focalizados:
+  - `tests/unit/test_validator.py`: 7 passed.
+  - `tests/unit/test_traceability.py`: 7 passed.
+  - `tests/integration/test_agent_graph.py`: 12 passed.
+  - `tests/integration/test_query_endpoint.py`: 7 passed.
+  - `tests/unit/test_final_response.py`: 13 passed.
+- Suite completa: `142 passed, 2 warnings`.
+- No se ejecuta beta LLM real porque no cambia routing, retrieval ni respuesta
+  visible normal; solo amplia la trazabilidad publica cuando hay replan.
 
 ## Fase R10 - Docker Compose
 
@@ -727,7 +747,8 @@ Estado 2026-05-21:
   - 5 PDFs v2 indexados: contrato, SLA, procedimiento, calidad y condiciones comerciales.
   - ERP + produccion, RAG, mixto, memoria conversacional y guardrail documental pasan sin fallbacks.
   - Bug beta detectado y corregido: con todos los PDFs v2, `receta de cocina vegana` recuperaba un chunk por solape debil con `receta o especificacion`. `DocumentRAGTool` ahora exige mas evidencia cuando la pregunta contiene varios conceptos.
-- R10 queda cerrada; la fase activa actual es R9 tras cerrar R4, R5, R6, R7 y R8.
+- R10 queda cerrada; la fase activa actual es R11 tras cerrar R4, R5, R6, R7,
+  R8 y R9.
 
 ## Fase R11 - Guion demo y cierre
 
@@ -825,3 +846,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R6 | cerrado | PlannerAgent dividido en fachada, modelos, reglas, LLM planner, normalizacion, contexto y utilidades; `pytest`: 136 passed | este bloque |
 | 2026-05-21 | R7 | cerrado | DocumentRAGTool dividido en fachada, filtros, relevancia y answer builder grounded; `pytest`: 136 passed | este bloque |
 | 2026-05-21 | R8 | cerrado | Upload PDF endurecido con UploadFile, compatibilidad application/pdf y tests de errores 400/413; `pytest`: 139 passed | este bloque |
+| 2026-05-21 | R9 | cerrado | Replanning visible en `data.replanning` sin planes raw ni chain-of-thought; `pytest`: 142 passed | este bloque |

@@ -87,6 +87,7 @@ def run_agent_graph(
             "tool_calls": [],
             "fallbacks": [],
             "data": {},
+            "replan_history": [],
         }
     )
     return QueryResponse.model_validate(result["response"])

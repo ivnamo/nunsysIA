@@ -90,6 +90,12 @@ class ValidatorNode:
                 "status": status,
                 "validation_decision": "replan",
                 "failure_reason": failure_reason,
+                "replan_history": _append_replan_event(
+                    state=state,
+                    attempts=attempts,
+                    status=status,
+                    failure_reason=failure_reason,
+                ),
             }
 
         return {
@@ -107,3 +113,22 @@ def _requires_document_context(plan: ExecutionPlan) -> bool:
         step.tool == "DocumentRAGTool" and step.required
         for step in plan.steps
     )
+
+
+def _append_replan_event(
+    state: AgentState,
+    attempts: int,
+    status: str,
+    failure_reason: str,
+) -> list[dict[str, object]]:
+    history = list(state.get("replan_history", []))
+    history.append(
+        {
+            "attempt": attempts + 1,
+            "decision": "replan",
+            "status": status,
+            "failure_reason": failure_reason,
+            "max_replans": MAX_REPLANS,
+        }
+    )
+    return history

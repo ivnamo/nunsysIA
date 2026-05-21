@@ -42,9 +42,8 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R8 queda cerrada con upload PDF endurecido. El siguiente bloque tecnico
-es R9: trazabilidad de replanning y preparar el guion demo
-final.
+R9 queda cerrada con trazabilidad de replanning. El siguiente bloque tecnico es
+R11: guion demo y cierre.
 
 Componentes implementados:
 
@@ -67,11 +66,12 @@ Componentes implementados:
 - Chainlit con upload de PDFs y comando `/documentos`
 - Upload documental multipart gestionado con `UploadFile` y compatibilidad
   `application/pdf`
+- Replanning visible en `data.replanning` sin planes raw ni chain-of-thought
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`
 
 Suite versionada actual:
 
-- `139 passed, 2 warnings`
+- `142 passed, 2 warnings`
 
 
 3. CONTRATO DE CONSULTA
@@ -180,11 +180,11 @@ La respuesta no debe exponer:
 7. PENDIENTE
 ============
 
-R9 - Trazabilidad de replanning:
+R11 - Guion demo y cierre:
 
-- Conservar resumen publico de intentos cuando haya replan.
-- Exponer que hubo replan y motivo sin revelar chain-of-thought.
-- Validar con tests de validator, agent graph y `pytest` completo.
+- Preparar guion de 3 a 5 minutos.
+- Resumir que defender y que deuda admitir.
+- Ejecutar/registrar una validacion final con casos de demo.
 
 Cierre final:
 

@@ -33,6 +33,9 @@ La API debe devolver:
 - `data` opcional como resumen publico de evidencias, nunca como volcado raw de filas internas
 - `failure_reason` cuando el estado final explique una salida parcial, fallo o contexto insuficiente
 
+Cuando el grafo solicita replanning, `data.replanning` debe resumirlo de forma
+auditable sin exponer planes raw, prompts ni razonamiento interno.
+
 ## Reasoning Visible vs Razonamiento Interno
 
 Reasoning visible:
@@ -233,7 +236,15 @@ El campo `data` puede usarse para facilitar demo y auditoria, pero debe contener
 - `order_amounts_count`
 - `order_amount_order_ids`
 - `economic_impact_total`
+- `replanning.replans_count`
+- `replanning.max_replans`
+- `replanning.events[]` con `attempt`, `decision`, `status`, `failure_reason`
+  sanitizado y `max_replans`
 
 No debe contener lineas raw de pedido, textos completos de chunks, connection strings, errores raw, prompts ni objetos internos. Para impacto economico se permiten IDs de pedido, conteos y total agregado como evidencia publica.
 
 Las citas documentales por chunk se devuelven en `data.rag.citations`. No deben incluir texto completo del chunk: solo metadatos publicos y score para auditoria.
+
+Los eventos de replanning deben explicar que hubo un replan y por que, pero no
+deben incluir el plan completo, inputs raw de tools, prompts ni deliberacion del
+modelo.

@@ -105,6 +105,19 @@ class _TodosAgent:
         }
 
 
+class _StaticAgent:
+    def __init__(self, content: str) -> None:
+        self._content = content
+
+    def invoke(self, payload: dict) -> dict:
+        return {"messages": [{"content": self._content}]}
+
+
+class _ExplodingAgent:
+    def invoke(self, payload: dict) -> dict:
+        raise AssertionError("DeepAgents no deberia ejecutarse en este preflight")
+
+
 class _CountingRAGTool:
     def __init__(self) -> None:
         self.query_count = 0
@@ -132,6 +145,26 @@ class _CountingRAGTool:
                 args=tool_input.model_dump(),
                 status="success",
                 output_summary="1 chunks documentales recuperados",
+                duration_ms=0,
+                source="Documentos",
+            ),
+        )
+
+
+class _EmptyRAGTool:
+    def query(self, tool_input: DocumentRAGInput) -> ToolResult:
+        return ToolResult(
+            data={
+                "answer": "No hay contexto documental suficiente para responder sin inventar.",
+                "status": "insufficient_context",
+                "chunks": [],
+            },
+            tool_call=ToolCallTrace(
+                tool="DocumentRAGTool",
+                action="query",
+                args=tool_input.model_dump(),
+                status="success",
+                output_summary="0 chunks documentales recuperados",
                 duration_ms=0,
                 source="Documentos",
             ),
@@ -221,6 +254,150 @@ def test_deepagents_tools_service_limits_document_queries() -> None:
     assert response.data["rag"]["chunks_count"] == 1
 
 
+def test_deepagents_tools_service_preflights_isolated_followup() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _ExplodingAgent(),
+    )
+
+    response = service.run(
+        QueryRequest(
+            question="Y en que estado estan?",
+            conversation_id="tools-isolated",
+        )
+    )
+
+    assert response.status == "needs_clarification"
+    assert response.sources == []
+    assert response.tool_calls == []
+    assert "cliente" in response.answer
+
+
+def test_deepagents_tools_service_preserves_document_insufficient_context() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_EmptyRAGTool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _StaticAgent(
+            "Te recomiendo una receta vegana inventada."
+        ),
+    )
+
+    response = service.run(
+        QueryRequest(
+            question="Segun el PDF, que receta de cocina vegana recomienda?",
+            conversation_id="tools-document-guardrail",
+        )
+    )
+
+    assert response.status == "insufficient_context"
+    assert response.sources == ["Documentos"]
+    assert [call.tool for call in response.tool_calls] == ["DocumentRAGTool"]
+    assert response.data["rag"]["chunks_count"] == 0
+    assert "recomiendo" not in response.answer.lower()
+
+
+def test_deepagents_tools_service_uses_beta_safe_penalty_tools() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool_with_all_beta_orders(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_CountingRAGTool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _StaticAgent(
+            "El pedido 10248 tiene penalizacion de 22.00."
+        ),
+    )
+
+    response = service.run(
+        QueryRequest(
+            question=(
+                "en funcion de los pedidos y su estado dime que penalizaciones "
+                "vamos a tener en cada uno"
+            ),
+            conversation_id="tools-penalty-beta",
+        )
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["ERP", "Produccion", "Documentos"]
+    assert [call.tool for call in response.tool_calls] == [
+        "ERPTool",
+        "ProductionAPITool",
+        "DocumentRAGTool",
+    ]
+    assert response.data["erp_order_ids"] == [10248, 10252, 10255, 10301, 10312]
+    assert "10248" in response.answer
+    assert "10312" in response.answer
+    assert "22.00" not in response.answer
+
+
+def test_deepagents_tools_service_handles_delayed_orders_beta_case() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool_with_all_beta_orders(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _StaticAgent("Respuesta no determinista."),
+    )
+
+    response = service.run(
+        QueryRequest(
+            question="Que clientes tienen pedidos retrasados por problemas de produccion?",
+            conversation_id="tools-delayed-beta",
+        )
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Produccion", "ERP"]
+    assert [call.tool for call in response.tool_calls][:2] == [
+        "ProductionAPITool",
+        "ERPTool",
+    ]
+    assert response.data["production_order_ids"] == [10301]
+    assert "10301" in response.answer
+    assert "ANATR" in response.answer
+
+
+def test_deepagents_tools_service_handles_month_summary_beta_case() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool_with_all_beta_orders(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _StaticAgent("Respuesta no determinista."),
+    )
+
+    response = service.run(
+        QueryRequest(
+            question="Dame un resumen del estado de los pedidos de este mes",
+            conversation_id="tools-month-beta",
+        )
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["ERP", "Produccion"]
+    assert response.data["period"] == {"year": 2026, "month": 5}
+    assert response.data["erp_order_ids"] == [10248, 10252, 10255, 10301, 10312]
+    assert "mayo" in response.answer
+    assert "2026-05" in response.answer
+    assert "bloqueado" in response.answer
+    assert "retrasado" in response.answer
+
+
 def test_deepagents_tools_service_resolves_followups_with_erp_and_production() -> None:
     service = DeepAgentsToolsQueryService(
         erp_tool=_erp_tool(),
@@ -245,12 +422,11 @@ def test_deepagents_tools_service_resolves_followups_with_erp_and_production() -
         )
     )
 
-    assert response.sources == ["Memoria", "ERP", "Produccion"]
-    assert [call.tool for call in response.tool_calls] == [
-        "MemoryTool",
-        "ERPQueryTool",
-        "ProductionAPITool",
-    ]
+    assert response.sources == ["Memoria", "Produccion", "ERP"]
+    tool_names = [call.tool for call in response.tool_calls]
+    assert tool_names[:2] == ["MemoryTool", "ProductionAPITool"]
+    assert tool_names.count("MemoryTool") == 1
+    assert "ERPTool" in tool_names
 
 
 def test_deepagents_tools_service_exposes_sanitized_todo_usage() -> None:
@@ -303,6 +479,44 @@ def test_deepagents_business_harness_excludes_system_tools() -> None:
     assert "write_todos" not in captured["excluded_tools"]
 
 
+def test_deepagents_tools_service_resolves_conversational_economic_impact() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _StaticAgent("Respuesta no determinista."),
+    )
+
+    service.run(
+        QueryRequest(
+            question="Que pedidos pendientes tiene el cliente ALFKI?",
+            conversation_id="tools-economic-memory",
+        )
+    )
+    blocked_response = service.run(
+        QueryRequest(
+            question="Y cuales de esos pedidos estan bloqueados?",
+            conversation_id="tools-economic-memory",
+        )
+    )
+    response = service.run(
+        QueryRequest(
+            question="Cual es el impacto economico de esos?",
+            conversation_id="tools-economic-memory",
+        )
+    )
+
+    assert blocked_response.data["production_order_ids"] == [10252]
+    assert response.sources == ["Memoria", "ERP"]
+    assert [call.tool for call in response.tool_calls] == ["MemoryTool", "ERPTool"]
+    assert response.data["order_amount_order_ids"] == [10252]
+    assert response.data["economic_impact_total"] == "1863.00"
+    assert "1863.00" in response.answer
+
+
 def _erp_tool() -> ERPTool:
     connection = create_sqlite_connection(check_same_thread=False)
     load_seed_sql(connection)
@@ -319,11 +533,15 @@ def _production_tool() -> ProductionAPITool:
     return ProductionAPITool(_production_client())
 
 
+def _production_tool_with_all_beta_orders() -> ProductionAPITool:
+    return ProductionAPITool(_production_client(include_all_beta_orders=True))
+
+
 def _production_query_tool() -> ProductionQueryTool:
     return ProductionQueryTool(_production_client())
 
 
-def _production_client() -> ProductionAPIClient:
+def _production_client(include_all_beta_orders: bool = False) -> ProductionAPIClient:
     orders = {
         10248: {
             "order_id": 10248,
@@ -340,13 +558,47 @@ def _production_client() -> ProductionAPIClient:
             "estimated_finish_date": "2026-05-30",
         },
     }
+    if include_all_beta_orders:
+        orders.update(
+            {
+                10255: {
+                    "order_id": 10255,
+                    "production_status": "finished",
+                    "blocked_reason": None,
+                    "delay_reason": None,
+                    "estimated_finish_date": "2026-05-14",
+                },
+                10301: {
+                    "order_id": 10301,
+                    "production_status": "delayed",
+                    "blocked_reason": None,
+                    "delay_reason": "Averia en linea de produccion",
+                    "estimated_finish_date": "2026-06-03",
+                },
+                10312: {
+                    "order_id": 10312,
+                    "production_status": "blocked",
+                    "blocked_reason": "Falta de capacidad",
+                    "delay_reason": None,
+                    "estimated_finish_date": "2026-06-02",
+                },
+            }
+        )
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.startswith("/production/orders/"):
             order_id = int(request.url.path.rsplit("/", 1)[1])
             return httpx.Response(200, json=orders[order_id])
         if request.url.path == "/production/orders":
-            return httpx.Response(200, json={"orders": list(orders.values())})
+            status = request.url.params.get("status")
+            values = list(orders.values())
+            if status:
+                values = [
+                    order
+                    for order in values
+                    if order["production_status"] == status
+                ]
+            return httpx.Response(200, json={"orders": values})
         return httpx.Response(500, text="unexpected path")
 
     return ProductionAPIClient(

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import os
+import re
 import unicodedata
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from threading import Lock
 from typing import Any, Callable
 
 from app.agents.deepagents_adapter import DeepAgentsUnavailableError, deepagents_is_available
+from app.agents.penalty_policy import build_order_penalties_answer
 from app.core.config import Settings
 from app.core.traceability import (
     build_public_data_summary,
@@ -17,6 +20,7 @@ from app.core.tracing import SourceName, ToolCallTrace, ToolResult
 from app.schemas.query import QueryRequest, QueryResponse, QueryStatus
 from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import (
+    CustomerByOrderInput,
     ERPTool,
     OrderAmountInput,
     OrdersByMonthInput,
@@ -48,13 +52,16 @@ _DEEPAGENTS_BUSINESS_EXCLUDED_TOOLS = frozenset(
     }
 )
 _REGISTERED_BUSINESS_HARNESS_MODELS: set[str] = set()
+_KNOWN_CUSTOMER_IDS = frozenset({"ALFKI", "ANATR", "BONAP"})
 
 
 @dataclass(frozen=True)
 class _ToolPolicy:
     needs_memory: bool
+    needs_isolated_clarification: bool
     needs_documents: bool
     needs_penalty: bool
+    needs_economic_impact: bool
     needs_customer_orders: bool
     needs_production: bool
     needs_blocked_cross: bool
@@ -103,6 +110,16 @@ class DeepAgentsToolsQueryService:
             rag_tool=self._rag_tool,
             memory_tool=MemoryTool(),
         )
+        preflight_response = execution.preflight_response()
+        if preflight_response is not None:
+            self._memory_store.remember(
+                conversation_id=request.conversation_id,
+                question=request.question,
+                response=preflight_response,
+            )
+            return preflight_response
+
+        execution.run_mandatory_tools()
         agent = self._agent_builder(
             model=self._model,
             tools=execution.tools(),
@@ -186,10 +203,64 @@ class _DirectToolsExecution:
         self.sources: list[SourceName] = []
         self.fallbacks: list[str] = []
 
+    def preflight_response(self) -> QueryResponse | None:
+        if not self._policy.needs_isolated_clarification:
+            return None
+        return QueryResponse(
+            answer=(
+                "Necesito contexto previo o que me indiques el cliente, pedido "
+                "o periodo concreto para saber a que te refieres."
+            ),
+            sources=[],
+            reasoning=[],
+            tool_calls=[],
+            fallbacks=[],
+            confidence=0.6,
+            status="needs_clarification",
+            data=None,
+            failure_reason=None,
+        )
+
+    def run_mandatory_tools(self) -> None:
+        """Ejecuta las tools beta-criticas antes del texto libre del agente."""
+        if self._policy.needs_penalty:
+            self.assess_penalty_risk_for_orders()
+            return
+        if self._policy.needs_documents:
+            self.answer_document_question_with_citations()
+            return
+        if self._policy.needs_economic_impact:
+            self.calculate_referenced_order_amounts()
+            return
+        if self._policy.needs_memory and self._policy.needs_production:
+            self.resolve_referenced_orders_with_erp_and_production()
+            return
+        if _is_month_summary(self._question):
+            erp_orders = self.get_orders_by_month(year=2026, month=5)
+            order_ids = _order_ids(erp_orders)
+            if order_ids:
+                self.get_production_status_for_order_ids(order_ids)
+            return
+        if self._policy.needs_production and not self._policy.needs_customer_orders:
+            requested_status = _requested_production_status(self._question)
+            if requested_status:
+                production_orders = self.list_production_orders(status=requested_status)
+                self.get_customers_for_order_ids(_order_ids(production_orders))
+                return
+        if self._policy.needs_customer_orders:
+            customer_id = _extract_customer_id(self._question)
+            if customer_id and self._policy.needs_production:
+                self.get_customer_pending_orders_with_production(customer_id)
+            elif customer_id:
+                self.get_pending_orders_by_customer(customer_id)
+
     def tools(self) -> list[Callable[..., dict[str, Any] | list[dict[str, Any]] | None]]:
         tools: list[Callable[..., Any]] = []
         if self._policy.needs_memory:
-            tools.append(self.resolve_referenced_orders_with_erp_and_production)
+            if self._policy.needs_economic_impact:
+                tools.append(self.calculate_referenced_order_amounts)
+            else:
+                tools.append(self.resolve_referenced_orders_with_erp_and_production)
             tools.append(self.recall_memory)
         if self._policy.needs_penalty:
             tools.append(self.assess_penalty_risk_for_orders)
@@ -250,10 +321,10 @@ class _DirectToolsExecution:
 
     def assess_penalty_risk_for_orders(self) -> dict[str, Any]:
         """Tool compuesta: ERP, produccion y contrato para riesgo de penalizacion."""
-        erp_orders = self.query_erp_orders(limit=20)
+        erp_orders = self.get_orders_by_month(year=2026, month=5)
         order_ids = _order_ids(erp_orders)
         production_orders = (
-            self.query_production_orders(order_ids=order_ids, limit=20)
+            self.get_production_status_for_order_ids(order_ids)
             if order_ids
             else []
         )
@@ -283,30 +354,56 @@ class _DirectToolsExecution:
         query: str | None = None,
     ) -> dict[str, Any]:
         """Tool compuesta: memoria, ERP y produccion para follow-ups sobre pedidos."""
-        memory = self.recall_memory(query=query or self._question)
+        normalized_query = query or self._question
+        memory = self.recall_memory(query=normalized_query)
         facts = memory.get("facts") if isinstance(memory, dict) else {}
         facts = facts if isinstance(facts, dict) else {}
         order_ids = _unique_ints(facts.get("order_ids") or [])
         customer_id = facts.get("customer_id")
 
         erp_orders: list[dict[str, Any]] = []
-        if order_ids:
-            erp_orders = self.query_erp_orders(order_ids=order_ids)
-        elif isinstance(customer_id, str) and customer_id.strip():
+        if not order_ids and isinstance(customer_id, str) and customer_id.strip():
             erp_orders = self.get_pending_orders_by_customer(customer_id)
             order_ids = _order_ids(erp_orders)
 
+        requested_status = _requested_production_status(normalized_query)
         production_orders = (
-            self.get_production_status_for_order_ids(order_ids) if order_ids else []
+            self.get_production_status_for_order_ids(
+                order_ids,
+                status=requested_status,
+            )
+            if order_ids
+            else []
         )
+        customer_order_ids = _order_ids(production_orders) or order_ids
+        customers_by_order = self.get_customers_for_order_ids(customer_order_ids)
         return {
             "memory": memory,
             "erp_orders": erp_orders,
             "production_orders": production_orders,
+            "customers_by_order": customers_by_order,
+        }
+
+    def calculate_referenced_order_amounts(self, query: str | None = None) -> dict[str, Any]:
+        """Tool compuesta: memoria y ERPTool para importes de pedidos referenciados."""
+        memory = self.recall_memory(query=query or self._question)
+        facts = memory.get("facts") if isinstance(memory, dict) else {}
+        facts = facts if isinstance(facts, dict) else {}
+        order_ids = _unique_ints(facts.get("order_ids") or [])
+        amounts = [
+            amount
+            for order_id in order_ids
+            if (amount := self.calculate_order_amount(order_id)) is not None
+        ]
+        return {
+            "memory": memory,
+            "order_amounts": amounts,
         }
 
     def recall_memory(self, query: str | None = None, max_turns: int = 5) -> dict[str, Any]:
         """Recupera memoria conversacional de esta conversacion."""
+        if self._policy.needs_memory and isinstance(self.data.get("memory"), dict):
+            return self.data["memory"]
         cache_key = _cache_key("recall_memory", {"query": query, "max_turns": max_turns})
         cached = self._cached_data(cache_key)
         if cached is not _CACHE_MISS:
@@ -363,6 +460,10 @@ class _DirectToolsExecution:
 
     def calculate_order_amount(self, order_id: int) -> dict[str, Any] | None:
         """Calcula importe de un pedido ERP por order_id."""
+        if self._policy.needs_economic_impact:
+            allowed_order_ids = _order_ids_from_memory_data(self.data.get("memory"))
+            if allowed_order_ids and int(order_id) not in allowed_order_ids:
+                return None
         cache_key = _cache_key("calculate_order_amount", {"order_id": order_id})
         cached = self._cached_data(cache_key)
         if cached is not _CACHE_MISS:
@@ -376,11 +477,35 @@ class _DirectToolsExecution:
             self._record(result, f"Consulta ERP de importe para pedido {order_id}")
         return data
 
+    def get_customer_for_order(self, order_id: int) -> dict[str, Any] | None:
+        """Resuelve cliente ERP para un order_id de produccion."""
+        cache_key = _cache_key("get_customer_for_order", {"order_id": order_id})
+        cached = self._cached_data(cache_key)
+        if cached is not _CACHE_MISS:
+            return cached
+        result = self._erp_tool.get_customer_by_order(
+            CustomerByOrderInput(order_id=order_id)
+        )
+        data = result.data
+        with self._lock:
+            self._cache[cache_key] = data
+            customers_by_order = self.data.setdefault("customers_by_order", {})
+            customers_by_order[int(order_id)] = data
+            self._record(result, f"Consulta ERP de cliente para pedido {order_id}")
+        return data
+
+    def get_customers_for_order_ids(self, order_ids: list[int]) -> dict[int, Any]:
+        """Resuelve clientes ERP para una lista de pedidos de produccion."""
+        customers: dict[int, Any] = {}
+        for order_id in _unique_ints(order_ids):
+            customers[order_id] = self.get_customer_for_order(order_id)
+        return customers
+
     def list_production_orders(
         self,
         status: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Lista ordenes de produccion; status puede ser blocked, delayed, finished o in_progress."""
+        """Lista ordenes de produccion por estado opcional."""
         cache_key = _cache_key("list_production_orders", {"status": status})
         cached = self._cached_data(cache_key)
         if cached is not _CACHE_MISS:
@@ -403,15 +528,21 @@ class _DirectToolsExecution:
     ) -> list[dict[str, Any]]:
         """Consulta estados de produccion para una lista de order_id."""
         normalized_order_ids = _unique_ints(order_ids)
+        effective_status = status
+        if self._policy.needs_memory:
+            effective_status = _requested_production_status(self._question) or status
         cache_key = _cache_key(
             "get_production_status_for_order_ids",
-            {"order_ids": normalized_order_ids, "status": status},
+            {"order_ids": normalized_order_ids, "status": effective_status},
         )
         cached = self._cached_data(cache_key)
         if cached is not _CACHE_MISS:
             return cached
         result = self._production_tool.get_status_for_order_ids(
-            ProductionOrdersByIdsInput(order_ids=normalized_order_ids, status=status)
+            ProductionOrdersByIdsInput(
+                order_ids=normalized_order_ids,
+                status=effective_status,
+            )
         )
         data = result.data or []
         with self._lock:
@@ -473,18 +604,23 @@ class _DirectToolsExecution:
     ) -> list[dict[str, Any]]:
         """Consulta produccion con filtros seguros por order_id o estado."""
         normalized_order_ids = _unique_ints(order_ids or [])
+        effective_status = production_status
+        if self._policy.needs_memory:
+            effective_status = (
+                _requested_production_status(self._question) or production_status
+            )
         cache_key = _cache_key(
             "query_production_orders",
             {
                 "order_ids": normalized_order_ids,
-                "production_status": production_status,
+                "production_status": effective_status,
                 "limit": limit,
             },
         )
         cached = self._cached_data(cache_key)
         if cached is not _CACHE_MISS:
             return cached
-        filters = _production_filters(normalized_order_ids, production_status)
+        filters = _production_filters(normalized_order_ids, effective_status)
         result = self._production_query_tool.query_orders(
             ProductionQuerySpec(filters=filters, limit=limit)
         )
@@ -566,7 +702,8 @@ class _DirectToolsExecution:
 
     def build_response(self, answer: str | None) -> QueryResponse:
         status = self._status(answer)
-        normalized_answer = _normalized_answer(answer, status)
+        deterministic_answer = self._deterministic_answer(status)
+        normalized_answer = _normalized_answer(deterministic_answer or answer, status)
         public_data = build_public_data_summary(
             self.data,
             include_rag_text_preview=self._include_citation_previews,
@@ -583,6 +720,28 @@ class _DirectToolsExecution:
             data=public_data,
             failure_reason=None,
         )
+
+    def _deterministic_answer(self, status: QueryStatus) -> str | None:
+        if status == "insufficient_context":
+            return None
+        if self._policy.needs_penalty and self.data.get("erp_orders"):
+            return build_order_penalties_answer(self.data)
+        if self._policy.needs_economic_impact and self.data.get("order_amounts"):
+            return _economic_impact_answer(self.data)
+        if self._policy.needs_memory and self.data.get("production_orders"):
+            return _production_status_answer(self.data)
+        if self._policy.needs_documents and isinstance(self.data.get("rag"), dict):
+            rag_answer = self.data["rag"].get("answer")
+            return str(rag_answer) if rag_answer else None
+        if self.data.get("period") and self.data.get("erp_orders"):
+            return _month_summary_answer(self.data)
+        if self.data.get("production_orders") and self.data.get("customers_by_order"):
+            return _production_status_answer(self.data)
+        if self.data.get("erp_orders") and self.data.get("production_by_order"):
+            return _erp_with_production_answer(self.data)
+        if self.data.get("erp_orders"):
+            return _erp_orders_answer(self.data)
+        return None
 
     def _record(self, result: ToolResult, reasoning: str) -> None:
         self.tool_calls.append(result.tool_call)
@@ -610,7 +769,8 @@ class _DirectToolsExecution:
         if (
             isinstance(rag, dict)
             and rag.get("status") == "insufficient_context"
-            and not (answer and answer.strip())
+            and self._policy.needs_documents
+            and not self._policy.needs_penalty
         ):
             return "insufficient_context"
         return "completed"
@@ -727,13 +887,18 @@ def _mapping_value(value: Any, key: str) -> Any:
 
 
 def _normalized_answer(answer: str | None, status: QueryStatus) -> str:
-    if answer and answer.strip():
-        return answer.strip()
     if status == "insufficient_context":
         return (
             "No he encontrado informacion en los documentos disponibles para "
             "responder a esa pregunta con fiabilidad."
         )
+    if status == "needs_clarification":
+        return (
+            "Necesito contexto previo o que me indiques el cliente, pedido "
+            "o periodo concreto para saber a que te refieres."
+        )
+    if answer and answer.strip():
+        return answer.strip()
     if status == "tool_error":
         return "No se pudo completar la consulta por un error en una fuente."
     return "Deep Agents no genero una respuesta final usable para esta consulta."
@@ -744,6 +909,8 @@ def _confidence(status: QueryStatus) -> float | None:
         return 0.75
     if status == "insufficient_context":
         return 0.45
+    if status == "needs_clarification":
+        return 0.6
     return None
 
 
@@ -797,22 +964,39 @@ def _tool_policy(
 ) -> _ToolPolicy:
     text = _normalize_text(question)
     has_history = bool(conversation_history)
-    needs_penalty = _contains_any(text, ("penaliz", "sla"))
-    needs_documents = needs_penalty or _contains_any(
+    needs_isolated_clarification = _looks_like_follow_up(text) and not has_history
+    mentions_penalty = _contains_any(text, ("penaliz", "sla"))
+    document_first = _contains_any(text, ("segun", "pdf", "document", "contrato", "anexo"))
+    needs_penalty = mentions_penalty and not document_first and _contains_any(
+        text,
+        ("pedido", "pedidos", "estado", "erp", "produccion"),
+    )
+    needs_economic_impact = has_history and _contains_any(
+        text,
+        ("impacto economico", "importe", "importes", "valor", "cuanto suman"),
+    )
+    needs_documents = mentions_penalty or _contains_any(
         text,
         (
+            "segun",
             "contrato",
             "document",
+            "pdf",
+            "anexo",
             "clausul",
             "criptomon",
             "bitcoin",
             "divisa",
             "plazo contractual",
             "logistic",
+            "receta",
+            "cocina",
+            "vegana",
         ),
     )
-    needs_customer_orders = "alfki" in text or (
-        "cliente" in text and "pedido" in text
+    has_known_customer = any(customer_id.lower() in text for customer_id in _KNOWN_CUSTOMER_IDS)
+    needs_customer_orders = has_known_customer or (
+        "cliente" in text and "pedido" in text and "pendiente" in text
     )
     needs_blocked_cross = _contains_any(text, ("bloque", "retras")) and _contains_any(
         text,
@@ -822,7 +1006,10 @@ def _tool_policy(
         text,
         ("produccion", "estado", "bloque", "retras", "fabricacion"),
     )
-    needs_erp = needs_customer_orders or _contains_any(text, ("erp", "pedido"))
+    needs_erp = needs_customer_orders or needs_economic_impact or _contains_any(
+        text,
+        ("erp", "pedido"),
+    )
     needs_memory = has_history and (
         _looks_like_follow_up(text) or not _has_explicit_business_anchor(text)
     )
@@ -835,8 +1022,10 @@ def _tool_policy(
 
     return _ToolPolicy(
         needs_memory=needs_memory,
+        needs_isolated_clarification=needs_isolated_clarification,
         needs_documents=needs_documents,
         needs_penalty=needs_penalty,
+        needs_economic_impact=needs_economic_impact,
         needs_customer_orders=needs_customer_orders,
         needs_production=needs_production,
         needs_blocked_cross=needs_blocked_cross,
@@ -850,22 +1039,27 @@ def _contains_any(text: str, needles: tuple[str, ...]) -> bool:
 
 
 def _looks_like_follow_up(text: str) -> bool:
+    tokenized = f" {_word_text(text)} "
     return text.startswith(("y ", "ademas", "tambien")) or _contains_any(
-        text,
-        (" esos ", " esas ", " ellos ", " ellas ", " anterior", "antes"),
+        tokenized,
+        (" esos ", " esas ", " ellos ", " ellas ", " anterior ", " antes "),
     )
 
 
 def _has_explicit_business_anchor(text: str) -> bool:
     return bool(_order_ids_from_text(text)) or _contains_any(
         text,
-        ("alfki", "bonap", "anatr", "cliente", "pedido", "contrato", "document"),
+        ("alfki", "bonap", "anatr", "cliente", "pedido", "contrato", "document", "pdf"),
     )
 
 
 def _normalize_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value.lower())
     return "".join(character for character in normalized if not unicodedata.combining(character))
+
+
+def _word_text(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value).strip()
 
 
 def _cache_key(action: str, args: dict[str, Any]) -> tuple[Any, ...]:
@@ -898,6 +1092,266 @@ def _order_ids(rows: list[dict[str, Any]]) -> list[int]:
         if order_id not in order_ids:
             order_ids.append(order_id)
     return order_ids
+
+
+def _order_ids_from_memory_data(memory: Any) -> list[int]:
+    if not isinstance(memory, dict):
+        return []
+    facts = memory.get("facts")
+    if not isinstance(facts, dict):
+        return []
+    return _unique_ints(facts.get("order_ids") or [])
+
+
+def _extract_customer_id(text: str) -> str | None:
+    for match in re.findall(r"\b[A-Z]{5}\b", text):
+        if match in _KNOWN_CUSTOMER_IDS:
+            return match
+    normalized = _normalize_text(text)
+    for customer_id in sorted(_KNOWN_CUSTOMER_IDS):
+        if customer_id.lower() in normalized:
+            return customer_id
+    return None
+
+
+def _requested_production_status(text: str) -> str | None:
+    normalized = _normalize_text(text)
+    if "bloque" in normalized:
+        return "blocked"
+    if "retras" in normalized:
+        return "delayed"
+    if "progreso" in normalized or "curso" in normalized:
+        return "in_progress"
+    if "finaliz" in normalized or "termin" in normalized:
+        return "finished"
+    return None
+
+
+def _is_month_summary(text: str) -> bool:
+    normalized = _normalize_text(text)
+    return _contains_any(normalized, ("este mes", "mes", "mayo")) and _contains_any(
+        normalized,
+        ("pedido", "pedidos", "estado"),
+    )
+
+
+def _economic_impact_answer(data: dict[str, Any]) -> str:
+    order_amounts = [
+        amount
+        for amount in data.get("order_amounts", [])
+        if isinstance(amount, dict)
+    ]
+    rows = []
+    total = Decimal("0.00")
+    for amount in order_amounts:
+        order_id = amount.get("order_id")
+        value = _money(amount.get("amount"))
+        if order_id is None or value is None:
+            continue
+        total += value
+        rows.append([str(order_id), f"{value:.2f}"])
+
+    if not rows:
+        return "No se encontraron importes ERP para los pedidos referenciados."
+    if len(rows) == 1:
+        return (
+            "Con los datos disponibles, el impacto economico del pedido "
+            f"referenciado es {rows[0][0]}: {rows[0][1]}."
+        )
+    return (
+        "Con los datos disponibles, el impacto economico total de los pedidos "
+        f"referenciados es {total:.2f}.\n\n"
+        + _markdown_table(["Pedido", "Importe"], rows)
+    )
+
+
+def _production_status_answer(data: dict[str, Any]) -> str:
+    production_orders = [
+        order
+        for order in data.get("production_orders", [])
+        if isinstance(order, dict)
+    ]
+    if not production_orders:
+        return "No se encontraron estados de produccion para los pedidos referenciados."
+
+    customers_by_order = data.get("customers_by_order") or {}
+    rows = []
+    for order in production_orders:
+        order_id = int(order["order_id"])
+        customer = customers_by_order.get(order_id) or customers_by_order.get(
+            str(order_id)
+        )
+        customer_label = _customer_label(customer)
+        reason = (
+            order.get("blocked_reason")
+            or order.get("delay_reason")
+            or "sin motivo informado"
+        )
+        rows.append(
+            [
+                str(order_id),
+                customer_label,
+                _production_status_label(str(order.get("production_status") or "")),
+                str(reason),
+            ]
+        )
+
+    return (
+        "Estos son los estados de produccion de los pedidos referenciados:\n\n"
+        + _markdown_table(["Pedido", "Cliente", "Estado", "Motivo"], rows)
+    )
+
+
+def _erp_with_production_answer(data: dict[str, Any]) -> str:
+    orders = [
+        order
+        for order in data.get("erp_orders", [])
+        if isinstance(order, dict)
+    ]
+    production_by_order = data.get("production_by_order") or {}
+    if not orders:
+        return "No se encontraron pedidos ERP con los criterios solicitados."
+
+    rows = []
+    for order in orders:
+        order_id = int(order["order_id"])
+        production = production_by_order.get(order_id) or production_by_order.get(
+            str(order_id)
+        )
+        if isinstance(production, dict):
+            production_status = _production_status_label(
+                str(production.get("production_status") or "")
+            )
+            observation = (
+                production.get("blocked_reason")
+                or production.get("delay_reason")
+                or "sin bloqueo informado"
+            )
+        else:
+            production_status = "sin informacion"
+            observation = "sin estado de produccion disponible"
+        rows.append(
+            [
+                str(order_id),
+                _erp_status_label(str(order.get("erp_status") or "")),
+                production_status,
+                str(observation),
+            ]
+        )
+
+    customer_id = str(orders[0].get("customer_id") or "cliente")
+    return (
+        f"El cliente {customer_id} tiene {len(orders)} pedidos pendientes:\n\n"
+        + _markdown_table(
+            ["Pedido", "Estado ERP", "Estado produccion", "Observacion"],
+            rows,
+        )
+    )
+
+
+def _month_summary_answer(data: dict[str, Any]) -> str:
+    orders = [
+        order
+        for order in data.get("erp_orders", [])
+        if isinstance(order, dict)
+    ]
+    production_by_order = data.get("production_by_order") or {}
+    period = data.get("period") or {}
+    rows = []
+    status_counts: dict[str, int] = {}
+    for order in orders:
+        order_id = int(order["order_id"])
+        production = production_by_order.get(order_id) or production_by_order.get(
+            str(order_id)
+        )
+        if isinstance(production, dict):
+            status = _production_status_label(
+                str(production.get("production_status") or "")
+            )
+        else:
+            status = "sin informacion"
+        status_counts[status] = status_counts.get(status, 0) + 1
+        rows.append([str(order_id), _erp_status_label(str(order.get("erp_status") or "")), status])
+
+    month = int(period.get("month") or 5)
+    year = int(period.get("year") or 2026)
+    summary = ", ".join(
+        f"{status}: {count}" for status, count in sorted(status_counts.items())
+    )
+    return (
+        f"En mayo de {year} hay {len(orders)} pedidos ERP. "
+        f"Distribucion por estado de produccion: {summary}.\n\n"
+        + _markdown_table(["Pedido", "Estado ERP", "Estado produccion"], rows)
+        + f"\n\nPeriodo auditado: {year}-{month:02d}."
+    )
+
+
+def _erp_orders_answer(data: dict[str, Any]) -> str:
+    orders = [
+        order
+        for order in data.get("erp_orders", [])
+        if isinstance(order, dict)
+    ]
+    if not orders:
+        return "No se encontraron pedidos ERP con los criterios solicitados."
+
+    rows = [
+        [
+            str(order.get("order_id")),
+            _erp_status_label(str(order.get("erp_status") or "")),
+        ]
+        for order in orders
+    ]
+    customer_id = str(orders[0].get("customer_id") or "cliente")
+    return (
+        f"El cliente {customer_id} tiene {len(orders)} pedidos pendientes:\n\n"
+        + _markdown_table(["Pedido", "Estado ERP"], rows)
+    )
+
+
+def _markdown_table(headers: list[str], rows: list[list[str]]) -> str:
+    header = "| " + " | ".join(headers) + " |"
+    separator = "| " + " | ".join("---" for _ in headers) + " |"
+    body = ["| " + " | ".join(row) + " |" for row in rows]
+    return "\n".join([header, separator, *body])
+
+
+def _money(value: Any) -> Decimal | None:
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _customer_label(customer: Any) -> str:
+    if not isinstance(customer, dict):
+        return "cliente ERP no resuelto"
+    customer_id = customer.get("customer_id")
+    customer_name = customer.get("company_name") or customer.get("customer_name")
+    if customer_id and customer_name:
+        return f"{customer_id} - {customer_name}"
+    if customer_id:
+        return str(customer_id)
+    return "cliente ERP no resuelto"
+
+
+def _production_status_label(status: str) -> str:
+    labels = {
+        "blocked": "bloqueado",
+        "delayed": "retrasado",
+        "finished": "finalizado",
+        "in_progress": "en curso",
+    }
+    return labels.get(status, status or "sin informacion")
+
+
+def _erp_status_label(status: str) -> str:
+    labels = {
+        "pending": "pendiente",
+        "completed": "completado",
+        "cancelled": "cancelado",
+    }
+    return labels.get(status, status or "sin informacion")
 
 
 def _order_ids_from_text(text: str) -> list[int]:

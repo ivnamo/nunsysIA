@@ -5,7 +5,8 @@ Fecha de ejecucion: 2026-05-22 20:20:47
 - Resultado global: PASS=0, PARTIAL=0, FAIL=5, BLOCKER=0.
 Runtime:
 
-- Flujo experimental Deep Agents direct-tools con `DeepAgentsToolsQueryService`.
+- Flujo DeepAgents direct-tools con `DeepAgentsToolsQueryService` (base del modo
+  principal `deepagent` tras el refactor de router).
 - Deep Agents recibe tools individuales y compuestas de ERP, Produccion, RAG y Memoria.
 - `write_todos` queda disponible; filesystem, shell y subagentes quedan excluidos.
 - LLM real configurado via `.env` y modelo Deep Agents via `DEEPAGENTS_MODEL`.

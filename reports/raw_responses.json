@@ -1,0 +1,1225 @@
+{
+  "generated_at": "2026-05-22 20:53:54",
+  "base_url": "http://backend:8000",
+  "endpoint": "/api/query",
+  "mode": "deepagent",
+  "health": {
+    "ok": true,
+    "url": "http://backend:8000/health",
+    "http_status": 200,
+    "attempts": 1,
+    "body": {
+      "status": "ok"
+    },
+    "error": null
+  },
+  "records": [
+    {
+      "http_status": 200,
+      "elapsed_ms": 15782,
+      "payload": {
+        "question": "¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?",
+        "conversation_id": "eval-1-a5b869c5",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "El cliente ALFKI tiene 2 pedidos pendientes:\n\n| Pedido | Estado ERP | Estado produccion | Observacion |\n| --- | --- | --- | --- |\n| 10248 | pendiente | en curso | sin bloqueo informado |\n| 10252 | pendiente | bloqueado | Falta de material |",
+        "sources": [
+          "ERP",
+          "Produccion"
+        ],
+        "reasoning": [
+          "Consulta ERP de pedidos pendientes",
+          "Consulta API de produccion para pedidos referenciados"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "ERPTool",
+            "action": "get_pending_orders_by_customer",
+            "args": {
+              "customer_id": "ALFKI"
+            },
+            "status": "success",
+            "output_summary": "2 pedidos pendientes encontrados",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          },
+          {
+            "tool": "ProductionAPITool",
+            "action": "get_status_for_order_ids",
+            "args": {
+              "order_ids": [
+                10248,
+                10252
+              ],
+              "status": null
+            },
+            "status": "success",
+            "output_summary": "2 pedidos de produccion encontrados por ids",
+            "error": null,
+            "duration_ms": 6,
+            "source": "Produccion"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "erp_orders_count": 2,
+          "erp_order_ids": [
+            10248,
+            10252
+          ],
+          "production_orders_count": 2,
+          "production_order_ids": [
+            10248,
+            10252
+          ],
+          "production_statuses_count": 2,
+          "deepagents_planning": {
+            "todos_used": true,
+            "todo_tool_calls_count": 3
+          }
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"El cliente ALFKI tiene 2 pedidos pendientes:\\n\\n| Pedido | Estado ERP | Estado produccion | Observacion |\\n| --- | --- | --- | --- |\\n| 10248 | pendiente | en curso | sin bloqueo informado |\\n| 10252 | pendiente | bloqueado | Falta de material |\",\"sources\":[\"ERP\",\"Produccion\"],\"reasoning\":[\"Consulta ERP de pedidos pendientes\",\"Consulta API de produccion para pedidos referenciados\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"ERPTool\",\"action\":\"get_pending_orders_by_customer\",\"args\":{\"customer_id\":\"ALFKI\"},\"status\":\"success\",\"output_summary\":\"2 pedidos pendientes encontrados\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"},{\"tool\":\"ProductionAPITool\",\"action\":\"get_status_for_order_ids\",\"args\":{\"order_ids\":[10248,10252],\"status\":null},\"status\":\"success\",\"output_summary\":\"2 pedidos de produccion encontrados por ids\",\"error\":null,\"duration_ms\":6,\"source\":\"Produccion\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"erp_orders_count\":2,\"erp_order_ids\":[10248,10252],\"production_orders_count\":2,\"production_order_ids\":[10248,10252],\"production_statuses_count\":2,\"deepagents_planning\":{\"todos_used\":true,\"todo_tool_calls_count\":3}},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "1",
+      "question": "¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?",
+      "retried_without_mode": false
+    },
+    {
+      "http_status": 200,
+      "elapsed_ms": 23328,
+      "payload": {
+        "question": "¿Qué pedidos están bloqueados y cuál es el motivo?",
+        "conversation_id": "eval-2-168f2f62",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "Estos son los estados de produccion de los pedidos referenciados:\n\n| Pedido | Cliente | Estado | Motivo |\n| --- | --- | --- | --- |\n| 10252 | ALFKI - Alfreds Futterkiste | bloqueado | Falta de material |\n| 10312 | BONAP - Bon app | bloqueado | Falta de capacidad |",
+        "sources": [
+          "Produccion",
+          "ERP"
+        ],
+        "reasoning": [
+          "Consulta API de produccion por estado",
+          "Consulta ERP de cliente para pedido 10252",
+          "Consulta ERP de cliente para pedido 10312",
+          "Consulta Produccion mediante filtros seguros",
+          "Consulta API de produccion para pedidos referenciados",
+          "Consulta ERP mediante filtros seguros"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "ProductionAPITool",
+            "action": "list_orders",
+            "args": {
+              "status": "blocked"
+            },
+            "status": "success",
+            "output_summary": "2 pedidos de produccion encontrados con estado blocked",
+            "error": null,
+            "duration_ms": 3,
+            "source": "Produccion"
+          },
+          {
+            "tool": "ERPTool",
+            "action": "get_customers_for_production_orders",
+            "args": {
+              "order_id": 10252
+            },
+            "status": "success",
+            "output_summary": "Cliente ALFKI encontrado",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          },
+          {
+            "tool": "ERPTool",
+            "action": "get_customers_for_production_orders",
+            "args": {
+              "order_id": 10312
+            },
+            "status": "success",
+            "output_summary": "Cliente BONAP encontrado",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          },
+          {
+            "tool": "ProductionQueryTool",
+            "action": "query_orders",
+            "args": {
+              "entity": "production_orders",
+              "filters": [
+                {
+                  "field": "production_status",
+                  "operator": "eq",
+                  "value": "blocked"
+                }
+              ],
+              "select": [
+                "order_id",
+                "production_status",
+                "blocked_reason",
+                "delay_reason",
+                "estimated_finish_date"
+              ],
+              "limit": 50,
+              "order_by": null
+            },
+            "status": "success",
+            "output_summary": "2 pedidos de produccion encontrados por DSL segura",
+            "error": null,
+            "duration_ms": 3,
+            "source": "Produccion"
+          },
+          {
+            "tool": "ProductionAPITool",
+            "action": "get_status_for_order_ids",
+            "args": {
+              "order_ids": [
+                10252,
+                10312
+              ],
+              "status": "blocked"
+            },
+            "status": "success",
+            "output_summary": "2 pedidos de produccion encontrados por ids con estado blocked",
+            "error": null,
+            "duration_ms": 4,
+            "source": "Produccion"
+          },
+          {
+            "tool": "ERPQueryTool",
+            "action": "query_orders",
+            "args": {
+              "entity": "orders",
+              "filters": [
+                {
+                  "field": "order_id",
+                  "operator": "in",
+                  "value": [
+                    10252,
+                    10312
+                  ]
+                }
+              ],
+              "select": [
+                "order_id",
+                "customer_id",
+                "customer_name",
+                "erp_status",
+                "order_date",
+                "amount"
+              ],
+              "limit": 20,
+              "order_by": null
+            },
+            "status": "success",
+            "output_summary": "2 pedidos ERP encontrados por DSL segura",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "erp_query_orders_count": 2,
+          "erp_query_order_ids": [
+            10252,
+            10312
+          ],
+          "production_orders_count": 2,
+          "production_order_ids": [
+            10252,
+            10312
+          ],
+          "production_statuses_count": 2,
+          "customers_resolved_count": 2,
+          "deepagents_planning": {
+            "todos_used": true,
+            "todo_tool_calls_count": 3
+          }
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"Estos son los estados de produccion de los pedidos referenciados:\\n\\n| Pedido | Cliente | Estado | Motivo |\\n| --- | --- | --- | --- |\\n| 10252 | ALFKI - Alfreds Futterkiste | bloqueado | Falta de material |\\n| 10312 | BONAP - Bon app | bloqueado | Falta de capacidad |\",\"sources\":[\"Produccion\",\"ERP\"],\"reasoning\":[\"Consulta API de produccion por estado\",\"Consulta ERP de cliente para pedido 10252\",\"Consulta ERP de cliente para pedido 10312\",\"Consulta Produccion mediante filtros seguros\",\"Consulta API de produccion para pedidos referenciados\",\"Consulta ERP mediante filtros seguros\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"ProductionAPITool\",\"action\":\"list_orders\",\"args\":{\"status\":\"blocked\"},\"status\":\"success\",\"output_summary\":\"2 pedidos de produccion encontrados con estado blocked\",\"error\":null,\"duration_ms\":3,\"source\":\"Produccion\"},{\"tool\":\"ERPTool\",\"action\":\"get_customers_for_production_orders\",\"args\":{\"order_id\":10252},\"status\":\"success\",\"output_summary\":\"Cliente ALFKI encontrado\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"},{\"tool\":\"ERPTool\",\"action\":\"get_customers_for_production_orders\",\"args\":{\"order_id\":10312},\"status\":\"success\",\"output_summary\":\"Cliente BONAP encontrado\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"},{\"tool\":\"ProductionQueryTool\",\"action\":\"query_orders\",\"args\":{\"entity\":\"production_orders\",\"filters\":[{\"field\":\"production_status\",\"operator\":\"eq\",\"value\":\"blocked\"}],\"select\":[\"order_id\",\"production_status\",\"blocked_reason\",\"delay_reason\",\"estimated_finish_date\"],\"limit\":50,\"order_by\":null},\"status\":\"success\",\"output_summary\":\"2 pedidos de produccion encontrados por DSL segura\",\"error\":null,\"duration_ms\":3,\"source\":\"Produccion\"},{\"tool\":\"ProductionAPITool\",\"action\":\"get_status_for_order_ids\",\"args\":{\"order_ids\":[10252,10312],\"status\":\"blocked\"},\"status\":\"success\",\"output_summary\":\"2 pedidos de produccion encontrados por ids con estado blocked\",\"error\":null,\"duration_ms\":4,\"source\":\"Produccion\"},{\"tool\":\"ERPQueryTool\",\"action\":\"query_orders\",\"args\":{\"entity\":\"orders\",\"filters\":[{\"field\":\"order_id\",\"operator\":\"in\",\"value\":[10252,10312]}],\"select\":[\"order_id\",\"customer_id\",\"customer_name\",\"erp_status\",\"order_date\",\"amount\"],\"limit\":20,\"order_by\":null},\"status\":\"success\",\"output_summary\":\"2 pedidos ERP encontrados por DSL segura\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"erp_query_orders_count\":2,\"erp_query_order_ids\":[10252,10312],\"production_orders_count\":2,\"production_order_ids\":[10252,10312],\"production_statuses_count\":2,\"customers_resolved_count\":2,\"deepagents_planning\":{\"todos_used\":true,\"todo_tool_calls_count\":3}},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "2",
+      "question": "¿Qué pedidos están bloqueados y cuál es el motivo?",
+      "retried_without_mode": false
+    },
+    {
+      "http_status": 200,
+      "elapsed_ms": 15845,
+      "payload": {
+        "question": "¿Qué clientes tienen pedidos retrasados por problemas de producción?",
+        "conversation_id": "eval-3-49ca4b64",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "Estos son los estados de produccion de los pedidos referenciados:\n\n| Pedido | Cliente | Estado | Motivo |\n| --- | --- | --- | --- |\n| 10301 | ANATR - Ana Trujillo Emparedados y helados | retrasado | Averia en linea de produccion |",
+        "sources": [
+          "Produccion",
+          "ERP"
+        ],
+        "reasoning": [
+          "Consulta API de produccion por estado",
+          "Consulta ERP de cliente para pedido 10301",
+          "Consulta ERP mediante filtros seguros"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "ProductionAPITool",
+            "action": "list_orders",
+            "args": {
+              "status": "delayed"
+            },
+            "status": "success",
+            "output_summary": "1 pedidos de produccion encontrados con estado delayed",
+            "error": null,
+            "duration_ms": 3,
+            "source": "Produccion"
+          },
+          {
+            "tool": "ERPTool",
+            "action": "get_customers_for_production_orders",
+            "args": {
+              "order_id": 10301
+            },
+            "status": "success",
+            "output_summary": "Cliente ANATR encontrado",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          },
+          {
+            "tool": "ERPQueryTool",
+            "action": "query_orders",
+            "args": {
+              "entity": "orders",
+              "filters": [
+                {
+                  "field": "order_id",
+                  "operator": "in",
+                  "value": [
+                    10301
+                  ]
+                }
+              ],
+              "select": [
+                "order_id",
+                "customer_id",
+                "customer_name",
+                "erp_status",
+                "order_date",
+                "amount"
+              ],
+              "limit": 20,
+              "order_by": null
+            },
+            "status": "success",
+            "output_summary": "1 pedidos ERP encontrados por DSL segura",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "erp_query_orders_count": 1,
+          "erp_query_order_ids": [
+            10301
+          ],
+          "production_orders_count": 1,
+          "production_order_ids": [
+            10301
+          ],
+          "customers_resolved_count": 1,
+          "deepagents_planning": {
+            "todos_used": true,
+            "todo_tool_calls_count": 3
+          }
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"Estos son los estados de produccion de los pedidos referenciados:\\n\\n| Pedido | Cliente | Estado | Motivo |\\n| --- | --- | --- | --- |\\n| 10301 | ANATR - Ana Trujillo Emparedados y helados | retrasado | Averia en linea de produccion |\",\"sources\":[\"Produccion\",\"ERP\"],\"reasoning\":[\"Consulta API de produccion por estado\",\"Consulta ERP de cliente para pedido 10301\",\"Consulta ERP mediante filtros seguros\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"ProductionAPITool\",\"action\":\"list_orders\",\"args\":{\"status\":\"delayed\"},\"status\":\"success\",\"output_summary\":\"1 pedidos de produccion encontrados con estado delayed\",\"error\":null,\"duration_ms\":3,\"source\":\"Produccion\"},{\"tool\":\"ERPTool\",\"action\":\"get_customers_for_production_orders\",\"args\":{\"order_id\":10301},\"status\":\"success\",\"output_summary\":\"Cliente ANATR encontrado\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"},{\"tool\":\"ERPQueryTool\",\"action\":\"query_orders\",\"args\":{\"entity\":\"orders\",\"filters\":[{\"field\":\"order_id\",\"operator\":\"in\",\"value\":[10301]}],\"select\":[\"order_id\",\"customer_id\",\"customer_name\",\"erp_status\",\"order_date\",\"amount\"],\"limit\":20,\"order_by\":null},\"status\":\"success\",\"output_summary\":\"1 pedidos ERP encontrados por DSL segura\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"erp_query_orders_count\":1,\"erp_query_order_ids\":[10301],\"production_orders_count\":1,\"production_order_ids\":[10301],\"customers_resolved_count\":1,\"deepagents_planning\":{\"todos_used\":true,\"todo_tool_calls_count\":3}},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "3",
+      "question": "¿Qué clientes tienen pedidos retrasados por problemas de producción?",
+      "retried_without_mode": false
+    },
+    {
+      "http_status": 200,
+      "elapsed_ms": 32204,
+      "payload": {
+        "question": "Dame un resumen del estado de los pedidos de este mes",
+        "conversation_id": "eval-4-02bb9fd2",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "En mayo de 2026 hay 5 pedidos ERP. Distribucion por estado de produccion: bloqueado: 2, en curso: 1, finalizado: 1, retrasado: 1.\n\n| Pedido | Estado ERP | Estado produccion |\n| --- | --- | --- |\n| 10248 | pendiente | en curso |\n| 10252 | pendiente | bloqueado |\n| 10255 | enviado | finalizado |\n| 10301 | pendiente | retrasado |\n| 10312 | pendiente | bloqueado |\n\nPeriodo auditado: 2026-05.",
+        "sources": [
+          "ERP",
+          "Produccion"
+        ],
+        "reasoning": [
+          "Consulta ERP de pedidos por mes",
+          "Consulta API de produccion para pedidos referenciados",
+          "Consulta ERP mediante filtros seguros",
+          "Consulta ERP mediante filtros seguros"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "ERPTool",
+            "action": "get_orders_by_month",
+            "args": {
+              "year": 2026,
+              "month": 5
+            },
+            "status": "success",
+            "output_summary": "5 pedidos encontrados para el mes",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          },
+          {
+            "tool": "ProductionAPITool",
+            "action": "get_status_for_order_ids",
+            "args": {
+              "order_ids": [
+                10248,
+                10252,
+                10255,
+                10301,
+                10312
+              ],
+              "status": null
+            },
+            "status": "success",
+            "output_summary": "5 pedidos de produccion encontrados por ids",
+            "error": null,
+            "duration_ms": 8,
+            "source": "Produccion"
+          },
+          {
+            "tool": "ERPQueryTool",
+            "action": "query_orders",
+            "args": {
+              "entity": "orders",
+              "filters": [],
+              "select": [
+                "order_id",
+                "customer_id",
+                "customer_name",
+                "erp_status",
+                "order_date",
+                "amount"
+              ],
+              "limit": 5,
+              "order_by": null
+            },
+            "status": "success",
+            "output_summary": "5 pedidos ERP encontrados por DSL segura",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          },
+          {
+            "tool": "ERPQueryTool",
+            "action": "query_orders",
+            "args": {
+              "entity": "orders",
+              "filters": [
+                {
+                  "field": "year",
+                  "operator": "eq",
+                  "value": 2026
+                },
+                {
+                  "field": "month",
+                  "operator": "eq",
+                  "value": 5
+                }
+              ],
+              "select": [
+                "order_id",
+                "customer_id",
+                "customer_name",
+                "erp_status",
+                "order_date",
+                "amount"
+              ],
+              "limit": 20,
+              "order_by": null
+            },
+            "status": "success",
+            "output_summary": "5 pedidos ERP encontrados por DSL segura",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "erp_orders_count": 5,
+          "erp_order_ids": [
+            10248,
+            10252,
+            10255,
+            10301,
+            10312
+          ],
+          "erp_query_orders_count": 5,
+          "erp_query_order_ids": [
+            10248,
+            10252,
+            10255,
+            10301,
+            10312
+          ],
+          "production_orders_count": 5,
+          "production_order_ids": [
+            10248,
+            10252,
+            10255,
+            10301,
+            10312
+          ],
+          "production_statuses_count": 5,
+          "period": {
+            "year": 2026,
+            "month": 5
+          },
+          "deepagents_planning": {
+            "todos_used": true,
+            "todo_tool_calls_count": 4
+          }
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"En mayo de 2026 hay 5 pedidos ERP. Distribucion por estado de produccion: bloqueado: 2, en curso: 1, finalizado: 1, retrasado: 1.\\n\\n| Pedido | Estado ERP | Estado produccion |\\n| --- | --- | --- |\\n| 10248 | pendiente | en curso |\\n| 10252 | pendiente | bloqueado |\\n| 10255 | enviado | finalizado |\\n| 10301 | pendiente | retrasado |\\n| 10312 | pendiente | bloqueado |\\n\\nPeriodo auditado: 2026-05.\",\"sources\":[\"ERP\",\"Produccion\"],\"reasoning\":[\"Consulta ERP de pedidos por mes\",\"Consulta API de produccion para pedidos referenciados\",\"Consulta ERP mediante filtros seguros\",\"Consulta ERP mediante filtros seguros\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"ERPTool\",\"action\":\"get_orders_by_month\",\"args\":{\"year\":2026,\"month\":5},\"status\":\"success\",\"output_summary\":\"5 pedidos encontrados para el mes\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"},{\"tool\":\"ProductionAPITool\",\"action\":\"get_status_for_order_ids\",\"args\":{\"order_ids\":[10248,10252,10255,10301,10312],\"status\":null},\"status\":\"success\",\"output_summary\":\"5 pedidos de produccion encontrados por ids\",\"error\":null,\"duration_ms\":8,\"source\":\"Produccion\"},{\"tool\":\"ERPQueryTool\",\"action\":\"query_orders\",\"args\":{\"entity\":\"orders\",\"filters\":[],\"select\":[\"order_id\",\"customer_id\",\"customer_name\",\"erp_status\",\"order_date\",\"amount\"],\"limit\":5,\"order_by\":null},\"status\":\"success\",\"output_summary\":\"5 pedidos ERP encontrados por DSL segura\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"},{\"tool\":\"ERPQueryTool\",\"action\":\"query_orders\",\"args\":{\"entity\":\"orders\",\"filters\":[{\"field\":\"year\",\"operator\":\"eq\",\"value\":2026},{\"field\":\"month\",\"operator\":\"eq\",\"value\":5}],\"select\":[\"order_id\",\"customer_id\",\"customer_name\",\"erp_status\",\"order_date\",\"amount\"],\"limit\":20,\"order_by\":null},\"status\":\"success\",\"output_summary\":\"5 pedidos ERP encontrados por DSL segura\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"erp_orders_count\":5,\"erp_order_ids\":[10248,10252,10255,10301,10312],\"erp_query_orders_count\":5,\"erp_query_order_ids\":[10248,10252,10255,10301,10312],\"production_orders_count\":5,\"production_order_ids\":[10248,10252,10255,10301,10312],\"production_statuses_count\":5,\"period\":{\"year\":2026,\"month\":5},\"deepagents_planning\":{\"todos_used\":true,\"todo_tool_calls_count\":4}},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "4",
+      "question": "Dame un resumen del estado de los pedidos de este mes",
+      "retried_without_mode": false
+    },
+    {
+      "http_status": 200,
+      "elapsed_ms": 9746,
+      "payload": {
+        "question": "¿Qué dice este documento sobre plazos de entrega?",
+        "conversation_id": "eval-5-194e415b",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "De acuerdo con la documentación contractual de logística para 2026, las condiciones relativas a los plazos de entrega se estructuran de la siguiente manera:\n\n* **Plazos de Entrega Ordinarios:**\n  * **Pedidos estándar:** Deben entregarse en un plazo máximo de **5 días laborables** a partir de la liberación de producción.\n  * **Pedidos urgentes:** El plazo máximo de entrega es de **48 horas** desde su liberación.\n\n* **Cálculo de Plazos y Calendario:**\n  * Se excluyen del cómputo de días laborables los sábados, domingos, festivos nacionales y festivos de la provincia de destino donde el transportista no ofrezca servicio.\n  * Si la salida del pedido ocurre después de las **14:00 horas**, el cómputo se iniciará el siguiente día laborable.\n  * En envíos de exportación, la tramitación de aduanas y documentación sanitaria puede pausar temporalmente el contador de días, siempre que quede debidamente registrado en el expediente.\n\n* **Entregas Parciales:**\n  * Solo se consideran válidas para el cumplimiento del plazo si comercial aprueba la parcialidad y el cliente acepta la documentación por escrito. En caso contrario, el pedido se considerará pendiente hasta que se complete la entrega total.\n\n* **Excepciones de Incumplimiento:**\n  * No se considerará retraso imputable al transportista si el retraso es consecuencia de falta de material, avería crítica de línea de producción, un cambio de prioridad formalmente aprobado o información incompleta en el ERP.\n\n* **Penalizaciones por Retraso:**\n  * Las sanciones solo aplican si el retraso es de responsabilidad exclusiva del operador logístico y está completamente documentado.\n  * En los pedidos estándar, un retraso imputable superior a **2 días laborables** genera una penalización del **2%**, la cual se incrementa al **5%** si el retraso excede los **5 días laborables**.",
+        "sources": [
+          "Documentos"
+        ],
+        "reasoning": [
+          "Consulta RAG documental con chunks recuperados"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "DocumentRAGTool",
+            "action": "query",
+            "args": {
+              "query": "¿Qué dice este documento sobre plazos de entrega?",
+              "top_k": 3,
+              "min_score": 0.2,
+              "filename": null
+            },
+            "status": "success",
+            "output_summary": "3 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf",
+            "error": null,
+            "duration_ms": 384,
+            "source": "Documentos"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "rag": {
+            "status": "completed",
+            "chunks_count": 3,
+            "documents": [
+              "v2_anexo_penalizaciones_sla.pdf",
+              "v2_contrato_marco_logistica_2026.pdf"
+            ],
+            "citations": [
+              {
+                "filename": "v2_contrato_marco_logistica_2026.pdf",
+                "page": 2,
+                "chunk_id": "doc_3592ecf25a6d_p2_c1",
+                "score": 0.7808
+              },
+              {
+                "filename": "v2_contrato_marco_logistica_2026.pdf",
+                "page": 2,
+                "chunk_id": "doc_3592ecf25a6d_p2_c2",
+                "score": 0.7618
+              },
+              {
+                "filename": "v2_anexo_penalizaciones_sla.pdf",
+                "page": 1,
+                "chunk_id": "doc_e623d7501456_p1_c1",
+                "score": 0.7531
+              }
+            ]
+          }
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"De acuerdo con la documentación contractual de logística para 2026, las condiciones relativas a los plazos de entrega se estructuran de la siguiente manera:\\n\\n* **Plazos de Entrega Ordinarios:**\\n  * **Pedidos estándar:** Deben entregarse en un plazo máximo de **5 días laborables** a partir de la liberación de producción.\\n  * **Pedidos urgentes:** El plazo máximo de entrega es de **48 horas** desde su liberación.\\n\\n* **Cálculo de Plazos y Calendario:**\\n  * Se excluyen del cómputo de días laborables los sábados, domingos, festivos nacionales y festivos de la provincia de destino donde el transportista no ofrezca servicio.\\n  * Si la salida del pedido ocurre después de las **14:00 horas**, el cómputo se iniciará el siguiente día laborable.\\n  * En envíos de exportación, la tramitación de aduanas y documentación sanitaria puede pausar temporalmente el contador de días, siempre que quede debidamente registrado en el expediente.\\n\\n* **Entregas Parciales:**\\n  * Solo se consideran válidas para el cumplimiento del plazo si comercial aprueba la parcialidad y el cliente acepta la documentación por escrito. En caso contrario, el pedido se considerará pendiente hasta que se complete la entrega total.\\n\\n* **Excepciones de Incumplimiento:**\\n  * No se considerará retraso imputable al transportista si el retraso es consecuencia de falta de material, avería crítica de línea de producción, un cambio de prioridad formalmente aprobado o información incompleta en el ERP.\\n\\n* **Penalizaciones por Retraso:**\\n  * Las sanciones solo aplican si el retraso es de responsabilidad exclusiva del operador logístico y está completamente documentado.\\n  * En los pedidos estándar, un retraso imputable superior a **2 días laborables** genera una penalización del **2%**, la cual se incrementa al **5%** si el retraso excede los **5 días laborables**.\",\"sources\":[\"Documentos\"],\"reasoning\":[\"Consulta RAG documental con chunks recuperados\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"DocumentRAGTool\",\"action\":\"query\",\"args\":{\"query\":\"¿Qué dice este documento sobre plazos de entrega?\",\"top_k\":3,\"min_score\":0.2,\"filename\":null},\"status\":\"success\",\"output_summary\":\"3 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf\",\"error\":null,\"duration_ms\":384,\"source\":\"Documentos\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"rag\":{\"status\":\"completed\",\"chunks_count\":3,\"documents\":[\"v2_anexo_penalizaciones_sla.pdf\",\"v2_contrato_marco_logistica_2026.pdf\"],\"citations\":[{\"filename\":\"v2_contrato_marco_logistica_2026.pdf\",\"page\":2,\"chunk_id\":\"doc_3592ecf25a6d_p2_c1\",\"score\":0.7808},{\"filename\":\"v2_contrato_marco_logistica_2026.pdf\",\"page\":2,\"chunk_id\":\"doc_3592ecf25a6d_p2_c2\",\"score\":0.7618},{\"filename\":\"v2_anexo_penalizaciones_sla.pdf\",\"page\":1,\"chunk_id\":\"doc_e623d7501456_p1_c1\",\"score\":0.7531}]}},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "5",
+      "question": "¿Qué dice este documento sobre plazos de entrega?",
+      "retried_without_mode": false
+    },
+    {
+      "http_status": 200,
+      "elapsed_ms": 8755,
+      "payload": {
+        "question": "Resume los puntos clave del contrato",
+        "conversation_id": "eval-6-51d33203",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "A continuación se presentan los puntos clave regulados en el Contrato Marco de Logística 2026:\n\n*   **Objeto del contrato**: Regula los procesos de preparación, expedición, entrega y cierre documental de todos los pedidos comerciales durante el año 2026 (estándar, urgentes, entregas parciales y con salidas desde almacenes centrales o externos).\n*   **Definición de pedidos**:\n    *   **Estándar**: Orden ERP liberada por producción sin prioridad comercial especial.\n    *   **Urgente**: Orden de prioridad alta que debe entregarse en un plazo máximo de 48 horas.\n    *   **Bloqueado**: Detenido temporalmente por producción debido a fallas de material, capacidad, control de calidad o aprobaciones pendientes.\n*   **Inicio del plazo logístico**: Comienza una vez que producción registra la liberación final y el ERP tiene la dirección de entrega y el contacto registrados.\n*   **Plazos ordinarios de entrega**:\n    *   **Pedidos estándar**: Máximo 5 días laborables desde la liberación.\n    *   **Pedidos urgentes**: Máximo 48 horas.\n    *   **Entregas parciales**: Computan como cumplimiento solo si el área comercial las aprueba y el cliente acepta la documentación.\n*   **Reglas del calendario aplicable**: El cómputo excluye fines de semana y festivos (nacionales y provinciales si el transportista no opera). Las salidas posteriores a las 14:00 horas computan a partir del día laborable siguiente. Trámites de exportación y aduanas pueden pausar el conteo si queda registrado en el expediente.\n*   **Trazabilidad obligatoria**: Se exige el registro de 5 hitos clave: liberación de producción, preparación de almacén, salida de muelle, entrega al transportista y confirmación de entrega.\n*   **Evidencias para auditorías**: Es indispensable conservar datos mínimos de trazabilidad (como identificadores, fechas comprometidas y reales, transportista, estados y causas de desviación) para responder consultas formales de auditoría.",
+        "sources": [
+          "Documentos"
+        ],
+        "reasoning": [
+          "Consulta RAG documental con chunks recuperados"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "DocumentRAGTool",
+            "action": "query",
+            "args": {
+              "query": "Resume los puntos clave del contrato",
+              "top_k": 3,
+              "min_score": 0.2,
+              "filename": null
+            },
+            "status": "success",
+            "output_summary": "3 chunks recuperados de v2_contrato_marco_logistica_2026.pdf",
+            "error": null,
+            "duration_ms": 362,
+            "source": "Documentos"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "rag": {
+            "status": "completed",
+            "chunks_count": 3,
+            "documents": [
+              "v2_contrato_marco_logistica_2026.pdf"
+            ],
+            "citations": [
+              {
+                "filename": "v2_contrato_marco_logistica_2026.pdf",
+                "page": 1,
+                "chunk_id": "doc_3592ecf25a6d_p1_c1",
+                "score": 0.7133
+              },
+              {
+                "filename": "v2_contrato_marco_logistica_2026.pdf",
+                "page": 3,
+                "chunk_id": "doc_3592ecf25a6d_p3_c1",
+                "score": 0.7107
+              },
+              {
+                "filename": "v2_contrato_marco_logistica_2026.pdf",
+                "page": 2,
+                "chunk_id": "doc_3592ecf25a6d_p2_c1",
+                "score": 0.7053
+              }
+            ]
+          }
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"A continuación se presentan los puntos clave regulados en el Contrato Marco de Logística 2026:\\n\\n*   **Objeto del contrato**: Regula los procesos de preparación, expedición, entrega y cierre documental de todos los pedidos comerciales durante el año 2026 (estándar, urgentes, entregas parciales y con salidas desde almacenes centrales o externos).\\n*   **Definición de pedidos**:\\n    *   **Estándar**: Orden ERP liberada por producción sin prioridad comercial especial.\\n    *   **Urgente**: Orden de prioridad alta que debe entregarse en un plazo máximo de 48 horas.\\n    *   **Bloqueado**: Detenido temporalmente por producción debido a fallas de material, capacidad, control de calidad o aprobaciones pendientes.\\n*   **Inicio del plazo logístico**: Comienza una vez que producción registra la liberación final y el ERP tiene la dirección de entrega y el contacto registrados.\\n*   **Plazos ordinarios de entrega**:\\n    *   **Pedidos estándar**: Máximo 5 días laborables desde la liberación.\\n    *   **Pedidos urgentes**: Máximo 48 horas.\\n    *   **Entregas parciales**: Computan como cumplimiento solo si el área comercial las aprueba y el cliente acepta la documentación.\\n*   **Reglas del calendario aplicable**: El cómputo excluye fines de semana y festivos (nacionales y provinciales si el transportista no opera). Las salidas posteriores a las 14:00 horas computan a partir del día laborable siguiente. Trámites de exportación y aduanas pueden pausar el conteo si queda registrado en el expediente.\\n*   **Trazabilidad obligatoria**: Se exige el registro de 5 hitos clave: liberación de producción, preparación de almacén, salida de muelle, entrega al transportista y confirmación de entrega.\\n*   **Evidencias para auditorías**: Es indispensable conservar datos mínimos de trazabilidad (como identificadores, fechas comprometidas y reales, transportista, estados y causas de desviación) para responder consultas formales de auditoría.\",\"sources\":[\"Documentos\"],\"reasoning\":[\"Consulta RAG documental con chunks recuperados\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"DocumentRAGTool\",\"action\":\"query\",\"args\":{\"query\":\"Resume los puntos clave del contrato\",\"top_k\":3,\"min_score\":0.2,\"filename\":null},\"status\":\"success\",\"output_summary\":\"3 chunks recuperados de v2_contrato_marco_logistica_2026.pdf\",\"error\":null,\"duration_ms\":362,\"source\":\"Documentos\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"rag\":{\"status\":\"completed\",\"chunks_count\":3,\"documents\":[\"v2_contrato_marco_logistica_2026.pdf\"],\"citations\":[{\"filename\":\"v2_contrato_marco_logistica_2026.pdf\",\"page\":1,\"chunk_id\":\"doc_3592ecf25a6d_p1_c1\",\"score\":0.7133},{\"filename\":\"v2_contrato_marco_logistica_2026.pdf\",\"page\":3,\"chunk_id\":\"doc_3592ecf25a6d_p3_c1\",\"score\":0.7107},{\"filename\":\"v2_contrato_marco_logistica_2026.pdf\",\"page\":2,\"chunk_id\":\"doc_3592ecf25a6d_p2_c1\",\"score\":0.7053}]}},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "6",
+      "question": "Resume los puntos clave del contrato",
+      "retried_without_mode": false
+    },
+    {
+      "http_status": 200,
+      "elapsed_ms": 9015,
+      "payload": {
+        "question": "¿Hay alguna penalización por retrasos?",
+        "conversation_id": "eval-7-ee9082a9",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "Sí, existen penalizaciones por retrasos bajo condiciones específicas y según el tipo de pedido:\n\n* **Pedidos Estándar** (plazo de entrega de 5 días laborables desde la liberación): Se aplica una penalización del 2% si el retraso imputable supera los 2 días laborables, la cual asciende al 5% si el retraso es superior a 5 días laborables.\n* **Pedidos Urgentes** (plazo de entrega de 48 horas desde la liberación): Se aplica una penalización del 3% desde el primer día de retraso imputable.\n\n**Condiciones para su aplicación:**\n* El retraso debe ser imputable al operador logístico.\n* Debe existir evidencia completa registrada en el ERP (incluyendo el importe real del pedido extraído de sus líneas de detalle), datos de producción y la prueba de entrega (POD). En caso de no poder demostrarse claramente la causa y responsabilidad del retraso, se aplica la regla de insuficiencia de pruebas y no se procede con ninguna penalización.",
+        "sources": [
+          "Documentos"
+        ],
+        "reasoning": [
+          "Consulta RAG documental con chunks recuperados"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "DocumentRAGTool",
+            "action": "query",
+            "args": {
+              "query": "¿Hay alguna penalización por retrasos?",
+              "top_k": 3,
+              "min_score": 0.2,
+              "filename": null
+            },
+            "status": "success",
+            "output_summary": "3 chunks recuperados de v2_anexo_penalizaciones_sla.pdf",
+            "error": null,
+            "duration_ms": 334,
+            "source": "Documentos"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "rag": {
+            "status": "completed",
+            "chunks_count": 3,
+            "documents": [
+              "v2_anexo_penalizaciones_sla.pdf"
+            ],
+            "citations": [
+              {
+                "filename": "v2_anexo_penalizaciones_sla.pdf",
+                "page": 1,
+                "chunk_id": "doc_e623d7501456_p1_c2",
+                "score": 0.7673
+              },
+              {
+                "filename": "v2_anexo_penalizaciones_sla.pdf",
+                "page": 1,
+                "chunk_id": "doc_e623d7501456_p1_c1",
+                "score": 0.7424
+              },
+              {
+                "filename": "v2_anexo_penalizaciones_sla.pdf",
+                "page": 2,
+                "chunk_id": "doc_e623d7501456_p2_c1",
+                "score": 0.7326
+              }
+            ]
+          }
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"Sí, existen penalizaciones por retrasos bajo condiciones específicas y según el tipo de pedido:\\n\\n* **Pedidos Estándar** (plazo de entrega de 5 días laborables desde la liberación): Se aplica una penalización del 2% si el retraso imputable supera los 2 días laborables, la cual asciende al 5% si el retraso es superior a 5 días laborables.\\n* **Pedidos Urgentes** (plazo de entrega de 48 horas desde la liberación): Se aplica una penalización del 3% desde el primer día de retraso imputable.\\n\\n**Condiciones para su aplicación:**\\n* El retraso debe ser imputable al operador logístico.\\n* Debe existir evidencia completa registrada en el ERP (incluyendo el importe real del pedido extraído de sus líneas de detalle), datos de producción y la prueba de entrega (POD). En caso de no poder demostrarse claramente la causa y responsabilidad del retraso, se aplica la regla de insuficiencia de pruebas y no se procede con ninguna penalización.\",\"sources\":[\"Documentos\"],\"reasoning\":[\"Consulta RAG documental con chunks recuperados\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"DocumentRAGTool\",\"action\":\"query\",\"args\":{\"query\":\"¿Hay alguna penalización por retrasos?\",\"top_k\":3,\"min_score\":0.2,\"filename\":null},\"status\":\"success\",\"output_summary\":\"3 chunks recuperados de v2_anexo_penalizaciones_sla.pdf\",\"error\":null,\"duration_ms\":334,\"source\":\"Documentos\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"rag\":{\"status\":\"completed\",\"chunks_count\":3,\"documents\":[\"v2_anexo_penalizaciones_sla.pdf\"],\"citations\":[{\"filename\":\"v2_anexo_penalizaciones_sla.pdf\",\"page\":1,\"chunk_id\":\"doc_e623d7501456_p1_c2\",\"score\":0.7673},{\"filename\":\"v2_anexo_penalizaciones_sla.pdf\",\"page\":1,\"chunk_id\":\"doc_e623d7501456_p1_c1\",\"score\":0.7424},{\"filename\":\"v2_anexo_penalizaciones_sla.pdf\",\"page\":2,\"chunk_id\":\"doc_e623d7501456_p2_c1\",\"score\":0.7326}]}},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "7",
+      "question": "¿Hay alguna penalización por retrasos?",
+      "retried_without_mode": false
+    },
+    {
+      "http_status": 200,
+      "elapsed_ms": 9930,
+      "payload": {
+        "question": "¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?",
+        "conversation_id": "eval-memory-alfki-f5f21237",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "El cliente ALFKI tiene 2 pedidos pendientes:\n\n| Pedido | Estado ERP | Estado produccion | Observacion |\n| --- | --- | --- | --- |\n| 10248 | pendiente | en curso | sin bloqueo informado |\n| 10252 | pendiente | bloqueado | Falta de material |",
+        "sources": [
+          "ERP",
+          "Produccion"
+        ],
+        "reasoning": [
+          "Consulta ERP de pedidos pendientes",
+          "Consulta API de produccion para pedidos referenciados"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "ERPTool",
+            "action": "get_pending_orders_by_customer",
+            "args": {
+              "customer_id": "ALFKI"
+            },
+            "status": "success",
+            "output_summary": "2 pedidos pendientes encontrados",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          },
+          {
+            "tool": "ProductionAPITool",
+            "action": "get_status_for_order_ids",
+            "args": {
+              "order_ids": [
+                10248,
+                10252
+              ],
+              "status": null
+            },
+            "status": "success",
+            "output_summary": "2 pedidos de produccion encontrados por ids",
+            "error": null,
+            "duration_ms": 4,
+            "source": "Produccion"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "erp_orders_count": 2,
+          "erp_order_ids": [
+            10248,
+            10252
+          ],
+          "production_orders_count": 2,
+          "production_order_ids": [
+            10248,
+            10252
+          ],
+          "production_statuses_count": 2
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"El cliente ALFKI tiene 2 pedidos pendientes:\\n\\n| Pedido | Estado ERP | Estado produccion | Observacion |\\n| --- | --- | --- | --- |\\n| 10248 | pendiente | en curso | sin bloqueo informado |\\n| 10252 | pendiente | bloqueado | Falta de material |\",\"sources\":[\"ERP\",\"Produccion\"],\"reasoning\":[\"Consulta ERP de pedidos pendientes\",\"Consulta API de produccion para pedidos referenciados\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"ERPTool\",\"action\":\"get_pending_orders_by_customer\",\"args\":{\"customer_id\":\"ALFKI\"},\"status\":\"success\",\"output_summary\":\"2 pedidos pendientes encontrados\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"},{\"tool\":\"ProductionAPITool\",\"action\":\"get_status_for_order_ids\",\"args\":{\"order_ids\":[10248,10252],\"status\":null},\"status\":\"success\",\"output_summary\":\"2 pedidos de produccion encontrados por ids\",\"error\":null,\"duration_ms\":4,\"source\":\"Produccion\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"erp_orders_count\":2,\"erp_order_ids\":[10248,10252],\"production_orders_count\":2,\"production_order_ids\":[10248,10252],\"production_statuses_count\":2},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "8a",
+      "question": "¿Qué pedidos pendientes tiene el cliente ALFKI y en qué estado de producción están?",
+      "retried_without_mode": false
+    },
+    {
+      "http_status": 200,
+      "elapsed_ms": 18051,
+      "payload": {
+        "question": "¿Y cuáles de esos pedidos están bloqueados?",
+        "conversation_id": "eval-memory-alfki-f5f21237",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "Estos son los estados de produccion de los pedidos referenciados:\n\n| Pedido | Cliente | Estado | Motivo |\n| --- | --- | --- | --- |\n| 10252 | ALFKI - Alfreds Futterkiste | bloqueado | Falta de material |",
+        "sources": [
+          "Memoria",
+          "Produccion",
+          "ERP"
+        ],
+        "reasoning": [
+          "Consulta memoria conversacional",
+          "Consulta API de produccion para pedidos referenciados",
+          "Consulta ERP de cliente para pedido 10252",
+          "Consulta Produccion mediante filtros seguros"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "MemoryTool",
+            "action": "recall",
+            "args": {
+              "query": "¿Y cuáles de esos pedidos están bloqueados?",
+              "max_turns": 5
+            },
+            "status": "success",
+            "output_summary": "Memoria conversacional: 1 interacciones recuperadas",
+            "error": null,
+            "duration_ms": null,
+            "source": "Memoria"
+          },
+          {
+            "tool": "ProductionAPITool",
+            "action": "get_status_for_order_ids",
+            "args": {
+              "order_ids": [
+                10248,
+                10252
+              ],
+              "status": "blocked"
+            },
+            "status": "success",
+            "output_summary": "1 pedidos de produccion encontrados por ids con estado blocked",
+            "error": null,
+            "duration_ms": 4,
+            "source": "Produccion"
+          },
+          {
+            "tool": "ERPTool",
+            "action": "get_customers_for_production_orders",
+            "args": {
+              "order_id": 10252
+            },
+            "status": "success",
+            "output_summary": "Cliente ALFKI encontrado",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          },
+          {
+            "tool": "ProductionQueryTool",
+            "action": "query_orders",
+            "args": {
+              "entity": "production_orders",
+              "filters": [
+                {
+                  "field": "order_id",
+                  "operator": "in",
+                  "value": [
+                    10248,
+                    10252
+                  ]
+                },
+                {
+                  "field": "production_status",
+                  "operator": "eq",
+                  "value": "blocked"
+                }
+              ],
+              "select": [
+                "order_id",
+                "production_status",
+                "blocked_reason",
+                "delay_reason",
+                "estimated_finish_date"
+              ],
+              "limit": 20,
+              "order_by": null
+            },
+            "status": "success",
+            "output_summary": "1 pedidos de produccion encontrados por DSL segura",
+            "error": null,
+            "duration_ms": 4,
+            "source": "Produccion"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "production_orders_count": 1,
+          "production_order_ids": [
+            10252
+          ],
+          "production_statuses_count": 1,
+          "customers_resolved_count": 1,
+          "memory": {
+            "status": "found",
+            "turns_count": 1,
+            "customer_id": "ALFKI",
+            "order_ids": [
+              10248,
+              10252
+            ]
+          },
+          "deepagents_planning": {
+            "todos_used": true,
+            "todo_tool_calls_count": 4
+          }
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"Estos son los estados de produccion de los pedidos referenciados:\\n\\n| Pedido | Cliente | Estado | Motivo |\\n| --- | --- | --- | --- |\\n| 10252 | ALFKI - Alfreds Futterkiste | bloqueado | Falta de material |\",\"sources\":[\"Memoria\",\"Produccion\",\"ERP\"],\"reasoning\":[\"Consulta memoria conversacional\",\"Consulta API de produccion para pedidos referenciados\",\"Consulta ERP de cliente para pedido 10252\",\"Consulta Produccion mediante filtros seguros\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"MemoryTool\",\"action\":\"recall\",\"args\":{\"query\":\"¿Y cuáles de esos pedidos están bloqueados?\",\"max_turns\":5},\"status\":\"success\",\"output_summary\":\"Memoria conversacional: 1 interacciones recuperadas\",\"error\":null,\"duration_ms\":null,\"source\":\"Memoria\"},{\"tool\":\"ProductionAPITool\",\"action\":\"get_status_for_order_ids\",\"args\":{\"order_ids\":[10248,10252],\"status\":\"blocked\"},\"status\":\"success\",\"output_summary\":\"1 pedidos de produccion encontrados por ids con estado blocked\",\"error\":null,\"duration_ms\":4,\"source\":\"Produccion\"},{\"tool\":\"ERPTool\",\"action\":\"get_customers_for_production_orders\",\"args\":{\"order_id\":10252},\"status\":\"success\",\"output_summary\":\"Cliente ALFKI encontrado\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"},{\"tool\":\"ProductionQueryTool\",\"action\":\"query_orders\",\"args\":{\"entity\":\"production_orders\",\"filters\":[{\"field\":\"order_id\",\"operator\":\"in\",\"value\":[10248,10252]},{\"field\":\"production_status\",\"operator\":\"eq\",\"value\":\"blocked\"}],\"select\":[\"order_id\",\"production_status\",\"blocked_reason\",\"delay_reason\",\"estimated_finish_date\"],\"limit\":20,\"order_by\":null},\"status\":\"success\",\"output_summary\":\"1 pedidos de produccion encontrados por DSL segura\",\"error\":null,\"duration_ms\":4,\"source\":\"Produccion\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"production_orders_count\":1,\"production_order_ids\":[10252],\"production_statuses_count\":1,\"customers_resolved_count\":1,\"memory\":{\"status\":\"found\",\"turns_count\":1,\"customer_id\":\"ALFKI\",\"order_ids\":[10248,10252]},\"deepagents_planning\":{\"todos_used\":true,\"todo_tool_calls_count\":4}},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "8b",
+      "question": "¿Y cuáles de esos pedidos están bloqueados?",
+      "retried_without_mode": false
+    },
+    {
+      "http_status": 200,
+      "elapsed_ms": 16817,
+      "payload": {
+        "question": "¿Cuál es el impacto económico de esos?",
+        "conversation_id": "eval-memory-alfki-f5f21237",
+        "mode": "deepagent"
+      },
+      "response_json": {
+        "answer": "Con los datos disponibles, el impacto economico del pedido referenciado es 10252: 1863.00.",
+        "sources": [
+          "Memoria",
+          "ERP"
+        ],
+        "reasoning": [
+          "Consulta memoria conversacional",
+          "Consulta ERP de importe para pedido 10252",
+          "Consulta ERP mediante filtros seguros"
+        ],
+        "metadata": {
+          "agent_mode": "deepagent",
+          "agent_framework": "LangChain DeepAgents"
+        },
+        "tool_calls": [
+          {
+            "tool": "MemoryTool",
+            "action": "recall",
+            "args": {
+              "query": "¿Cuál es el impacto económico de esos?",
+              "max_turns": 5
+            },
+            "status": "success",
+            "output_summary": "Memoria conversacional: 2 interacciones recuperadas",
+            "error": null,
+            "duration_ms": null,
+            "source": "Memoria"
+          },
+          {
+            "tool": "ERPTool",
+            "action": "calculate_order_amount",
+            "args": {
+              "order_id": 10252
+            },
+            "status": "success",
+            "output_summary": "Importe calculado",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          },
+          {
+            "tool": "ERPQueryTool",
+            "action": "query_orders",
+            "args": {
+              "entity": "orders",
+              "filters": [
+                {
+                  "field": "order_id",
+                  "operator": "in",
+                  "value": [
+                    10252
+                  ]
+                }
+              ],
+              "select": [
+                "order_id",
+                "customer_id",
+                "customer_name",
+                "erp_status",
+                "order_date",
+                "amount"
+              ],
+              "limit": 20,
+              "order_by": null
+            },
+            "status": "success",
+            "output_summary": "1 pedidos ERP encontrados por DSL segura",
+            "error": null,
+            "duration_ms": 0,
+            "source": "ERP"
+          }
+        ],
+        "fallbacks": [],
+        "confidence": 0.75,
+        "status": "completed",
+        "data": {
+          "erp_query_orders_count": 1,
+          "erp_query_order_ids": [
+            10252
+          ],
+          "order_amounts_count": 1,
+          "order_amount_order_ids": [
+            10252
+          ],
+          "economic_impact_total": "1863.00",
+          "memory": {
+            "status": "found",
+            "turns_count": 2,
+            "customer_id": "ALFKI",
+            "order_ids": [
+              10252
+            ]
+          },
+          "deepagents_planning": {
+            "todos_used": true,
+            "todo_tool_calls_count": 4
+          }
+        },
+        "failure_reason": null
+      },
+      "response_text": "{\"answer\":\"Con los datos disponibles, el impacto economico del pedido referenciado es 10252: 1863.00.\",\"sources\":[\"Memoria\",\"ERP\"],\"reasoning\":[\"Consulta memoria conversacional\",\"Consulta ERP de importe para pedido 10252\",\"Consulta ERP mediante filtros seguros\"],\"metadata\":{\"agent_mode\":\"deepagent\",\"agent_framework\":\"LangChain DeepAgents\"},\"tool_calls\":[{\"tool\":\"MemoryTool\",\"action\":\"recall\",\"args\":{\"query\":\"¿Cuál es el impacto económico de esos?\",\"max_turns\":5},\"status\":\"success\",\"output_summary\":\"Memoria conversacional: 2 interacciones recuperadas\",\"error\":null,\"duration_ms\":null,\"source\":\"Memoria\"},{\"tool\":\"ERPTool\",\"action\":\"calculate_order_amount\",\"args\":{\"order_id\":10252},\"status\":\"success\",\"output_summary\":\"Importe calculado\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"},{\"tool\":\"ERPQueryTool\",\"action\":\"query_orders\",\"args\":{\"entity\":\"orders\",\"filters\":[{\"field\":\"order_id\",\"operator\":\"in\",\"value\":[10252]}],\"select\":[\"order_id\",\"customer_id\",\"customer_name\",\"erp_status\",\"order_date\",\"amount\"],\"limit\":20,\"order_by\":null},\"status\":\"success\",\"output_summary\":\"1 pedidos ERP encontrados por DSL segura\",\"error\":null,\"duration_ms\":0,\"source\":\"ERP\"}],\"fallbacks\":[],\"confidence\":0.75,\"status\":\"completed\",\"data\":{\"erp_query_orders_count\":1,\"erp_query_order_ids\":[10252],\"order_amounts_count\":1,\"order_amount_order_ids\":[10252],\"economic_impact_total\":\"1863.00\",\"memory\":{\"status\":\"found\",\"turns_count\":2,\"customer_id\":\"ALFKI\",\"order_ids\":[10252]},\"deepagents_planning\":{\"todos_used\":true,\"todo_tool_calls_count\":4}},\"failure_reason\":null}",
+      "error": null,
+      "case_id": "8c",
+      "question": "¿Cuál es el impacto económico de esos?",
+      "retried_without_mode": false
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "1",
+      "score": 25,
+      "breakdown": {
+        "functional": 5,
+        "information_quality": 5,
+        "traceability": 5,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": []
+    },
+    {
+      "case_id": "2",
+      "score": 25,
+      "breakdown": {
+        "functional": 5,
+        "information_quality": 5,
+        "traceability": 5,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": []
+    },
+    {
+      "case_id": "3",
+      "score": 25,
+      "breakdown": {
+        "functional": 5,
+        "information_quality": 5,
+        "traceability": 5,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": []
+    },
+    {
+      "case_id": "4",
+      "score": 25,
+      "breakdown": {
+        "functional": 5,
+        "information_quality": 5,
+        "traceability": 5,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": []
+    },
+    {
+      "case_id": "5",
+      "score": 24,
+      "breakdown": {
+        "functional": 5,
+        "information_quality": 5,
+        "traceability": 4,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": [
+        "reasoning minimo: explica la fuente, pero no desarrolla pasos/lógica con suficiente detalle."
+      ]
+    },
+    {
+      "case_id": "6",
+      "score": 22,
+      "breakdown": {
+        "functional": 4,
+        "information_quality": 4,
+        "traceability": 4,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": [
+        "Solo se cumplen parcialmente los terminos funcionales esperados.",
+        "La informacion concreta esperada aparece solo de forma parcial.",
+        "reasoning minimo: explica la fuente, pero no desarrolla pasos/lógica con suficiente detalle."
+      ]
+    },
+    {
+      "case_id": "7",
+      "score": 22,
+      "breakdown": {
+        "functional": 4,
+        "information_quality": 4,
+        "traceability": 4,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": [
+        "Solo se cumplen parcialmente los terminos funcionales esperados.",
+        "La informacion concreta esperada aparece solo de forma parcial.",
+        "reasoning minimo: explica la fuente, pero no desarrolla pasos/lógica con suficiente detalle."
+      ]
+    },
+    {
+      "case_id": "8a",
+      "score": 25,
+      "breakdown": {
+        "functional": 5,
+        "information_quality": 5,
+        "traceability": 5,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": []
+    },
+    {
+      "case_id": "8b",
+      "score": 25,
+      "breakdown": {
+        "functional": 5,
+        "information_quality": 5,
+        "traceability": 5,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": []
+    },
+    {
+      "case_id": "8c",
+      "score": 25,
+      "breakdown": {
+        "functional": 5,
+        "information_quality": 5,
+        "traceability": 5,
+        "human_wording": 5,
+        "technical_robustness": 5
+      },
+      "issues": []
+    }
+  ]
+}

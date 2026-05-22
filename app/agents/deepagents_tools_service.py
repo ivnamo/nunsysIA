@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ from typing import Any, Callable
 
 from app.agents.deepagents_adapter import DeepAgentsUnavailableError, deepagents_is_available
 from app.agents.penalty_policy import build_order_penalties_answer
+from app.agents.prompts import MAIN_DEEP_AGENT_PROMPT
 from app.core.config import Settings
 from app.core.traceability import (
     build_public_data_summary,
@@ -70,7 +72,7 @@ class _ToolPolicy:
 
 
 class DeepAgentsToolsQueryService:
-    """Experimental Deep Agents flow with direct access to deterministic tools."""
+    """DeepAgents business flow with direct access to deterministic tools."""
 
     def __init__(
         self,
@@ -123,15 +125,15 @@ class DeepAgentsToolsQueryService:
         agent = self._agent_builder(
             model=self._model,
             tools=execution.tools(),
-            system_prompt=_DIRECT_TOOLS_SYSTEM_PROMPT,
-            name="nunsys-experimental-deepagents-tools-query",
+            system_prompt=MAIN_DEEP_AGENT_PROMPT,
+            name="nunsys-deepagent-query",
         )
         result = agent.invoke(
             {
                 "messages": [
                     {
                         "role": "user",
-                        "content": _direct_tools_user_message(request),
+                        "content": execution.agent_user_message(request),
                     }
                 ]
             }
@@ -202,6 +204,9 @@ class _DirectToolsExecution:
         self.reasoning: list[str] = []
         self.sources: list[SourceName] = []
         self.fallbacks: list[str] = []
+        requested_production_status = _requested_production_status(question)
+        if requested_production_status:
+            self.data["requested_production_status"] = requested_production_status
 
     def preflight_response(self) -> QueryResponse | None:
         if not self._policy.needs_isolated_clarification:
@@ -266,13 +271,18 @@ class _DirectToolsExecution:
             tools.append(self.assess_penalty_risk_for_orders)
         if self._policy.needs_customer_orders and self._policy.needs_production:
             tools.append(self.get_customer_pending_orders_with_production)
+            tools.append(self.query_erp_customer_summary)
         if self._policy.needs_blocked_cross:
             tools.append(self.get_blocked_production_orders_with_erp)
+            tools.append(self.query_blocked_orders)
         if self._policy.needs_documents and not self._policy.needs_penalty:
             tools.append(self.answer_document_question_with_citations)
+            tools.append(self.search_documents)
+            tools.append(self.summarize_document_context)
         if self._policy.needs_erp:
             tools.extend(
                 [
+                    self.query_erp_customer_summary,
                     self.get_pending_orders_by_customer,
                     self.get_orders_by_month,
                     self.calculate_order_amount,
@@ -282,15 +292,26 @@ class _DirectToolsExecution:
         if self._policy.needs_production:
             tools.extend(
                 [
+                    self.query_production_status,
                     self.list_production_orders,
                     self.get_production_status_for_order_ids,
                     self.query_production_orders,
                 ]
             )
         if self._policy.needs_documents:
+            tools.append(self.search_documents)
+            tools.append(self.summarize_document_context)
             tools.append(self.query_documents)
         if not tools:
-            tools.extend([self.query_erp_orders, self.query_production_orders])
+            tools.extend(
+                [
+                    self.query_erp_orders,
+                    self.query_erp_customer_summary,
+                    self.query_production_orders,
+                    self.query_production_status,
+                    self.search_documents,
+                ]
+            )
         return _dedupe_tools(tools)
 
     def get_customer_pending_orders_with_production(
@@ -318,6 +339,10 @@ class _DirectToolsExecution:
             "production_orders": production_orders,
             "erp_orders": erp_orders,
         }
+
+    def query_blocked_orders(self) -> dict[str, Any]:
+        """Consulta pedidos bloqueados en produccion y los cruza con ERP."""
+        return self.get_blocked_production_orders_with_erp()
 
     def assess_penalty_risk_for_orders(self) -> dict[str, Any]:
         """Tool compuesta: ERP, produccion y contrato para riesgo de penalizacion."""
@@ -501,16 +526,34 @@ class _DirectToolsExecution:
             customers[order_id] = self.get_customer_for_order(order_id)
         return customers
 
+    def query_erp_customer_summary(self, customer_id: str) -> dict[str, Any]:
+        """Consulta resumen ERP de un cliente con pedidos pendientes e importes."""
+        orders = self.get_pending_orders_by_customer(customer_id)
+        order_amounts = [
+            amount
+            for order in orders
+            if (amount := self.calculate_order_amount(int(order["order_id"]))) is not None
+        ]
+        return {
+            "source": "ERP",
+            "customer_id": customer_id,
+            "orders": orders,
+            "order_amounts": order_amounts,
+        }
+
     def list_production_orders(
         self,
         status: str | None = None,
     ) -> list[dict[str, Any]]:
         """Lista ordenes de produccion por estado opcional."""
-        cache_key = _cache_key("list_production_orders", {"status": status})
+        effective_status = status or _requested_production_status(self._question)
+        cache_key = _cache_key("list_production_orders", {"status": effective_status})
         cached = self._cached_data(cache_key)
         if cached is not _CACHE_MISS:
             return cached
-        result = self._production_tool.list_orders(ProductionOrdersInput(status=status))
+        result = self._production_tool.list_orders(
+            ProductionOrdersInput(status=effective_status)
+        )
         data = result.data or []
         with self._lock:
             self._cache[cache_key] = data
@@ -528,9 +571,7 @@ class _DirectToolsExecution:
     ) -> list[dict[str, Any]]:
         """Consulta estados de produccion para una lista de order_id."""
         normalized_order_ids = _unique_ints(order_ids)
-        effective_status = status
-        if self._policy.needs_memory:
-            effective_status = _requested_production_status(self._question) or status
+        effective_status = status or _requested_production_status(self._question)
         cache_key = _cache_key(
             "get_production_status_for_order_ids",
             {"order_ids": normalized_order_ids, "status": effective_status},
@@ -556,6 +597,20 @@ class _DirectToolsExecution:
                 production_by_order[int(row["order_id"])] = row
             self._record(result, "Consulta API de produccion para pedidos referenciados")
         return data
+
+    def query_production_status(
+        self,
+        order_ids: list[int],
+        status: str | None = None,
+    ) -> dict[str, Any]:
+        """Consulta estado, bloqueos y retrasos de produccion por order_id."""
+        return {
+            "source": "Produccion",
+            "orders": self.get_production_status_for_order_ids(
+                order_ids=order_ids,
+                status=status,
+            ),
+        }
 
     def query_erp_orders(
         self,
@@ -604,11 +659,9 @@ class _DirectToolsExecution:
     ) -> list[dict[str, Any]]:
         """Consulta produccion con filtros seguros por order_id o estado."""
         normalized_order_ids = _unique_ints(order_ids or [])
-        effective_status = production_status
-        if self._policy.needs_memory:
-            effective_status = (
-                _requested_production_status(self._question) or production_status
-            )
+        effective_status = production_status or _requested_production_status(
+            self._question
+        )
         cache_key = _cache_key(
             "query_production_orders",
             {
@@ -679,6 +732,50 @@ class _DirectToolsExecution:
             self._record(result, "Consulta RAG documental con chunks recuperados")
         return data
 
+    def search_documents(
+        self,
+        query: str,
+        top_k: int = 3,
+        min_score: float = 0.2,
+        filename: str | None = None,
+    ) -> dict[str, Any]:
+        """Busca informacion en documentos PDF indexados usando RAG."""
+        return self.query_documents(
+            query=query,
+            top_k=top_k,
+            min_score=min_score,
+            filename=filename,
+        )
+
+    def summarize_document_context(self, query: str) -> dict[str, Any]:
+        """Resume contexto documental recuperado sin inventar evidencia externa."""
+        result = self.query_documents(query=query)
+        return {
+            "source": "Documentos",
+            "status": result.get("status"),
+            "answer": result.get("answer"),
+            "chunks": result.get("chunks", []),
+        }
+
+    def agent_user_message(self, request: QueryRequest) -> str:
+        lines = [_direct_tools_user_message(request)]
+        if self._policy.needs_documents:
+            document_context = _document_context_for_agent(self.data.get("rag"))
+            if document_context:
+                lines.extend(
+                    [
+                        "",
+                        "Contexto documental recuperado para redactar la respuesta:",
+                        document_context,
+                        "",
+                        "Redacta una respuesta humana, clara y sintetica basada solo "
+                        "en ese contexto. No pegues chunks completos, cabeceras, "
+                        "titulos de pagina ni metadatos en el cuerpo de la respuesta; "
+                        "las citas se mostraran aparte.",
+                    ]
+                )
+        return "\n".join(lines)
+
     def _cached_data(self, key: Any) -> Any:
         with self._lock:
             return self._cache.get(key, _CACHE_MISS)
@@ -701,9 +798,13 @@ class _DirectToolsExecution:
             }
 
     def build_response(self, answer: str | None) -> QueryResponse:
-        status = self._status(answer)
-        deterministic_answer = self._deterministic_answer(status)
-        normalized_answer = _normalized_answer(deterministic_answer or answer, status)
+        agent_answer = _agent_answer_from_text(answer)
+        status = self._status(agent_answer)
+        deterministic_answer = self._deterministic_answer(status, agent_answer)
+        normalized_answer = _normalized_answer(
+            deterministic_answer or agent_answer,
+            status,
+        )
         public_data = build_public_data_summary(
             self.data,
             include_rag_text_preview=self._include_citation_previews,
@@ -721,7 +822,11 @@ class _DirectToolsExecution:
             failure_reason=None,
         )
 
-    def _deterministic_answer(self, status: QueryStatus) -> str | None:
+    def _deterministic_answer(
+        self,
+        status: QueryStatus,
+        agent_answer: str | None,
+    ) -> str | None:
         if status == "insufficient_context":
             return None
         if self._policy.needs_penalty and self.data.get("erp_orders"):
@@ -731,6 +836,8 @@ class _DirectToolsExecution:
         if self._policy.needs_memory and self.data.get("production_orders"):
             return _production_status_answer(self.data)
         if self._policy.needs_documents and isinstance(self.data.get("rag"), dict):
+            if status == "completed" and _usable_document_agent_answer(agent_answer):
+                return None
             rag_answer = self.data["rag"].get("answer")
             return str(rag_answer) if rag_answer else None
         if self.data.get("period") and self.data.get("erp_orders"):
@@ -779,8 +886,8 @@ class _DirectToolsExecution:
 def _create_deep_agent(**kwargs: Any) -> Any:
     if not deepagents_is_available():
         raise DeepAgentsUnavailableError(
-            "deepagents no esta instalado. Instala requirements-deepagents.txt "
-            "en un entorno compatible para activar este flujo experimental."
+            "deepagents no esta instalado. Instala requirements.txt "
+            "en un entorno compatible para activar el flujo principal DeepAgents."
         )
     try:
         from deepagents import HarnessProfile, create_deep_agent, register_harness_profile
@@ -809,6 +916,74 @@ def _direct_tools_user_message(request: QueryRequest) -> str:
             "Si necesitas cruzar ERP y produccion, cruza por order_id.",
         ]
     )
+
+
+def _document_context_for_agent(rag: Any) -> str:
+    if not isinstance(rag, dict) or rag.get("status") != "completed":
+        return ""
+    chunks = rag.get("chunks")
+    if not isinstance(chunks, list):
+        return ""
+
+    lines = []
+    for index, chunk in enumerate(chunks[:3], start=1):
+        if not isinstance(chunk, dict):
+            continue
+        text = str(chunk.get("text") or "").strip()
+        if not text:
+            continue
+        metadata = chunk.get("metadata") or {}
+        metadata = metadata if isinstance(metadata, dict) else {}
+        filename = str(metadata.get("filename") or "documento")
+        page = metadata.get("page")
+        chunk_id = str(metadata.get("chunk_id") or f"chunk-{index}")
+        text_preview = " ".join(text.split())[:900]
+        lines.append(
+            f"[{index}] {filename}, pagina {page}, {chunk_id}: {text_preview}"
+        )
+    return "\n".join(lines)
+
+
+def _usable_document_agent_answer(answer: str | None) -> bool:
+    if not isinstance(answer, str) or not answer.strip():
+        return False
+    normalized = answer.strip()
+    if len(normalized.split()) < 8:
+        return False
+    lowered = normalized.lower()
+    return not any(
+        marker in lowered
+        for marker in (
+            "no tengo contexto",
+            "no puedo responder",
+            "sin informacion suficiente",
+            "respuesta no determinista",
+        )
+    )
+
+
+def _agent_answer_from_text(text: str | None) -> str | None:
+    if not isinstance(text, str) or not text.strip():
+        return None
+
+    stripped = _strip_code_fence(text.strip())
+    try:
+        payload = json.loads(stripped)
+    except ValueError:
+        return text.strip()
+
+    if isinstance(payload, dict) and isinstance(payload.get("answer"), str):
+        return payload["answer"].strip() or None
+    return text.strip()
+
+
+def _strip_code_fence(text: str) -> str:
+    if not text.startswith("```"):
+        return text
+    lines = text.splitlines()
+    if len(lines) >= 3 and lines[-1].strip() == "```":
+        return "\n".join(lines[1:-1]).strip()
+    return text
 
 
 def _last_message_text(result: Any) -> str | None:
@@ -998,7 +1173,7 @@ def _tool_policy(
     needs_customer_orders = has_known_customer or (
         "cliente" in text and "pedido" in text and "pendiente" in text
     )
-    needs_blocked_cross = _contains_any(text, ("bloque", "retras")) and _contains_any(
+    needs_blocked_cross = "bloque" in text and _contains_any(
         text,
         ("produccion", "erp", "cliente", "cruza", "cruce"),
     )
@@ -1166,10 +1341,15 @@ def _economic_impact_answer(data: dict[str, Any]) -> str:
 
 
 def _production_status_answer(data: dict[str, Any]) -> str:
+    requested_status = data.get("requested_production_status")
     production_orders = [
         order
         for order in data.get("production_orders", [])
         if isinstance(order, dict)
+        and (
+            not isinstance(requested_status, str)
+            or order.get("production_status") == requested_status
+        )
     ]
     if not production_orders:
         return "No se encontraron estados de produccion para los pedidos referenciados."
@@ -1348,6 +1528,7 @@ def _production_status_label(status: str) -> str:
 def _erp_status_label(status: str) -> str:
     labels = {
         "pending": "pendiente",
+        "shipped": "enviado",
         "completed": "completado",
         "cancelled": "cancelado",
     }
@@ -1422,27 +1603,6 @@ def _production_filters(
 def _set_env_if_missing(name: str, value: str | None) -> None:
     if value and not os.getenv(name):
         os.environ[name] = value
-
-
-_DIRECT_TOOLS_SYSTEM_PROMPT = """Eres un Deep Agent experimental de nunsysIA.
-
-Tienes acceso directo a tools deterministas de ERP, produccion, memoria y RAG.
-No inventes datos: responde solo con datos devueltos por las tools.
-El runtime solo te expone las tools necesarias para la intencion detectada.
-Conservas `write_todos` como herramienta nativa de planificacion de Deep Agents.
-No tienes acceso a filesystem, shell ni subagentes para este endpoint de negocio.
-
-Reglas:
-- Si la consulta requiere varias fuentes, varios pedidos o varios pasos, crea y actualiza una lista breve con `write_todos`.
-- En consultas simples de una sola fuente, responde sin `write_todos`.
-- Prefiere las tools compuestas cuando esten disponibles; ya hacen los cruces seguros.
-- Para pedidos de un cliente, usa ERP y despues produccion por order_id.
-- Para bloqueos/retrasos de produccion, consulta produccion y cruza con ERP por order_id.
-- Para contratos, penalizaciones, SLA o documentos, usa una unica consulta documental.
-- Para follow-ups ambiguos sobre pedidos, usa resolve_referenced_orders_with_erp_and_production.
-- Conserva en la respuesta los pedidos, clientes, estados, motivos y documentos relevantes.
-- No uses filesystem ni herramientas de sistema para preguntas de negocio.
-"""
 
 
 __all__ = [

@@ -6,6 +6,21 @@ bloque con un commit unico y defendible.
 
 Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
+## Estado vigente tras refactor DeepAgents
+
+Fecha: 2026-05-22.
+
+La ruta principal de entrega es ahora `POST /api/query -> AgentRouter ->
+mode=deepagent -> DeepAgentService -> LangChain DeepAgents ->
+ResponseNormalizer`.
+
+- `deepagent` es el modo principal y por defecto.
+- `deepagent_sidecar` queda como modo experimental/comparativo.
+- `legacy_langgraph` queda como modo experimental/comparativo.
+- LangGraph ya no debe defenderse como arquitectura principal de entrega.
+- `requirements.txt` instala `deepagents` como dependencia principal.
+- Suite rapida vigente: `236 passed, 23 skipped, 2 warnings`.
+
 ## Estado base
 
 Fecha base: 2026-05-21.
@@ -1437,21 +1452,21 @@ Estado:
   - BT-V2-01: el grounding ya no dispara fallback por capitalizacion de un
     titulo documental presente en evidencias.
 
-## Fase R21 - Sidecar Deep Agents estable
+## Fase R21 - Sidecar Deep Agents estable (historico superado)
 
 Prioridad: **antes de abrir flujo alternativo**.
 
 Decision:
 
-- Mantener el workflow principal en LangGraph + LangChain como ruta estable:
-  `/api/query` sigue ejecutando Planner -> Reasoner/Executor -> Validator ->
-  FinalResponseBuilder.
+- Decision historica ya superada por el refactor DeepAgents principal. En el
+  estado vigente, `/api/query` usa `AgentRouter` y `mode=deepagent` por defecto.
+  El flujo Planner -> Reasoner/Executor -> Validator -> FinalResponseBuilder
+  queda encapsulado en `legacy_langgraph`.
 - Mantener `app.agents.deepagents_adapter` como compatibilidad literal con la
   libreria `deepagents`: un Deep Agent real envuelve el workflow auditado como
   tool unica `consultar_flujo_agentic`.
-- No instalar `deepagents` en `requirements.txt` principal, porque la version
-  probada exige LangChain/LangGraph 1.x y el runtime estable esta fijado en
-  LangChain 0.3 y LangGraph 0.2.
+- `deepagents` se instala ahora desde `requirements.txt`, junto con versiones
+  compatibles de LangChain/LangGraph 1.x.
 
 Evidencia:
 
@@ -1466,11 +1481,10 @@ Evidencia:
 
 Criterio de aceptacion:
 
-- El adapter queda versionado como ruta estable de compatibilidad.
-- La demo puede defender que Deep Agents existe sin sustituir la arquitectura
-  controlada.
-- Cualquier experimento posterior debe vivir fuera de `/api/query` hasta
-  comparar resultados contra la ruta estable.
+- El adapter queda versionado como compatibilidad historica.
+- La demo debe defender que DeepAgents es el flujo principal de `/api/query`.
+- Cualquier experimento posterior debe vivir como modo explicito, nunca como
+  default silencioso.
 
 Estado:
 
@@ -1535,8 +1549,7 @@ Estado 2026-05-22:
 
 Cambio esperado:
 
-- Usar `create_deep_agent` desde `requirements-deepagents.txt` solo en entorno
-  compatible.
+- Usar `create_deep_agent` desde `requirements.txt` en entorno compatible.
 - Construir un Deep Agent con modelo probado
   `google_genai:gemini-3.5-flash`.
 - Darle acceso a la tool `consultar_flujo_agentic` del adapter actual.
@@ -1557,7 +1570,7 @@ Validacion experimental:
 
 Criterio de aceptacion:
 
-- La ruta alternativa no modifica resultados de `/api/query`.
+- La ruta alternativa no modifica el contrato publico de `/api/query`.
 - Si `deepagents` no esta instalado, devuelve error controlado o queda omitida.
 - En entorno compatible, el Deep Agent llama la tool y devuelve una respuesta
   comparable.
@@ -1566,7 +1579,7 @@ Estado 2026-05-22:
 
 - Implementado con el sidecar actual como tool unica
   `consultar_flujo_agentic`.
-- El servicio devuelve la `QueryResponse` auditada del workflow estable.
+- El servicio devuelve la `QueryResponse` auditada del workflow legacy.
 - Si falta `deepagents`, el endpoint devuelve `503` controlado.
 
 ### R22.3 - Comparador contra workflow estable
@@ -1580,8 +1593,8 @@ Archivos previstos:
 Cambio esperado:
 
 - Ejecutar la misma bateria corta contra:
-  - workflow estable LangGraph/LangChain;
-  - flujo alternativo Deep Agents.
+  - flujo legacy LangGraph/LangChain;
+  - flujo DeepAgents.
 - Comparar `status`, `sources`, `tool_calls`, `fallbacks`, `data` y hechos
   criticos esperados.
 - Generar informe Markdown con veredicto `PASS/PARTIAL/FAIL` por caso.
@@ -1967,4 +1980,4 @@ Criterio de aceptacion:
 | 2026-05-22 | R18 | cerrado | Tests `real_llm` opt-in implementados; suite rapida 191 passed + 5 skipped; `pytest -m real_llm`: 5 passed contra proveedor real | este bloque |
 | 2026-05-22 | R19 | cerrado | Hotfix ensayo manual: `Dame los pedidos que puedan generar penalizacion...` entra por plan mixto determinista; planner 26 passed; graph 17 passed; `pytest`: 193 passed + 5 skipped | este bloque |
 | 2026-05-22 | R21 | cerrado | Sidecar opcional Deep Agents estable; adapter versionado; focal `tests/unit/test_deepagents_adapter.py`: 2 passed; marca prevista `stable-deepagents-sidecar` | `97ba10f` |
-| 2026-05-22 | R22 | activo | Deep Agents direct-tools pasa beta obligatoria completa PASS=18; sidecar se conserva como opcion estable; subagente corrector queda como mejora futura acotada | pendiente |
+| 2026-05-22 | R22 | activo | Deep Agents direct-tools pasa beta obligatoria completa PASS=18; sidecar se conserva como opcion experimental; subagente corrector queda como mejora futura acotada | pendiente |

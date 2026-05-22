@@ -1,514 +1,228 @@
-# nunsysIA
+# Sistema multi-agente con LangChain DeepAgents para consultas ERP, produccion y RAG
 
-POC tecnica de sistema agentic empresarial. El objetivo final es responder preguntas de negocio en lenguaje natural combinando:
+Aplicacion FastAPI para responder preguntas de negocio en lenguaje natural combinando:
 
-- ERP basado en Northwind.
-- API REST mock de produccion.
-- Documentos PDF consultables mediante RAG.
-- API principal `POST /api/query`.
-- UI conversacional con Chainlit.
-- Trazabilidad explicita de fuentes, pasos y tool calls.
+- ERP/Northwind para clientes, pedidos e importes.
+- API REST de produccion para estados, bloqueos y retrasos.
+- RAG sobre documentos PDF indexados en base vectorial.
+- Interfaz Chainlit.
+- Trazabilidad publica de fuentes consultadas, pasos ejecutados y tool calls.
 
-## Estado actual
+La solucion utiliza LangChain DeepAgents como framework principal de orquestacion agentic. El DeepAgent principal interpreta la consulta, selecciona herramientas, consulta las fuentes necesarias y genera una respuesta trazable. LangChain se utiliza para la definicion de tools, integracion con el modelo y RAG. LangGraph se conserva unicamente como implementacion experimental/legacy para comparacion tecnica y no forma parte del flujo principal por defecto.
 
-Estado actual: **R18 cerrada: stress tests reales opt-in**.
-La extension de flexibilidad conversacional + Query DSL segura queda cerrada.
-
-Este repositorio contiene:
-
-- reglas de Cursor en `.cursor/rules/`;
-- documentacion tecnica en `docs/`;
-- prompts reutilizables en `prompts/`;
-- estructura base de carpetas;
-- requirements iniciales;
-- configuracion minima de pytest.
-- backend FastAPI minimo;
-- endpoint `GET /health`;
-- schema Pydantic de health;
-- tests unitarios e integracion para health.
-- seed SQL Northwind minimo;
-- schemas Pydantic ERP;
-- repositorio ERP con SQLite en memoria y seed Northwind reducido para tests/demo;
-- tests deterministas de consultas ERP.
-- API mock de produccion separada del backend principal;
-- seed JSON de estados productivos;
-- tests HTTP basicos del mock de produccion.
-- trazabilidad estructurada para tool calls;
-- `ERPTool` determinista con input/output Pydantic;
-- `ProductionAPITool` determinista con input/output Pydantic;
-- cliente HTTP de produccion;
-- tests unitarios de tools.
-- `AgentState` compartido para LangGraph;
-- Planner hibrido como fachada del nodo, con LLM opcional, plan estructurado,
-  reglas deterministas extraidas y fallback visible;
-- Reasoner/Executor que ejecuta tools ERP y produccion;
-- Validator con replanning limitado por `MAX_REPLANS = 2` y eventos publicos
-  de replanning en `data.replanning`;
-- FinalResponseBuilder como fachada con `QueryResponse` estructurada;
-- `fallbacks` visibles en API y Chainlit para auditar rutas alternativas;
-- tests unitarios e integracion del grafo agentic.
-- pipeline RAG PDF -> texto -> chunks -> embeddings -> vector store;
-- adaptador ChromaDB con fallback local en memoria si Chroma no esta disponible;
-- `DocumentRAGTool` como fachada determinista con trazabilidad,
-  `insufficient_context`, filtros documentales y respuesta grounded extraidos;
-- endpoints `POST /api/documents/upload` y `GET /api/documents`, con
-  multipart gestionado por `UploadFile` y soporte directo `application/pdf`;
-- tests de ingestion, retrieval, tool RAG y endpoints documentales.
-- app Chainlit conectada a `POST /api/query`;
-- cliente HTTP de Chainlit testeable;
-- renderizado de respuesta, fuentes, pasos y tool calls en UI.
-- normalizacion de trazas publicas;
-- sanitizacion de argumentos, errores y failure reasons;
-- resumen publico de evidencias en `data` sin filas raw ni objetos internos,
-  incluyendo eventos de replanning cuando los haya.
-- abstraccion LLM para Gemini/OpenAI con fallback determinista;
-- Planner hibrido: LLM opcional + schema Pydantic + lista cerrada de tools/actions;
-- PDFs mock realistas en `data/sample_docs/`;
-- validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
-- citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`) y vista previa desplegable en Chainlit.
-- memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
-- estado publico `needs_clarification` para ambiguedades de dominio sin ejecutar tools ni inventar datos.
-- planner flexible para cliente en minusculas, pedidos explicitos y sinonimos
-  como `parados`, `atascados`, `con problemas` o `riesgo operativo`, usando
-  solo tools existentes.
-- modelos Pydantic de Query DSL segura para ERP y Produccion, con allowlist de
-  entidades, filtros, selects, orden y limite antes de ejecutar consultas
-  genericas.
-- `ERPQueryTool` y `ProductionQueryTool` ejecutan specs DSL ya validadas y
-  devuelven solo campos publicos seleccionados con tool calls trazables.
-- Reasoner ejecuta Query DSL segura desde planes validados y cruza
-  ERP-Produccion solo por `order_id`, deduplicando pedidos y conservando
-  tool calls visibles.
-- Respuesta final mas natural para cruces, respuestas parciales y
-  clarificaciones, manteniendo validacion de hechos criticos contra evidencias.
-- suite automatizada versionada actual: `226 passed, 23 skipped, 2 warnings`.
-- suite opt-in con LLM real: `23 passed, 226 deselected, 2 warnings` usando
-  `RUN_REAL_LLM_TESTS=1`.
-
-Disponible para ejecutar actualmente:
-
-- backend FastAPI con `GET /health`;
-- endpoints documentales para subir y listar PDFs;
-- endpoint `POST /api/query`;
-- interfaz Chainlit;
-- API mock de produccion;
-- tests automatizados;
-- tests `real_llm` opt-in para validar planner/final response/DSL con un
-  proveedor LLM real sin afectar a la suite rapida;
-- grafo LangGraph invocable desde API, tests y codigo Python;
-- adapter opcional `app.agents.deepagents_adapter` para envolver el workflow
-  actual como sidecar Deep Agents sin cambiar el runtime principal;
-- RAG documental invocable como tool y desde endpoints documentales.
-- trazabilidad normalizada y sanitizada en `/api/query`.
-- soporte configurable para Gemini u OpenAI sin cambiar grafo, agents ni tools.
-- respuesta final con LLM controlado y fallback determinista;
-- marcadores `FALLBACK_*` cuando se usa planner por reglas, respuesta determinista, embeddings deterministas o vector store en memoria;
-- payload de demo `query.json` para probar `/api/query`.
-- PDFs mock realistas en `data/sample_docs/` para probar RAG multi-documento.
-- follow-ups conversacionales simples por `conversation_id`, por ejemplo preguntar despues `Y en que estado estan?`.
-- clarificaciones controladas cuando falta cliente, pedido o contexto conversacional previo.
-- preguntas flexibles como `que tiene pendiente alfki y que riesgo operativo tiene?`
-  o `pedido 10252`.
-- Query DSL ejecutable desde el flujo `/api/query` para cruces controlados como
-  `Cruza produccion con ERP y dime clientes afectados por bloqueos`.
-
-Cierre:
-
-- sin pendientes tecnicos obligatorios para revision;
-- guion final en `docs/DEMO_SCRIPT.md`.
-
-## Arquitectura decidida
-
-- Backend: FastAPI.
-- Orquestacion agentic: LangGraph `StateGraph`.
-- Tools, RAG y llamadas LLM: LangChain.
-- UI: Chainlit.
-- Vector store inicial: ChromaDB.
-- Schemas: Pydantic.
-- Tests: pytest.
-- Runtime objetivo de cierre: Docker Compose validado.
-
-Flujo objetivo:
+## Arquitectura
 
 ```text
-Usuario
--> FastAPI / Chainlit
--> LangGraph StateGraph
--> Planner Agent
--> Reasoner / Executor Agent
--> Validator Node
--> FinalResponseBuilder
+POST /api/query
+  -> AgentRouter
+      -> mode=deepagent          [principal y por defecto]
+      -> mode=deepagent_sidecar  [experimental]
+      -> mode=legacy_langgraph   [experimental/comparativo]
+  -> ResponseNormalizer
+  -> QueryResponse
 ```
 
-## Compatibilidad Deep Agents
+Componentes principales:
 
-El enunciado menciona "deepAgentes de LangChain". La POC implementa el flujo
-agentic principal con LangGraph y LangChain porque necesita control explicito de
-estado, validacion, replanning, trazabilidad y tools deterministas. Este es el
-runtime estable de la entrega.
+- `app/api/routes_query.py`: endpoint fino `POST /api/query`.
+- `app/agents/router.py`: selecciona el motor agentic.
+- `app/agents/deep_agent.py`: servicio principal con LangChain DeepAgents.
+- `app/agents/deepagents_tools_service.py`: DeepAgent con tools de ERP, produccion, memoria y RAG.
+- `app/agents/sidecar_agent.py`: modo experimental DeepAgents sidecar sobre legacy.
+- `app/agents/legacy_langgraph_agent.py`: modo experimental LangGraph legacy.
+- `app/services/response_normalizer.py`: normaliza cualquier salida a `QueryResponse`.
+- `app/services/trace_service.py`: registra fuentes, acciones y pasos auditables.
+- `chainlit_app/main.py`: UI Chainlit conectada al mismo `/api/query`.
 
-Para cubrir una interpretacion literal de la libreria `deepagents`, existe un
-adapter opcional en `app.agents.deepagents_adapter`: crea un Deep Agent sidecar
-que usa el workflow actual como tool `consultar_flujo_agentic`. Asi el Deep
-Agent puede aportar planificacion/contexto de alto nivel sin sustituir el grafo
-auditado ni abrir una arquitectura paralela.
+## Flujo principal
 
-No se instala por defecto porque las versiones actuales de `deepagents` requieren
-LangChain/LangGraph 1.x, mientras esta POC estable esta fijada en LangChain 0.3
-y LangGraph 0.2. Si se necesita probar el sidecar en un entorno separado:
+1. El cliente envia una pregunta a `POST /api/query`.
+2. `AgentRouter` usa `mode=deepagent` si no se especifica otro modo.
+3. El DeepAgent decide que tools ejecutar:
+   - `query_erp_orders`
+   - `query_erp_customer_summary`
+   - `query_production_status`
+   - `query_blocked_orders`
+   - `search_documents`
+   - `summarize_document_context`
+4. Las tools devuelven datos estructurados y trazables.
+5. `ResponseNormalizer` garantiza el contrato publico:
 
-```powershell
-pip install -r requirements-deepagents.txt
+```json
+{
+  "answer": "...",
+  "sources": ["ERP", "Produccion", "Documentos"],
+  "reasoning": ["Consulta ERP", "Consulta API de produccion"],
+  "metadata": {
+    "agent_mode": "deepagent",
+    "agent_framework": "LangChain DeepAgents"
+  }
+}
 ```
 
-El endpoint `/api/query`, Chainlit, Docker Compose y la suite principal siguen
-usando el workflow LangGraph documentado.
+La respuesta puede incluir campos adicionales de auditoria ya existentes, como `tool_calls`, `status`, `data`, `fallbacks` y `confidence`.
 
-En la rama experimental `experiment/deepagents-flow` tambien hay dos endpoints
-opt-in protegidos por `ENABLE_DEEPAGENTS_EXPERIMENT=true`:
+## Endpoint
 
-- `/api/experimental/deepagents/query`: Deep Agents sidecar sobre el workflow
-  auditado.
-- `/api/experimental/deepagents/tools/query`: Deep Agents con tools
-  individuales de ERP, Produccion, RAG y Memoria.
+`POST /api/query`
 
-La comparacion se genera con `scripts/run_deepagents_comparison.py`. El sidecar
-queda alineado con el workflow estable; el flujo de tools individuales responde
-con contenido correcto y, tras R22.5, usa seleccion de tools por intencion,
-tools compuestas de negocio y presupuesto RAG. En la comparacion real queda en
-`PASS=5, PARTIAL=0, FAIL=0, BLOCKER=0`, aunque sigue como experimento porque
-su estrategia de traza no es identica al grafo estable. R22.6 conserva la
-planificacion nativa `write_todos` de Deep Agents, excluye filesystem/shell/
-subagentes del endpoint de negocio y expone solo una senal publica sanitizada en
-`data.deepagents_planning`.
+Request:
 
-## Estructura base
-
-```text
-app/
-  api/
-  agents/
-  tools/
-  rag/
-  erp/
-  production/
-  core/
-  schemas/
-production_mock/
-chainlit_app/
-data/
-  sample_docs/
-tests/
-  unit/
-  integration/
-  fixtures/
+```json
+{
+  "question": "Que pedidos pendientes tiene ALFKI y en que estado de produccion estan?",
+  "conversation_id": "demo-001",
+  "mode": "deepagent"
+}
 ```
 
-## Desarrollo por fases
+`mode` es opcional. Si falta o es `null`, se usa siempre `deepagent`.
 
-La guia principal esta en:
+Response:
 
-- `docs/TASK_PLAN.md`
-- `docs/ARCHITECTURE.md`
-- `docs/API_CONTRACT.md`
-- `docs/TRACEABILITY.md`
-- `docs/DEVELOPMENT_GUIDE.md`
-- `docs/MANUAL_VALIDATION.md`
-- `docs/DEMO_SCRIPT.md`
-- `docs/plan_implementacion_vivo.md`
-
-Antes de implementar una fase, leer tambien `.cursor/rules/`.
-
-## Validacion manual
-
-Los comandos exactos para arrancar servicios, subir PDFs de demo, consultar API,
-probar Chainlit y revisar que no hay secretos estan en:
-
-```text
-docs/MANUAL_VALIDATION.md
+```json
+{
+  "answer": "El cliente ALFKI tiene pedidos pendientes...",
+  "sources": ["ERP", "Produccion"],
+  "reasoning": [
+    "Consulta ERP de pedidos pendientes",
+    "Consulta API de produccion para pedidos referenciados"
+  ],
+  "metadata": {
+    "agent_mode": "deepagent",
+    "agent_framework": "LangChain DeepAgents"
+  },
+  "status": "completed"
+}
 ```
 
-## Preparacion local
+## Modos agentic
 
-Crear entorno virtual:
+- `deepagent`: principal y por defecto. Usa LangChain DeepAgents con tools directas de negocio.
+- `deepagent_sidecar`: experimental. DeepAgents delega en el workflow legacy como sidecar para comparativa.
+- `legacy_langgraph`: experimental/comparativo. Conserva el flujo LangGraph anterior para regresion tecnica.
 
-```bash
-python -m venv .venv
-```
+LangGraph puede seguir apareciendo en codigo y documentacion historica como runtime interno o legacy, pero no es la arquitectura principal de entrega.
 
-Activar entorno en PowerShell:
+Los endpoints `/api/experimental/deepagents/*` son endpoints heredados de diagnostico y comparativa. La entrega principal no los necesita: el DeepAgent productivo entra por `POST /api/query` con `mode=deepagent`.
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
+## Configuracion
 
-En Cursor o VS Code, con la extension Python instalada, las terminales integradas activan `.venv` automaticamente gracias a `.vscode/settings.json`. Si no ocurre en PowerShell, revisa la politica de ejecucion (`Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`) o abre una terminal nueva tras recargar la ventana.
-
-Instalar dependencias:
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-En local, `requirements-dev.txt` no instala ChromaDB. La POC usa fallback en memoria si Chroma no esta disponible.
-
-Instalar ChromaDB local solo si necesitas persistencia real fuera del fallback en memoria:
-
-```bash
-pip install -r requirements-chroma.txt
-```
-
-Para persistencia local embebida:
+Copia `.env.example` a `.env` para ejecucion local:
 
 ```env
+AGENT_MODE=deepagent
+LLM_PROVIDER=deterministic
+DEEPAGENTS_MODEL=google_genai:gemini-3.5-flash
+PRODUCTION_API_BASE_URL=http://localhost:8001
 CHROMA_MODE=persistent
 CHROMA_PERSIST_DIRECTORY=data/chroma
-CHROMA_COLLECTION=documents
+EMBEDDING_PROVIDER=deterministic
 ```
 
-Para conectar contra un servidor Chroma HTTP, usa `CHROMA_MODE=http` con `CHROMA_HOST` y `CHROMA_PORT`. Si ChromaDB no esta instalado o no se puede abrir/conectar, el backend cae a memoria y lo marca en `fallbacks`.
-
-## Como introducir tu API key
-
-La POC puede ejecutar el planner/respuesta final sin LLM real, pero los
-embeddings RAG deben ser reales en Docker. Para validacion con
-LLM/embeddings reales, el evaluador puede usar Gemini u OpenAI.
-No versiones `.env`, `.secrets/` ni capturas con claves.
-
-### Local sin Docker
-
-Copia `.env.example` a `.env` y rellena la clave en el archivo local:
+Para usar Gemini u OpenAI:
 
 ```env
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=tu_clave_local
 GEMINI_MODEL=gemini-2.5-flash
-GEMINI_API_TRANSPORT=rest
-LLM_TIMEOUT_SECONDS=45
-EMBEDDING_PROVIDER=gemini
-GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+
+# o bien
+LLM_PROVIDER=openai
+OPENAI_API_KEY=tu_clave_local
+OPENAI_MODEL=gpt-4o-mini
 ```
 
-### Docker Compose
+No versiones secretos reales. En Docker, usa `docker-compose.secrets.yml` y archivos en `.secrets/`.
 
-En Docker no pases `GEMINI_API_KEY` ni `OPENAI_API_KEY` como variables directas
-del contenedor. Usa el override de secretos por archivo:
+## Ejecucion local
 
 ```powershell
-New-Item -ItemType Directory -Force .secrets
-$secret = Read-Host "Gemini API key" -AsSecureString
-$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
-try {
-  Set-Content -NoNewline .secrets\gemini_api_key ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr))
-} finally {
-  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
-}
-docker compose -f docker-compose.yml -f docker-compose.secrets.yml up --build
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+pip install -r requirements-chroma.txt
 ```
 
-`.secrets/` esta ignorado por Git y por el build de Docker. El backend lee la
-clave desde `GEMINI_API_KEY_FILE=/run/secrets/gemini_api_key`.
+Levantar la API mock de produccion:
 
-El compose base usa `EMBEDDING_PROVIDER=gemini` por defecto. Si no montas el
-secreto o no configuras una clave real, el backend devolvera un error explicito
-al inicializar RAG en vez de caer a embeddings deterministas.
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn production_mock.main:app --port 8001
+```
 
-Para OpenAI, usa `OPENAI_API_KEY` en `.env` para local o monta un archivo y
-apunta `OPENAI_API_KEY_FILE` al secreto en Docker.
+Levantar backend:
 
-## Docker Compose
+```powershell
+$env:AGENT_MODE="deepagent"
+$env:PRODUCTION_API_BASE_URL="http://localhost:8001"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --reload-dir app --port 8000
+```
 
-P10 levanta la POC completa con backend FastAPI, API mock de produccion,
-Chainlit y ChromaDB HTTP real:
+Probar `/api/query`:
+
+```powershell
+curl.exe -X POST http://localhost:8000/api/query `
+  -H "Content-Type: application/json" `
+  --data "{""question"":""Que pedidos pendientes tiene ALFKI y en que estado de produccion estan?""}"
+```
+
+Verificar que usa DeepAgents por defecto:
+
+- No envies `mode` en el request.
+- Revisa `metadata.agent_mode`: debe ser `deepagent`.
+- Revisa `metadata.agent_framework`: debe ser `LangChain DeepAgents`.
+
+## Chainlit
+
+Chainlit llama al mismo endpoint `/api/query` y envia `AGENT_MODE=deepagent` por defecto.
+
+```powershell
+$env:BACKEND_API_BASE_URL="http://localhost:8000"
+$env:AGENT_MODE="deepagent"
+Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+.\.venv\Scripts\python.exe -m chainlit run chainlit_app/main.py -w --port 8002
+```
+
+UI: `http://localhost:8002`
+
+Puedes adjuntar PDFs desde Chainlit. El backend los indexa mediante `POST /api/documents/upload` y quedan disponibles para preguntas RAG.
+
+## Docker
 
 ```powershell
 docker compose up --build
 ```
 
-Servicios expuestos:
+Servicios:
 
 - Backend FastAPI: `http://localhost:8000`
 - Production mock API: `http://localhost:8001`
 - Chainlit UI: `http://localhost:8002`
 - ChromaDB HTTP: `http://localhost:8003`
 
-El compose pasa al backend `PRODUCTION_API_BASE_URL=http://production-api:8001`,
-`CHROMA_MODE=http`, `CHROMA_HOST=chromadb` y `CHROMA_PORT=8000`. Si existe un
-`.env` local, Docker Compose lo usa solo para interpolar variables como
-`LLM_PROVIDER` o modelos; no pasa `GEMINI_API_KEY` ni `OPENAI_API_KEY` como
-variables directas del contenedor. Sin secretos montados, los embeddings reales
-no pueden inicializarse y el backend lo indicara con un error explicito.
-
-Para levantar Docker Compose con Gemini real, usa la seccion anterior
-`Como introducir tu API key`.
-
-Comprobaciones rapidas:
-
-```powershell
-curl.exe http://localhost:8000/health
-curl.exe http://localhost:8001/health
-curl.exe http://localhost:8000/api/documents
-```
-
-Para parar y limpiar contenedores sin borrar el volumen documental:
-
-```powershell
-docker compose down
-```
-
-Para reiniciar tambien ChromaDB desde cero:
-
-```powershell
-docker compose down -v
-```
-
-El ERP de la POC actual se crea en memoria con SQLite y el seed `data/northwind_seed.sql` al construir el workflow. `ERP_DATABASE_URL` existe en configuracion para un posible cableado posterior con persistencia externa, pero aun no alimenta el repositorio ERP runtime. No uses `DATABASE_URL` para el ERP: Chainlit reserva esa variable para su propia persistencia interna con `asyncpg`.
-
-La arquitectura tambien permite OpenAI sin tocar el grafo ni las tools:
+El compose arranca con:
 
 ```env
-LLM_PROVIDER=openai
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o-mini
-EMBEDDING_PROVIDER=openai
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+AGENT_MODE=deepagent
+LLM_PROVIDER=deterministic
+EMBEDDING_PROVIDER=deterministic
 ```
 
-Ejecutar tests:
+No arranca en `legacy_langgraph` salvo que lo fuerces explicitamente para desarrollo.
 
-```bash
-pytest
-```
-
-Ejecutar backend principal:
+## Tests
 
 ```powershell
-$env:PRODUCTION_API_BASE_URL="http://localhost:8001"
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
+.\.venv\Scripts\python.exe -m pytest
 ```
 
-Para desarrollo con reload en Windows, limita el directorio observado para no vigilar `.venv`:
+La suite principal usa mocks/datos deterministas y valida el flujo `deepagent`. Los tests con LLM real siguen siendo opt-in si se habilitan por variable de entorno.
 
-```powershell
-$env:PRODUCTION_API_BASE_URL="http://localhost:8001"
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --reload-dir app --port 8000
-```
+## Documentos de apoyo
 
-Comprobar health:
-
-```bash
-curl http://localhost:8000/health
-```
-
-Subir un PDF:
-
-```bash
-curl -X POST http://localhost:8000/api/documents/upload \
-  -F "file=@ruta/al/documento.pdf;type=application/pdf"
-```
-
-Generar de nuevo los PDFs mock de demo:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\generate_sample_pdfs.py
-```
-
-Documentos disponibles:
-
-- `data/sample_docs/contrato_marco_logistica_2026.pdf`
-- `data/sample_docs/anexo_penalizaciones_sla.pdf`
-- `data/sample_docs/procedimiento_produccion_bloqueos.pdf`
-- `data/sample_docs/politica_calidad_entregas.pdf`
-- `data/sample_docs/condiciones_comerciales_northwind.pdf`
-
-Listar documentos indexados:
-
-```bash
-curl http://localhost:8000/api/documents
-```
-
-Consultar el workflow agentic:
-
-```bash
-curl -X POST http://localhost:8000/api/query \
-  -H "Content-Type: application/json" \
-  --data @query.json
-```
-
-Ejecutar interfaz Chainlit:
-
-```powershell
-$env:BACKEND_API_BASE_URL="http://localhost:8000"
-Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
-.\.venv\Scripts\python.exe -m chainlit run chainlit_app/main.py -w --port 8002
-```
-
-La UI queda disponible en `http://localhost:8002`.
-
-En Chainlit puedes adjuntar hasta 5 PDFs por mensaje. Los documentos se indexan
-en el espacio documental del backend y quedan disponibles para las siguientes
-preguntas RAG. Para listar el espacio documental desde la UI, envia:
-
-```text
-/documentos
-```
-
-## API mock de produccion
-
-Ejecutar manualmente:
-
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn production_mock.main:app --port 8001
-```
-
-Endpoints del mock:
-
-- `GET /health`
-- `GET /production/orders`
-- `GET /production/orders?status=blocked`
-- `GET /production/orders?status=delayed`
-- `GET /production/orders/{order_id}`
-
-## Cierre actual
-
-P10 queda cerrada con Docker Compose, ChromaDB HTTP real, secretos por archivo y
-smoke beta con LLM/embeddings reales. R4, R5, R6, R7, R8 y R9 tambien quedan cerradas: la
-politica de penalizaciones se extrajo, `FinalResponseBuilder` quedo como
-fachada del nodo final, `PlannerAgent` como fachada del nodo de planificacion y
-`DocumentRAGTool` como fachada RAG determinista. El upload documental usa
-`UploadFile` para multipart y conserva el modo directo `application/pdf`.
-Los replans quedan resumidos en `data.replanning` sin exponer planes raw ni
-chain-of-thought.
-
-R11 queda cerrada con `docs/DEMO_SCRIPT.md` y smoke final Docker con Gemini real,
-Chroma HTTP y 5 PDFs v2. La POC queda lista para demo/revision tecnica.
-
-R12 queda cerrada con `needs_clarification` para preguntas de dominio ambiguas:
-si falta cliente, pedido o contexto conversacional, el sistema pide una
-aclaracion concreta sin ejecutar tools.
-
-R13 queda cerrada con planner flexible sobre tools existentes: cliente en
-minusculas, pedido explicito y pedidos de produccion parados/con problemas.
-
-R14 queda cerrada con modelos y validadores de Query DSL segura. La DSL valida
-entidades, filtros, selects, orden y limite, pero todavia no ejecuta consultas:
-ese cableado se cierra en R15 con tools internas aisladas.
-
-R15 queda cerrada con `ERPQueryTool` y `ProductionQueryTool` ejecutando specs
-DSL ya validadas, con proyeccion de campos publicos y trazabilidad. Aun no se
-conectan al planner ni al reasoner del flujo `/api/query`.
-
-R16 queda cerrada con integracion agentic de la Query DSL: el planner admite las
-tools DSL bajo schema cerrado, el reasoner ejecuta specs validadas y el cruce
-ERP-Produccion se hace solo por `order_id`. Las rutas demo criticas siguen
-usando tools especificas cuando encajan.
-
-R17 queda cerrada con respuestas conversacionales mas utiles sin relajar
-grounding: clientes afectados por incidencias se redactan por cliente, las
-respuestas parciales explican que fuente falta y el checker bloquea estados no
-soportados como `terminado` ante prompt injection.
-
-R18 queda cerrada con tests `real_llm` opt-in. Por defecto la suite rapida los
-salta; al activar `RUN_REAL_LLM_TESTS=1`, validan planner real, final real,
-Query DSL segura, memoria como referencia y guardrails de prompt injection.
-Suite actual: `226 passed, 23 skipped, 2 warnings`.
+- `docs/ARCHITECTURE.md`
+- `docs/API_CONTRACT.md`
+- `docs/TRACEABILITY.md`
+- `docs/MANUAL_VALIDATION.md`
+- `docs/DEMO_SCRIPT.md`
+- `docs/DEEPAGENTS_COMPARISON_REPORT.md`

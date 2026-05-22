@@ -16,16 +16,16 @@ from app.schemas.query import QueryRequest, QueryResponse
 
 
 class DeepAgentsExecutionError(RuntimeError):
-    """Raised when the experimental Deep Agents flow cannot return QueryResponse."""
+    """Raised when the sidecar DeepAgents flow cannot return QueryResponse."""
 
 
 class DeepAgentsQueryService:
-    """Experimental Deep Agents entrypoint that preserves the audited response.
+    """Experimental DeepAgents sidecar that preserves the audited response.
 
-    Deep Agents decides whether to call the business workflow tool, but this
+    DeepAgents decides whether to call the legacy business workflow tool, but this
     service returns the `QueryResponse` produced by that audited workflow. The
-    public experimental endpoint can therefore be compared against `/api/query`
-    without changing the stable API contract.
+    experimental mode can therefore be compared against the principal
+    `/api/query` DeepAgent without changing the stable API contract.
     """
 
     def __init__(

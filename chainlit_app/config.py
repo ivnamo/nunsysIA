@@ -6,7 +6,8 @@ from pydantic import BaseModel
 
 class ChainlitAppSettings(BaseModel):
     backend_api_base_url: str = "http://localhost:8000"
-    backend_api_timeout_seconds: float = 30.0
+    backend_api_timeout_seconds: float = 120.0
+    agent_mode: str = "deepagent"
 
 
 @lru_cache
@@ -17,6 +18,7 @@ def get_chainlit_settings() -> ChainlitAppSettings:
             "http://localhost:8000",
         ),
         backend_api_timeout_seconds=float(
-            os.getenv("BACKEND_API_TIMEOUT_SECONDS", "30.0")
+            os.getenv("BACKEND_API_TIMEOUT_SECONDS", "120.0")
         ),
+        agent_mode=os.getenv("AGENT_MODE", "deepagent").strip().lower() or "deepagent",
     )

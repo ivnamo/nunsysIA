@@ -22,9 +22,14 @@ Errores posibles:
 
 ## `POST /api/query`
 
-Descripcion: recibe una pregunta en lenguaje natural y la procesa mediante el workflow agentic.
+Descripcion: recibe una pregunta en lenguaje natural y la procesa mediante el
+`AgentRouter`. Si el request no especifica `mode`, se usa siempre
+`deepagent`, el flujo principal basado en LangChain DeepAgents.
 
-La respuesta puede estar redactada por el `FinalResponseBuilder` con LLM controlado, pero siempre debe respetar el mismo schema y usar solo evidencias devueltas por tools. Si la salida del LLM no supera las validaciones de grounding, se devuelve la respuesta determinista y el campo `fallbacks` debe indicar el marcador `FALLBACK_*` correspondiente.
+La respuesta siempre debe respetar el mismo schema y usar solo evidencias
+devueltas por tools. El `ResponseNormalizer` garantiza los campos publicos
+`answer`, `sources` y `reasoning`, aunque el motor interno devuelva una salida
+heterogenea.
 
 Request:
 
@@ -32,6 +37,7 @@ Request:
 {
   "question": "Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?",
   "conversation_id": "demo-001",
+  "mode": "deepagent",
   "include_citation_previews": false
 }
 ```
@@ -41,6 +47,12 @@ El repositorio mantiene este request de demo en `query.json`.
 `conversation_id` permite memoria conversacional en memoria de proceso. El backend conserva las ultimas 5 interacciones de cada conversacion y puede usarlas para resolver follow-ups breves. Si la memoria se consulta, la respuesta incluye fuente `Memoria` y una tool call `MemoryTool`; la memoria no sustituye a ERP, Produccion o Documentos como fuente de datos de negocio actuales.
 
 `include_citation_previews` es opcional y por defecto `false`. La UI Chainlit lo usa para pedir una vista previa truncada del texto de cada chunk citado y poder desplegarla al revisar evidencias. Los clientes API normales deben mantenerlo en `false` salvo que necesiten esa experiencia de auditoria visual.
+
+`mode` es opcional. Valores aceptados:
+
+- `deepagent`: principal y por defecto.
+- `deepagent_sidecar`: experimental/comparativo.
+- `legacy_langgraph`: experimental/comparativo.
 
 Los follow-ups con referencias a pedidos concretos pueden generar tool calls internas especializadas, por ejemplo `ProductionAPITool.get_status_for_order_ids` para consultar estados productivos por IDs ya resueltos y `ERPTool.calculate_order_amount` para calcular importes ERP. El contrato mantiene compatibilidad: `tool_calls.action` es opcional, los argumentos se sanitizan y `data` mantiene solo un resumen auditable.
 
@@ -99,6 +111,10 @@ Response `200`:
   ],
   "confidence": 0.9,
   "status": "completed",
+  "metadata": {
+    "agent_mode": "deepagent",
+    "agent_framework": "LangChain DeepAgents"
+  },
   "data": {
     "erp_orders_count": 2,
     "erp_order_ids": [10248, 10252],
@@ -130,21 +146,23 @@ Errores posibles:
 
 ## `POST /api/experimental/deepagents/query`
 
-Descripcion: endpoint experimental para comparar un flujo Deep Agents contra el
-workflow estable. No sustituye `POST /api/query`: Deep Agents actua como entrada
-alternativa y debe llamar al workflow auditado mediante la tool
+Descripcion: endpoint heredado de diagnostico para comparar el sidecar
+DeepAgents contra el flujo principal actual. No sustituye `POST /api/query`:
+el flujo estable entra por `AgentRouter` con `mode=deepagent`.
+
+Este endpoint conserva el sidecar que llama al workflow legacy mediante la tool
 `consultar_flujo_agentic`.
 
 Activacion:
 
 - Requiere `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
-- Requiere ejecutar en un entorno compatible con `requirements-deepagents.txt`.
+- Requiere ejecutar en un entorno compatible con `requirements.txt`.
 - Modelo por defecto: `DEEPAGENTS_MODEL=google_genai:gemini-3.5-flash`.
 
 Request: mismo schema que `POST /api/query`.
 
-Response `200`: mismo `QueryResponse` que `POST /api/query`, preservando la
-respuesta auditada devuelta por el workflow estable.
+Response `200`: mismo `QueryResponse` que `POST /api/query`, con
+`metadata.experimental=true`.
 
 Errores posibles:
 
@@ -156,26 +174,21 @@ Errores posibles:
 
 ## `POST /api/experimental/deepagents/tools/query`
 
-Descripcion: endpoint experimental R22.4 donde Deep Agents recibe tools
-individuales de ERP, Produccion, RAG y Memoria. A diferencia del sidecar, este
-flujo no llama al workflow LangGraph como tool unica; deja que Deep Agents
-decida que tools deterministas usar y reconstruye una `QueryResponse` con la
-traza publica registrada durante la ejecucion. Desde R22.5 aplica seleccion de
-tools por intencion, tools compuestas de negocio, cache de consultas repetidas y
-presupuesto de una consulta RAG por turno documental. Desde R22.6 conserva
-`write_todos` como planificacion nativa de Deep Agents y excluye tools de
-filesystem, shell y subagentes en este endpoint de negocio.
+Descripcion: endpoint heredado de diagnostico donde DeepAgents recibe tools
+individuales de ERP, Produccion, RAG y Memoria. El flujo principal actual ya usa
+esta aproximacion a traves de `POST /api/query` y `DeepAgentService`; este
+endpoint queda solo para pruebas comparativas historicas.
 
 Activacion:
 
 - Requiere `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
-- Requiere entorno compatible con `requirements-deepagents.txt`.
+- Requiere entorno compatible con `requirements.txt`.
 - Mantiene el mismo request y response schema que `POST /api/query`.
 
 Uso previsto:
 
 - Comparacion tecnica, no ruta estable.
-- Evaluar si Deep Agents planifica bien con tools individuales.
+- Reproducir validaciones historicas sin tocar el router principal.
 - Detectar divergencias de fuentes, tool calls, sobreconsulta o perdida de
   guardrails antes de cualquier promocion.
 
@@ -248,8 +261,8 @@ En respuestas de impacto economico, `data` puede incluir un resumen publico sin 
 }
 ```
 
-Si el grafo solicita replanning, `data.replanning` debe exponer solo un resumen
-sanitizado de los intentos:
+Si el modo `legacy_langgraph` solicita replanning, `data.replanning` debe
+exponer solo un resumen sanitizado de los intentos:
 
 ```json
 {
@@ -353,8 +366,9 @@ Errores posibles:
 La Query DSL segura no es un endpoint publico. Existe como contrato interno
 validado en `app/tools/query_dsl.py` y como ejecucion aislada en
 `ERPQueryTool` / `ProductionQueryTool`. Desde R16 puede ejecutarse dentro de
-`POST /api/query` solo cuando el planner produce un plan validado y el reasoner
-controla el cruce por `order_id`.
+`POST /api/query` solo cuando una tool de negocio recibe una spec validada. En
+el modo `legacy_langgraph`, el planner/reasoner tambien pueden usarla como parte
+del flujo comparativo.
 
 Restricciones actuales:
 
@@ -369,11 +383,10 @@ Restricciones actuales:
 - `order_by` solo puede usar campos allowlist.
 - Se rechazan claves extra como `joins`, campos internos, entidades no
   permitidas, operadores desconocidos y valores enumerados invalidos.
-- En R16 las consultas DSL se pueden ejecutar desde el flujo agentic con specs
-  Pydantic ya validadas. No se anade ningun endpoint publico nuevo ni se
-  permite SQL/HTTP libre.
+- Las consultas DSL se ejecutan con specs Pydantic ya validadas. No se anade
+  ningun endpoint publico nuevo ni se permite SQL/HTTP libre.
 - Las tools DSL devuelven proyecciones de campos publicos seleccionados y tool
   calls trazables; no devuelven filas raw internas.
-- Los joins no forman parte de la DSL: el reasoner puede aplicar `join_from`
-  como metadato controlado del plan y filtrar la segunda consulta por los
-  `order_id` obtenidos de la primera fuente.
+- Los joins no forman parte de la DSL: el cruce ERP-Produccion se controla en
+  las tools compuestas o, en el modo legacy, mediante `join_from` como metadato
+  de plan y filtrado por `order_id`.

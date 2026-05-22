@@ -18,6 +18,7 @@ def test_backend_client_queries_api() -> None:
         response = await client.query(
             question="Que pedidos pendientes tiene ALFKI?",
             conversation_id="demo-001",
+            mode="deepagent",
             include_citation_previews=True,
         )
 
@@ -31,6 +32,7 @@ def test_backend_client_queries_api() -> None:
         payload = json.loads(request.read())
         assert payload["question"] == "Que pedidos pendientes tiene ALFKI?"
         assert payload["conversation_id"] == "demo-001"
+        assert payload["mode"] == "deepagent"
         assert payload["include_citation_previews"] is True
         return httpx.Response(
             200,

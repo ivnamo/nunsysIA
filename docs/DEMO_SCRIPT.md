@@ -8,18 +8,22 @@ respuesta bonita.
 
 Demostrar que el sistema responde preguntas de negocio en lenguaje natural
 combinando ERP Northwind, API mock de produccion y documentos PDF mediante RAG,
-con un flujo agentic auditable:
+con LangChain DeepAgents como framework principal y un flujo auditable:
 
 ```text
 FastAPI / Chainlit
--> Planner
--> Reasoner / Executor
--> Validator
--> FinalResponseBuilder
+-> POST /api/query
+-> AgentRouter
+-> mode=deepagent
+-> DeepAgentService
+-> tools ERP / Produccion / RAG
+-> ResponseNormalizer
 ```
 
-El mensaje clave: no hay un agente monolitico improvisado; hay nodos separados,
-tools deterministas, validacion y trazabilidad publica.
+El mensaje clave: DeepAgents no es un sidecar decorativo; es el motor principal
+por defecto de `/api/query`, con tools deterministas, normalizacion y
+trazabilidad publica. LangGraph se conserva solo como modo
+`legacy_langgraph` experimental/comparativo.
 
 ## Preparacion
 
@@ -32,7 +36,7 @@ Desde la raiz del repo:
 Resultado esperado versionado:
 
 ```text
-226 passed, 23 skipped, 2 warnings
+236 passed, 23 skipped, 2 warnings
 ```
 
 Validacion opt-in con LLM real antes de la demo:
@@ -45,7 +49,7 @@ $env:RUN_REAL_LLM_TESTS="1"
 Resultado esperado:
 
 ```text
-23 passed, 226 deselected, 2 warnings
+23 passed, 236 deselected, 2 warnings
 ```
 
 Para demo Docker con Gemini real:
@@ -78,23 +82,16 @@ Duracion: 30 segundos.
 Mensaje:
 
 - Esta POC no busca sustituir ERP ni MES; orquesta fuentes existentes.
-- El stack esta acotado: FastAPI, LangGraph, LangChain, Chainlit, ChromaDB,
-  Pydantic y pytest.
-- Si preguntan por "deepAgentes de LangChain": el runtime principal usa
-  LangGraph + LangChain para control fino, y existe un adapter opcional
-  `app.agents.deepagents_adapter` que envuelve este workflow como sidecar
-  Deep Agents sin sustituir la arquitectura auditada.
-- Si se quiere ensenar la prueba comparativa, existe el endpoint experimental
-  `/api/experimental/deepagents/query`, protegido por
-  `ENABLE_DEEPAGENTS_EXPERIMENT=true`, y el script
-  `scripts/run_deepagents_comparison.py`.
-- Tambien existe `/api/experimental/deepagents/tools/query` para R22.4: Deep
-  Agents con tools individuales. En R22.5 se endurecio con seleccion de tools,
-  tools compuestas y presupuesto RAG. La comparacion real queda en
-  `PASS=5, PARTIAL=0`, aunque sigue como experimento por tener trazas distintas
-  al grafo estable.
-- En R22.6 conserva `write_todos` para planificacion nativa de Deep Agents,
-  excluye filesystem/shell/subagentes y expone solo
+- El stack esta acotado: FastAPI, LangChain DeepAgents, LangChain, Chainlit,
+  ChromaDB, Pydantic y pytest.
+- Si preguntan por "deepAgentes de LangChain": `/api/query` usa
+  `AgentRouter -> DeepAgentService -> create_deep_agent` por defecto.
+- Los modos `deepagent_sidecar` y `legacy_langgraph` quedan disponibles solo
+  como comparativa tecnica y aparecen marcados como experimentales.
+- Los endpoints `/api/experimental/deepagents/*` son heredados de diagnostico;
+  no forman parte del flujo principal de entrega.
+- El DeepAgent principal conserva `write_todos` para planificacion nativa en
+  consultas multi-fuente, excluye filesystem/shell/subagentes y expone solo
   `data.deepagents_planning` como senal sanitizada.
 - Las respuestas deben traer `sources`, `tool_calls`, `fallbacks`, `status`,
   `reasoning` y `data`.
@@ -275,11 +272,11 @@ Defensa:
 
 ## Que defender ante el revisor
 
-- El flujo LangGraph es explicito: Planner -> Reasoner/Executor -> Validator ->
-  FinalResponseBuilder.
-- Deep Agents queda cubierto como integracion opcional de bajo riesgo:
-  `requirements-deepagents.txt` + `app.agents.deepagents_adapter`, manteniendo
-  `/api/query` sobre el grafo validado.
+- DeepAgents es el framework principal real: `/api/query` entra por
+  `AgentRouter`, selecciona `mode=deepagent` por defecto y ejecuta
+  `DeepAgentService`.
+- LangGraph queda encapsulado en `LegacyLangGraphService` como modo
+  `legacy_langgraph` experimental/comparativo.
 - Las rutas FastAPI son finas y delegan en servicios, graph o tools.
 - ERP, produccion, memoria y RAG entran como tools controladas.
 - El planner LLM esta acotado por schema Pydantic, lista cerrada de actions y
@@ -290,7 +287,7 @@ Defensa:
 - `fallbacks` son visibles; no se ocultan rutas alternativas.
 - La memoria no decide hechos de negocio; solo resuelve referencias.
 - Docker Compose valida backend, mock de produccion, Chainlit y ChromaDB HTTP.
-- La suite cubre contratos y regresiones criticas: `226 passed` y deja los 23
+- La suite cubre contratos y regresiones criticas: `236 passed` y deja los 23
   tests `real_llm` como validacion opt-in con ChromaDB persistente local y
   embeddings reales.
 

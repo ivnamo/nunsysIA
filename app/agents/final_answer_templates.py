@@ -12,6 +12,7 @@ from app.schemas.query import QueryStatus
 
 _ERP_STATUS_LABELS = {
     "pending": "pendiente",
+    "shipped": "enviado",
     "completed": "completado",
     "cancelled": "cancelado",
 }

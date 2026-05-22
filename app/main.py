@@ -10,7 +10,10 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="nunsysIA",
         version="0.1.0",
-        description="POC agentic empresarial con FastAPI, LangGraph, LangChain y RAG.",
+        description=(
+            "Sistema agentic empresarial con FastAPI, LangChain DeepAgents, "
+            "LangChain tools y RAG."
+        ),
     )
     app.include_router(health_router)
     app.include_router(query_router)

@@ -1,11 +1,11 @@
 from app.agents.graph import run_agent_graph
 from app.core.config import Settings
 from app.core.llm import ChatModel, LLMProviderError, create_chat_model
-from app.erp.database import create_sqlite_connection, load_seed_sql
-from app.erp.repositories import NorthwindRepository
-from app.production.client import ProductionAPIClient
 from app.rag.ingestion import DocumentIngestionService
 from app.schemas.query import QueryRequest, QueryResponse
+from app.services.erp_service import create_erp_tools
+from app.services.production_service import create_production_tools
+from app.services.rag_service import create_rag_tool
 from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import ERPTool
 from app.tools.memory_tool import ConversationMemoryStore
@@ -75,27 +75,17 @@ def create_query_workflow_service(
         production_tool=production_tool,
         erp_query_tool=erp_query_tool,
         production_query_tool=production_query_tool,
-        rag_tool=DocumentRAGTool(
-            vector_store=document_service.vector_store,
-            embedding_model=document_service.embedding_model,
-        ),
+        rag_tool=create_rag_tool(document_service),
         chat_model=chat_model,
         llm_timeout_seconds=settings.llm_timeout_seconds,
     )
 
 
 def _create_erp_tools() -> tuple[ERPTool, ERPQueryTool]:
-    connection = create_sqlite_connection(check_same_thread=False)
-    load_seed_sql(connection)
-    repository = NorthwindRepository(connection)
-    return ERPTool(repository), ERPQueryTool(repository)
+    return create_erp_tools()
 
 
 def _create_production_tools(
     settings: Settings,
 ) -> tuple[ProductionAPITool, ProductionQueryTool]:
-    client = ProductionAPIClient(
-        base_url=settings.production_api_base_url,
-        timeout=settings.production_api_timeout_seconds,
-    )
-    return ProductionAPITool(client), ProductionQueryTool(client)
+    return create_production_tools(settings)

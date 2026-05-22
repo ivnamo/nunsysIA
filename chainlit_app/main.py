@@ -58,6 +58,7 @@ async def on_message(message: cl.Message) -> None:
             operation=client.query(
                 question=question,
                 conversation_id=cl.user_session.get("conversation_id"),
+                mode=get_chainlit_settings().agent_mode,
                 include_citation_previews=True,
             ),
             message=response_message,

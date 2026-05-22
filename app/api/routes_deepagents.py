@@ -27,7 +27,7 @@ from app.tools.rag_tool import DocumentRAGTool
 
 router = APIRouter(
     prefix="/api/experimental/deepagents",
-    tags=["experimental-deepagents"],
+    tags=["experimental-legacy-deepagents"],
 )
 logger = logging.getLogger(__name__)
 
@@ -92,10 +92,10 @@ def query_deepagents(
             detail=str(exc),
         ) from exc
     except Exception as exc:
-        logger.exception("Experimental Deep Agents workflow failed")
+        logger.exception("Experimental DeepAgents sidecar workflow failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No se pudo procesar la consulta experimental Deep Agents.",
+            detail="No se pudo procesar la consulta experimental DeepAgents sidecar.",
         ) from exc
 
 
@@ -112,10 +112,10 @@ def query_deepagents_tools(
             detail=str(exc),
         ) from exc
     except Exception as exc:
-        logger.exception("Experimental Deep Agents direct-tools workflow failed")
+        logger.exception("Experimental legacy DeepAgents direct-tools workflow failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No se pudo procesar la consulta experimental Deep Agents tools.",
+            detail="No se pudo procesar la consulta experimental legacy DeepAgents tools.",
         ) from exc
 
 
@@ -125,15 +125,17 @@ def _ensure_deepagents_experiment_enabled() -> None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
-                "El flujo experimental Deep Agents no esta habilitado. "
-                "Configura ENABLE_DEEPAGENTS_EXPERIMENT=true para probarlo."
+                "El endpoint experimental heredado de DeepAgents no esta "
+                "habilitado. El flujo principal esta en POST /api/query con "
+                "mode=deepagent. Configura ENABLE_DEEPAGENTS_EXPERIMENT=true "
+                "solo para comparativa tecnica."
             ),
         )
     if not deepagents_is_available():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
-                "deepagents no esta instalado. Instala requirements-deepagents.txt "
+                "deepagents no esta instalado. Instala requirements.txt "
                 "en un entorno compatible para activar este endpoint experimental."
             ),
         )

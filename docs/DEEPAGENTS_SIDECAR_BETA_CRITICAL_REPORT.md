@@ -5,8 +5,8 @@ Fecha de ejecucion: 2026-05-22 20:27:22
 - Resultado global: PASS=5, PARTIAL=0, FAIL=0, BLOCKER=0.
 Runtime:
 
-- Flujo experimental Deep Agents sidecar con `DeepAgentsQueryService`.
-- Deep Agents invoca el workflow estable como tool unica auditable.
+- Flujo experimental DeepAgents sidecar con `DeepAgentsQueryService`.
+- DeepAgents invoca el workflow legacy como tool unica auditable.
 - LLM real configurado via `.env` y modelo Deep Agents via `DEEPAGENTS_MODEL`.
 - Embeddings reales del proveedor configurado via `.env`.
 - ChromaDB persistente local obligatorio para el espacio documental.

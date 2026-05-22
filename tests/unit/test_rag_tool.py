@@ -45,6 +45,47 @@ def test_document_rag_tool_returns_grounded_answer_and_trace() -> None:
     assert "FALLBACK" in result.tool_call.output_summary
 
 
+def test_document_rag_tool_answers_document_questions_with_human_wording() -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Contrato marco de logistica 2026 - version extendida Pagina 2 de 4 - "
+            "Plazos, calendarios y excepciones operativas Plazos ordinarios: "
+            "Los pedidos standard deben entregarse en un plazo maximo de 5 dias "
+            "laborables desde la liberacion de produccion. Los pedidos urgentes "
+            "deben entregarse en un plazo maximo de 48 horas. La penalizacion "
+            "solo procede cuando existe incumplimiento de plazo, causa imputable "
+            "al operador logistico y evidencia completa en ERP, produccion y "
+            "prueba de entrega."
+        ),
+        filename="v2_contrato_marco_logistica_2026.pdf",
+    )
+    tool = DocumentRAGTool(vector_store=vector_store)
+
+    result = tool.query(
+        DocumentRAGInput(
+            query="Que dice el documento sobre plazos de entrega standard?",
+            top_k=3,
+            min_score=0,
+        )
+    )
+
+    answer = result.data["answer"]
+    assert result.data["status"] == "completed"
+    assert answer.startswith(
+        "El documento establece que, para pedidos standard, el plazo maximo"
+    )
+    assert "5 dias laborables" in answer
+    assert "48 horas" in answer
+    assert "no basta con que haya retraso" in answer
+    assert "Contrato marco de logistica 2026" not in answer
+    assert "Pagina 2 de 4" not in answer
+    assert result.data["chunks"][0]["metadata"]["filename"] == (
+        "v2_contrato_marco_logistica_2026.pdf"
+    )
+
+
 def test_document_rag_tool_summarizes_named_pdf_without_mixing_documents() -> None:
     vector_store = InMemoryDocumentVectorStore()
     service = DocumentIngestionService(vector_store=vector_store)

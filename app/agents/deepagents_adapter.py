@@ -10,7 +10,7 @@ DEEPAGENTS_PACKAGE = "deepagents"
 
 
 class DeepAgentsUnavailableError(RuntimeError):
-    """Raised when the optional Deep Agents adapter is requested but unavailable."""
+    """Raised when the DeepAgents runtime is requested but unavailable."""
 
 
 class BusinessWorkflow(Protocol):
@@ -28,15 +28,11 @@ def build_business_deep_agent(
     *,
     name: str = "nunsys-business-deep-agent",
 ) -> Any:
-    """Create an optional Deep Agents sidecar around the existing workflow.
-
-    The production path remains the explicit LangGraph workflow. This adapter is a
-    compatibility sidecar for environments that require the `deepagents` package.
-    """
+    """Create an experimental DeepAgents sidecar around the legacy workflow."""
     if not deepagents_is_available():
         raise DeepAgentsUnavailableError(
-            "deepagents no esta instalado. Instala requirements-deepagents.txt "
-            "en un entorno compatible para activar este adapter opcional."
+            "deepagents no esta instalado. Instala requirements.txt "
+            "en un entorno compatible para activar DeepAgents."
         )
 
     try:
@@ -44,7 +40,7 @@ def build_business_deep_agent(
     except ImportError as exc:
         raise DeepAgentsUnavailableError(
             "deepagents esta instalado pero no puede importarse correctamente. "
-            "Revisa que el entorno use las dependencias de requirements-deepagents.txt."
+            "Revisa que el entorno use las dependencias de requirements.txt."
         ) from exc
 
     return create_deep_agent(
@@ -78,7 +74,7 @@ _DEEP_AGENT_SYSTEM_PROMPT = """Eres un sidecar Deep Agents para la POC nunsysIA.
 
 Tu unica fuente de verdad de negocio es la tool `consultar_flujo_agentic`.
 Usala para responder preguntas sobre ERP, produccion, documentos o memoria
-conversacional. No inventes datos ni sustituyas el workflow principal: resume
+conversacional. No inventes datos ni sustituyas el DeepAgent principal: resume
 la respuesta devuelta por la tool y conserva el estado, fuentes, tool calls y
 fallbacks cuando sean relevantes para auditoria.
 

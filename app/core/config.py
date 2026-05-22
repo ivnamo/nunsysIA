@@ -33,6 +33,7 @@ class Settings(BaseModel):
     gemini_embedding_model: str = "gemini-embedding-001"
     openai_embedding_model: str = "text-embedding-3-small"
     embedding_model: str = "gemini-embedding-001"
+    agent_mode: str = "deepagent"
     enable_deepagents_experiment: bool = False
     deepagents_model: str = "google_genai:gemini-3.5-flash"
 
@@ -85,6 +86,7 @@ def get_settings() -> Settings:
             "text-embedding-3-small",
         ),
         embedding_model=os.getenv("EMBEDDING_MODEL", "gemini-embedding-001"),
+        agent_mode=os.getenv("AGENT_MODE", "deepagent").strip().lower(),
         enable_deepagents_experiment=_env_bool("ENABLE_DEEPAGENTS_EXPERIMENT"),
         deepagents_model=os.getenv(
             "DEEPAGENTS_MODEL",

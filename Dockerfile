@@ -20,6 +20,8 @@ COPY .chainlit ./.chainlit
 COPY public ./public
 COPY production_mock ./production_mock
 COPY data ./data
+COPY scripts ./scripts
+COPY docker-compose.yml ./docker-compose.yml
 COPY query.json ./query.json
 
 EXPOSE 8000 8001 8002

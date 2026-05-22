@@ -2,67 +2,50 @@
 
 ## Objetivo
 
-Construir una POC agentic empresarial capaz de responder preguntas de negocio en lenguaje natural combinando ERP Northwind, una API REST de produccion y documentos PDF consultables mediante RAG.
+Construir una POC agentic empresarial capaz de responder preguntas de negocio
+en lenguaje natural combinando ERP Northwind, una API REST de produccion y
+documentos PDF consultables mediante RAG.
 
-La prioridad es demostrar integracion real, trazabilidad y control del flujo, no construir una plataforma generica.
+La prioridad de la entrega actual es demostrar DeepAgents como framework
+principal real, con trazabilidad publica y contrato estable en `POST /api/query`.
 
-## Flujo General
+## Flujo Principal
 
 ```text
 Usuario
 -> Chainlit o POST /api/query
 -> FastAPI
--> LangGraph StateGraph
--> Planner Agent
--> Reasoner / Executor Agent
--> Validator Node
--> FinalResponseBuilder
--> Respuesta estructurada
+-> AgentRouter
+-> mode=deepagent [por defecto]
+-> DeepAgentService
+-> LangChain DeepAgents
+-> tools ERP / Produccion / RAG / Memoria
+-> ResponseNormalizer
+-> QueryResponse
 ```
 
-## LangGraph y LangChain
+`mode` es opcional en el request. Si falta o llega como `null`, el router usa
+siempre `deepagent`.
 
-- LangGraph orquesta el workflow: estado, nodos, edges, validacion y replanning.
-- LangChain aporta herramientas: tools, prompts, retrievers, embeddings, parsers y llamadas al LLM.
+La solucion utiliza LangChain DeepAgents como framework principal de
+orquestacion agentic. El DeepAgent principal interpreta la consulta, recibe
+tools de negocio auditables, consulta las fuentes necesarias y devuelve una
+respuesta normalizada. LangChain se usa para tools, integracion con modelo y
+RAG. LangGraph queda encapsulado solo en el modo experimental/legacy.
 
-LangGraph decide el recorrido. LangChain ejecuta capacidades concretas.
+## Modos Agentic
 
-### Compatibilidad opcional con Deep Agents
+- `deepagent`: principal y por defecto. Implementado por
+  `app.agents.deep_agent.DeepAgentService` y
+  `app.agents.deepagents_tools_service.DeepAgentsToolsQueryService`.
+- `deepagent_sidecar`: experimental. DeepAgents delega en el workflow legacy
+  para comparativa tecnica.
+- `legacy_langgraph`: experimental/comparativo. Conserva el flujo LangGraph
+  anterior para regresion y contraste.
 
-El requisito "deepAgentes de LangChain" se cubre en el runtime principal como
-workflow agentic explicito sobre LangGraph + LangChain. Para una interpretacion
-literal de la libreria `deepagents`, el repositorio incluye
-`app.agents.deepagents_adapter`: un sidecar opcional que crea un Deep Agent y le
-expone el workflow aprobado como tool `consultar_flujo_agentic`.
-
-Este adapter no se activa por defecto ni sustituye el grafo. Su funcion es dar un
-punto de integracion claro si el evaluador exige la libreria concreta, evitando
-duplicar la arquitectura o relajar los guardrails de trazabilidad. Las
-dependencias opcionales viven en `requirements-deepagents.txt` porque las
-versiones actuales de `deepagents` requieren LangChain/LangGraph 1.x y el runtime
-estable de la POC esta fijado en LangChain 0.3 y LangGraph 0.2.
-
-Como experimento comparativo, existe tambien
-`POST /api/experimental/deepagents/query`, protegido por
-`ENABLE_DEEPAGENTS_EXPERIMENT=true`. Este endpoint usa
-`DeepAgentsQueryService` para invocar Deep Agents, pero devuelve la
-`QueryResponse` auditada que produce el workflow estable. Su objetivo es medir
-el comportamiento de Deep Agents frente a `/api/query`, no promocionarlo como
-ruta productiva.
-
-R22.4 anade `POST /api/experimental/deepagents/tools/query`, que expone tools
-individuales de ERP, Produccion, RAG y Memoria a Deep Agents. R22.5 endurece ese
-flujo con seleccion de tools por intencion, tools compuestas de negocio,
-presupuesto/cache para RAG y comparacion que separa diferencias semanticas de
-diferencias de traza. La comparacion real queda en `PASS=5, PARTIAL=0`, con
-trazas no identicas al grafo estable pero sin divergencias semanticas ni de
-eficiencia.
-
-R22.6 conserva la herramienta nativa `write_todos` de Deep Agents para
-planificacion interna en consultas multi-fuente, pero registra solo una senal
-publica sanitizada en `data.deepagents_planning`. El mismo harness excluye
-filesystem, shell (`execute`) y subagentes (`task`) porque el endpoint de negocio
-debe resolver por tools auditadas, no por acceso al sistema.
+Los endpoints `/api/experimental/deepagents/*` son heredados de diagnostico.
+No sustituyen al flujo principal y solo se habilitan con
+`ENABLE_DEEPAGENTS_EXPERIMENT=true`.
 
 ## Componentes
 
@@ -72,105 +55,98 @@ Expone la API del sistema:
 
 - `GET /health`
 - `POST /api/query`
-- `POST /api/experimental/deepagents/query` si se habilita el experimento
-- `POST /api/experimental/deepagents/tools/query` si se habilita el experimento
 - `POST /api/documents/upload`
 - `GET /api/documents`
+- `POST /api/experimental/deepagents/query` solo si se habilita el experimento
+- `POST /api/experimental/deepagents/tools/query` solo si se habilita el experimento
 
-Las rutas deben ser finas y delegar la logica en servicios, tools o el grafo.
+Las rutas son finas: validan Pydantic, llaman a servicios y devuelven schemas
+publicos. La logica agentic vive fuera del endpoint.
+
+### AgentRouter
+
+`app/agents/router.py` selecciona el motor segun `AgentMode`:
+
+- Si `mode is None`, fuerza `AgentMode.DEEPAGENT`.
+- Si se pide un modo experimental no disponible, devuelve un error claro.
+- Todos los motores pasan por `ResponseNormalizer`.
+- La salida publica es siempre `QueryResponse`.
+
+### DeepAgent Principal
+
+`DeepAgentService` encapsula el flujo principal. Internamente usa
+`create_deep_agent` desde `deepagents` con `MAIN_DEEP_AGENT_PROMPT` y tools de
+negocio:
+
+- `query_erp_orders`
+- `query_erp_customer_summary`
+- `query_production_status`
+- `query_blocked_orders`
+- `search_documents`
+- `summarize_document_context`
+
+El servicio mantiene una capa determinista de grounding para que los tests
+basicos no dependan de un LLM externo y para registrar trazas auditables. Esa
+capa no cambia la arquitectura publica: el motor principal que se crea e invoca
+en el flujo estable es DeepAgents.
+
+### ResponseNormalizer
+
+`app/services/response_normalizer.py` convierte salidas heterogeneas de
+DeepAgents, sidecar o legacy a:
+
+```json
+{
+  "answer": "...",
+  "sources": ["ERP"],
+  "reasoning": ["Consulta ERP"],
+  "metadata": {
+    "agent_mode": "deepagent",
+    "agent_framework": "LangChain DeepAgents"
+  }
+}
+```
+
+Tambien conserva campos de auditoria ya existentes: `tool_calls`, `status`,
+`data`, `fallbacks`, `confidence` y `failure_reason`. Para modos no principales
+anade `metadata.experimental=true`.
 
 ### Chainlit
 
-Interfaz conversacional para demo y pruebas manuales. Muestra respuesta, fuentes, reasoning visible, tool calls y estado. Permite adjuntar PDFs al espacio documental del backend y listar documentos con `/documentos`.
+`chainlit_app/main.py` llama al mismo endpoint `POST /api/query` mediante
+`BackendClient`. Por defecto envia `mode=deepagent`, usando `AGENT_MODE` solo
+como override explicito de desarrollo.
 
-### Planner Agent
+### Tools
 
-Clasifica la intencion de la pregunta y genera un plan estructurado. En la fase actual `PlannerAgent` es una fachada del nodo LangGraph: los modelos Pydantic viven en `planner_models.py`, el planner LLM y su timeout en `planner_llm.py`, las reglas deterministas en `planner_rules.py`/`planner_context.py` y la normalizacion de planes en `planner_normalization.py`. Puede usar Gemini/OpenAI si estan configurados, pero solo acepta planes que cumplan el schema Pydantic y una lista cerrada de tools/actions. Si el LLM falla, tarda demasiado o propone una accion no permitida, cae al planner determinista y lo declara como fallback visible. No ejecuta tools ni inventa datos. Cuando la pregunta es de dominio pero falta cliente, pedido, periodo o contexto conversacional, devuelve el intent interno `clarification` sin pasos. Las reglas deterministas cubren tambien sinonimos operativos (`parados`, `atascados`, `con problemas`, `riesgo`), clientes seed en minusculas y pedidos explicitos por ID, siempre con tools existentes.
+Las tools son deterministas, separadas por dominio y devuelven datos
+estructurados:
 
-### Reasoner / Executor Agent
+- `ERPTool` y `ERPQueryTool`: clientes, pedidos e importes de Northwind.
+- `ProductionAPITool` y `ProductionQueryTool`: estados, bloqueos y retrasos de
+  la API REST de produccion.
+- `DocumentRAGTool`: busqueda y respuesta grounded sobre PDFs indexados.
+- `MemoryTool`: contexto conversacional por `conversation_id`.
 
-Ejecuta el plan usando tools deterministas. Fusiona resultados de ERP, produccion y RAG. En el estado actual el ERP se instancia con SQLite en memoria y `data/northwind_seed.sql`, de modo que tests y demo no requieren una base externa.
-
-### Validator Node
-
-Comprueba si hay datos suficientes, fuentes requeridas, schema valido y trazabilidad. Puede pedir replanning hasta `MAX_REPLANS = 2`; cuando lo hace, registra eventos publicos en `data.replanning` con intento, estado y motivo sanitizado, sin exponer planes raw ni chain-of-thought. El intent `clarification` se cierra como `needs_clarification` sin ejecutar tools ni replanificar.
-
-### FinalResponseBuilder
-
-Construye la respuesta final con `answer`, `sources`, `reasoning`, `tool_calls`, `fallbacks`, `status` y `confidence` cuando sea posible. Los fallbacks no deben ocultarse: si el planner cae a reglas, si la respuesta final cae a determinista, si ChromaDB no esta disponible o si se usan embeddings deterministas, debe quedar visible.
-
-En el estado actual puede usar LLM controlado para redactar en espanol de negocio solo sobre datos ya devueltos por tools. Si el LLM falla, tarda demasiado o introduce identificadores/numeros que no aparecen en las evidencias, se descarta y se usa la respuesta determinista.
-
-Para `needs_clarification`, `unsupported`, `insufficient_context` y errores, la
-respuesta es determinista y no invoca el LLM final.
-
-La clase se mantiene como fachada del nodo LangGraph. La redaccion
-determinista vive en `final_answer_templates.py`, el prompt y payload
-estructurado en `final_prompt.py`, el grounding/evidencia en
-`final_grounding.py` y la politica de penalizaciones en `penalty_policy.py`.
-
-## Tools
-
-Las tools son deterministas y devuelven datos estructurados:
-
-- `ERPTool`: consulta Northwind.
-- `ProductionAPITool`: consulta la API mock de produccion.
-- `DocumentRAGTool`: fachada determinista que consulta documentos indexados en el vector store documental. La deteccion de filenames y consultas de documento completo vive en `app/rag/document_filters.py`; la evidencia lexica en `app/rag/relevance.py`; y la respuesta grounded en `app/rag/answer_builder.py`.
-- `MemoryTool`: recupera las ultimas 5 interacciones por `conversation_id`. Se usa solo para resolver referencias conversacionales; los datos de negocio actuales deben seguir saliendo de ERP, Produccion o Documentos.
-
-### Query DSL segura
-
-`app/tools/query_dsl.py` define una DSL estructurada para consultas flexibles a
-ERP y Produccion. `ERPQueryTool` y `ProductionQueryTool` ejecutan specs ya
-validadas, proyectan solo campos publicos y registran tool calls trazables. En
-R16 estas tools ya pueden ser invocadas por el planner bajo schema cerrado y el
-reasoner las ejecuta dentro del flujo LangGraph.
-
-Reglas actuales:
-
-- ERP solo admite `entity="orders"`.
-- Produccion solo admite `entity="production_orders"`.
-- Los filtros, selects y `order_by` usan allowlists explicitas por fuente.
-- `limit` queda acotado a `50`.
-- No hay joins en la DSL. El cruce ERP-Produccion lo hace el reasoner por
-  `order_id`, usando `join_from` como metadato controlado del plan y no como
-  parte de la spec DSL.
-- No se permite SQL, endpoints HTTP, campos internos ni claves extra.
-- La ejecucion solo recibe specs Pydantic ya validadas; el LLM no construye SQL
-  ni rutas HTTP.
+La Query DSL segura de `app/tools/query_dsl.py` permite consultas flexibles a
+ERP y Produccion con filtros allowlist, sin SQL libre ni rutas HTTP generadas
+por el modelo.
 
 ## RAG
 
-RAG se implementa como tool, no como agente autonomo.
-
-Pipeline:
+RAG se implementa como tool, no como agente autonomo:
 
 ```text
 PDF -> texto -> chunks -> embeddings -> vector store -> retrieval -> respuesta con fuentes
 ```
 
-Cada chunk debe conservar `document_id`, `filename`, `page`, `chunk_id` y `uploaded_at`.
+Cada chunk conserva `document_id`, `filename`, `page`, `chunk_id` y
+`uploaded_at`. Si no hay contexto suficiente, el sistema devuelve
+`insufficient_context`.
 
-Si no hay contexto documental suficiente, el sistema debe devolver `insufficient_context`.
-
-El vector store objetivo es ChromaDB. El codigo actual soporta `CHROMA_MODE=persistent` con `chromadb.PersistentClient` y `CHROMA_MODE=http` con `chromadb.HttpClient`. Si el cliente Python no esta instalado o Chroma no se puede abrir/conectar, la app usa un fallback en memoria para que la POC siga siendo validable.
-
-La respuesta publica devuelve documentos usados en `data.rag.documents` y citas visibles por chunk en `data.rag.citations` con `filename`, `page`, `chunk_id` y `score`. No expone textos completos de chunks en `data`; Chainlit puede pedir `text_preview` truncado para desplegar evidencias en la UI.
-
-## LLM y proveedores
-
-- Proveedor por defecto para pruebas reales: Gemini.
-- Modelo Gemini actual configurado: `gemini-2.5-flash`.
-- OpenAI queda soportado por variables de entorno sin cambiar el grafo ni las tools.
-- Los tests basicos no dependen de llamadas pagadas.
-- El Planner y el FinalResponseBuilder tienen timeout y retries desactivados para evitar bloqueos largos por modelos invalidos.
-
-## Configuracion de base de datos
-
-- El workflow actual crea el ERP con SQLite en memoria y carga `data/northwind_seed.sql` en cada servicio de consulta.
-- `ERP_DATABASE_URL` se lee en `app.core.config` y queda reservado para persistencia externa futura, pero aun no esta cableado al runtime ERP.
-- `DATABASE_URL` no debe usarse para el ERP en local, porque Chainlit la reserva para su propio data layer con `asyncpg`.
-- `DATABASE_URL` queda soportada solo como fallback legacy en `app.core.config`.
+El vector store objetivo es ChromaDB. El codigo soporta
+`CHROMA_MODE=persistent` y `CHROMA_MODE=http`; si Chroma no esta disponible, usa
+fallback en memoria para que la POC siga siendo validable.
 
 ## Trazabilidad
 
@@ -182,51 +158,50 @@ Cada respuesta debe indicar:
 - razonamiento visible resumido;
 - estado final.
 
-No se debe exponer chain-of-thought interno.
+No se expone chain-of-thought interno. `TraceService` registra eventos
+auditables y `ResponseNormalizer` reconstruye `sources` y `reasoning` desde
+tool calls cuando el agente no los devuelve explicitamente.
+
+## Configuracion
+
+Variables clave:
+
+- `AGENT_MODE=deepagent` por defecto.
+- `DEEPAGENTS_MODEL=google_genai:gemini-3.5-flash` o modelo compatible.
+- `OPENAI_API_KEY` o `GEMINI_API_KEY` para ejecucion real del DeepAgent.
+- `PRODUCTION_API_BASE_URL` para la API REST de produccion.
+- `CHROMA_MODE`, `CHROMA_HOST`, `CHROMA_PORT` o `CHROMA_PERSIST_DIRECTORY` para
+  ChromaDB.
+
+Docker Compose arranca backend, mock de produccion, Chainlit y ChromaDB con
+`AGENT_MODE=deepagent` salvo override explicito.
 
 ## Decisiones Tecnicas
 
-- FastAPI por simplicidad, rendimiento y ecosistema Python.
-- LangGraph para hacer explicito el flujo agentic.
-- LangChain para tools y RAG.
-- ChromaDB como vector store inicial por velocidad de implementacion.
+- LangChain DeepAgents como framework principal de orquestacion agentic.
+- FastAPI para contrato HTTP y separacion de rutas.
+- LangChain para tools, modelo y RAG.
+- LangGraph solo como implementacion legacy/comparativa.
+- ChromaDB como vector store objetivo.
 - Pydantic para contratos estables.
-- pytest para pruebas deterministas.
-- Docker Compose para reproducibilidad.
+- pytest con mocks/datos deterministas para no depender de LLM pagado en tests
+  principales.
 
-## Estado Actual de Implementacion
+## Estado Actual
 
-Implementado en el repositorio y cubierto por tests/checklist manual:
+Implementado y cubierto por tests:
 
-- FastAPI con endpoints principales.
-- Upload documental multipart con `UploadFile` y compatibilidad directa
-  `application/pdf`.
+- `POST /api/query` usa `AgentRouter` y `deepagent` por defecto.
+- Chainlit usa `deepagent` por defecto y reutiliza el endpoint publico.
+- Modo principal DeepAgents con tools ERP, Produccion, RAG y Memoria.
+- Modos `deepagent_sidecar` y `legacy_langgraph` encapsulados como
+  experimentales.
+- Response normalizada con `answer`, `sources`, `reasoning` y metadata.
+- Upload/listado documental PDF.
 - Mock API de produccion.
 - ERP Northwind reducido con SQLite en memoria y seed controlado.
-- LangGraph con Planner, Reasoner/Executor, Validator y FinalResponseBuilder.
-- Adapter opcional Deep Agents como sidecar sobre el workflow existente.
-- RAG PDF con documentos mock de demo.
-- Chainlit con subida de PDFs.
-- Trazabilidad estructurada y sanitizada.
-- Planner hibrido con LLM opcional.
-- Respuesta final con LLM controlado y fallback determinista.
-- Memoria conversacional simple con traza `Memoria`.
-- Docker Compose con backend, mock de produccion, Chainlit y ChromaDB HTTP real.
-- `needs_clarification` para ambiguedades de dominio sin consultar tools.
-- Planner flexible para sinonimos operativos, cliente en minusculas y pedidos
-  explicitos sin SQL ni HTTP libre.
-- Query DSL segura modelada, testeada y ejecutable mediante tools internas
-  y conectada al flujo agentic para cruces controlados.
-- `ERPQueryTool` y `ProductionQueryTool` para ejecutar specs DSL ya validadas,
-  con joins ERP-Produccion gestionados por el reasoner solo por `order_id`.
-
-Extension opcional cerrada:
-
-- R18 del plan vivo: tests reales opt-in con `RUN_REAL_LLM_TESTS=1`.
-
-## Justificacion de Arquitectura
-
-La arquitectura separa responsabilidades, controla los ciclos agentic, obliga a trazabilidad y permite probar cada pieza de forma aislada. El alcance es suficiente para demostrar integracion ERP, produccion, RAG y UI sin introducir componentes fuera del diseno acordado.
+- RAG PDF con ChromaDB o fallback en memoria.
+- Docker Compose reproducible con backend, mock, Chainlit y ChromaDB.
 
 ## Fuera de Alcance Consciente
 
@@ -235,5 +210,5 @@ La arquitectura separa responsabilidades, controla los ciclos agentic, obliga a 
 - Observabilidad productiva completa.
 - Despliegue cloud.
 - Vector stores alternativos.
-- Agentes autonomos libres.
+- Agentes autonomos libres con acceso a filesystem o shell.
 - SQL generado libremente por el LLM.

@@ -26,16 +26,20 @@ class BackendClient:
         self,
         question: str,
         conversation_id: str | None = None,
+        mode: str | None = "deepagent",
         include_citation_previews: bool = False,
     ) -> QueryResponse:
+        payload: dict[str, Any] = {
+            "question": question,
+            "conversation_id": conversation_id,
+            "include_citation_previews": include_citation_previews,
+        }
+        if mode:
+            payload["mode"] = mode
         async with self._client() as client:
             response = await client.post(
                 "/api/query",
-                json={
-                    "question": question,
-                    "conversation_id": conversation_id,
-                    "include_citation_previews": include_citation_previews,
-                },
+                json=payload,
             )
 
         self._raise_for_status(response, "No se pudo procesar la consulta.")

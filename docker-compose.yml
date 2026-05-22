@@ -62,6 +62,7 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: docker
+      AGENT_MODE: ${AGENT_MODE:-deepagent}
       PRODUCTION_API_BASE_URL: http://production-api:8001
       PRODUCTION_API_TIMEOUT_SECONDS: ${PRODUCTION_API_TIMEOUT_SECONDS:-5.0}
       CHROMA_MODE: http
@@ -73,12 +74,13 @@ services:
       RAG_TOP_K: ${RAG_TOP_K:-3}
       MAX_DOCUMENT_UPLOAD_BYTES: ${MAX_DOCUMENT_UPLOAD_BYTES:-10485760}
       LLM_PROVIDER: ${LLM_PROVIDER:-deterministic}
+      DEEPAGENTS_MODEL: ${DEEPAGENTS_MODEL:-google_genai:gemini-3.5-flash}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       GEMINI_API_TRANSPORT: ${GEMINI_API_TRANSPORT:-rest}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0}
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-45}
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-gemini}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-deterministic}
       GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-gemini-embedding-001}
@@ -117,7 +119,8 @@ services:
         condition: service_healthy
     environment:
       BACKEND_API_BASE_URL: http://backend:8000
-      BACKEND_API_TIMEOUT_SECONDS: ${BACKEND_API_TIMEOUT_SECONDS:-30.0}
+      BACKEND_API_TIMEOUT_SECONDS: ${BACKEND_API_TIMEOUT_SECONDS:-120.0}
+      AGENT_MODE: ${AGENT_MODE:-deepagent}
     command:
       [
         "python",
@@ -132,6 +135,35 @@ services:
       ]
     ports:
       - "8002:8002"
+
+  evaluator:
+    build:
+      context: .
+    container_name: nunsysia-evaluator
+    profiles:
+      - eval
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://backend:8000
+      AGENT_MODE: ${AGENT_MODE:-deepagent}
+      EVALUATOR_DOCKER_COMMAND: ${EVALUATOR_DOCKER_COMMAND:-docker compose --profile eval up --build evaluator}
+    command:
+      [
+        "python",
+        "scripts/evaluate_api_responses.py",
+        "--base-url",
+        "http://backend:8000",
+        "--mode",
+        "deepagent",
+        "--output",
+        "reports/api_evaluation.md",
+        "--raw-output",
+        "reports/raw_responses.json",
+      ]
+    volumes:
+      - ./reports:/app/reports
 
 volumes:
   chroma_data:

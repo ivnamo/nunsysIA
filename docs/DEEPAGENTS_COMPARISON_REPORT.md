@@ -1,5 +1,11 @@
 # Deep Agents Comparison Report
 
+Nota de arquitectura actual: este informe queda como evidencia historica de
+comparativa. El flujo principal de entrega es `POST /api/query` con
+`mode=deepagent`, implementado por `AgentRouter` y `DeepAgentService`. El
+`QueryWorkflowService` mencionado aqui corresponde al modo
+`legacy_langgraph`.
+
 Fecha de ejecucion: 2026-05-22 19:39:54
 
 Resultado global: PASS=5, PARTIAL=0, FAIL=0, BLOCKER=0.

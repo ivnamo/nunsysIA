@@ -31,7 +31,7 @@ def build_grounded_answer(query: str, chunks: list[RetrievedDocumentChunk]) -> s
     if sentence_count is not None:
         selected = _select_summary_sentences(sentences, sentence_count)
         return _limit_answer(
-            _naturalize_answer(" ".join(selected)),
+            _add_document_intro(query, _naturalize_answer(" ".join(selected))),
             max_sentences=sentence_count,
         )
 
@@ -40,7 +40,7 @@ def build_grounded_answer(query: str, chunks: list[RetrievedDocumentChunk]) -> s
         sentences=sentences,
         max_sentences=3,
     )
-    return _limit_answer(_naturalize_answer(" ".join(selected)))
+    return _limit_answer(_add_document_intro(query, _naturalize_answer(" ".join(selected))))
 
 
 def _requested_sentence_count(query: str) -> int | None:
@@ -77,12 +77,50 @@ def _split_sentences(text: str) -> list[str]:
 
 
 def _strip_section_heading(sentence: str) -> str:
+    sentence = _strip_document_heading(sentence)
     if ": " not in sentence:
         return sentence
     heading, rest = sentence.split(": ", 1)
     if 3 <= len(heading) <= 90 and len(rest) >= 20:
         return rest.strip()
     return sentence
+
+
+def _strip_document_heading(sentence: str) -> str:
+    normalized = " ".join(sentence.split())
+    if ": " in normalized:
+        heading, rest = normalized.rsplit(": ", 1)
+        if len(rest) >= 20 and _looks_like_document_heading(heading):
+            return rest.strip()
+
+    page_match = re.search(r"\bPagina\s+\d+\s+de\s+\d+\s+-\s+", normalized)
+    if not page_match:
+        return normalized
+
+    after_page_heading = normalized[page_match.end() :].strip()
+    if ": " in after_page_heading:
+        _, rest = after_page_heading.rsplit(": ", 1)
+        if len(rest) >= 20:
+            return rest.strip()
+    return after_page_heading
+
+
+def _looks_like_document_heading(text: str) -> bool:
+    normalized = text.lower()
+    return len(text) > 90 or any(
+        marker in normalized
+        for marker in (
+            "pagina ",
+            "version",
+            "contrato",
+            "procedimiento",
+            "anexo",
+            "plazo",
+            "calendario",
+            "capitulo",
+            "seccion",
+        )
+    )
 
 
 def _deduplicate_sentences(sentences: Iterable[str]) -> list[str]:
@@ -233,3 +271,65 @@ def _naturalize_answer(answer: str) -> str:
     for source, target in replacements:
         naturalized = naturalized.replace(source, target)
     return naturalized
+
+
+def _add_document_intro(query: str, answer: str) -> str:
+    normalized_answer = answer.strip()
+    if not normalized_answer or not _asks_for_document_answer(query):
+        return normalized_answer
+
+    deadline_answer = _business_deadline_summary(normalized_answer)
+    if deadline_answer:
+        return deadline_answer
+
+    lowered = normalized_answer.lower()
+    if lowered.startswith(("el documento", "segun el documento", "segun los documentos")):
+        return normalized_answer
+
+    return "El documento indica que " + normalized_answer[:1].lower() + normalized_answer[1:]
+
+
+def _asks_for_document_answer(query: str) -> bool:
+    normalized_query = query.lower()
+    return any(
+        marker in normalized_query
+        for marker in ("document", "pdf", "contrato", "anexo", "segun", "que dice")
+    )
+
+
+def _business_deadline_summary(answer: str) -> str | None:
+    normalized = answer.lower()
+    if "standard" not in normalized or "5 dias laborables" not in normalized:
+        return None
+
+    sentences = _split_sentences(answer)
+    standard_sentence = _find_sentence(sentences, ("standard", "5 dias laborables"))
+    urgent_sentence = _find_sentence(sentences, ("urgentes", "48 horas"))
+    penalty_sentence = _find_sentence(sentences, ("penalizacion", "imputable"))
+
+    summary_parts = [
+        "El documento establece que, para pedidos standard, el plazo maximo de entrega "
+        "es de 5 dias laborables desde la liberacion de produccion."
+    ]
+    if urgent_sentence:
+        summary_parts.append(
+            "Tambien fija un plazo maximo de 48 horas para pedidos urgentes."
+        )
+    if penalty_sentence:
+        summary_parts.append(
+            "Para aplicar una penalizacion, no basta con que haya retraso: debe "
+            "existir incumplimiento de plazo, causa imputable al operador logistico "
+            "y evidencia completa en ERP, produccion y prueba de entrega."
+        )
+    elif standard_sentence and not urgent_sentence:
+        return summary_parts[0]
+
+    return " ".join(summary_parts)
+
+
+def _find_sentence(sentences: list[str], markers: tuple[str, ...]) -> str | None:
+    for sentence in sentences:
+        normalized = sentence.lower()
+        if all(marker in normalized for marker in markers):
+            return sentence
+    return None

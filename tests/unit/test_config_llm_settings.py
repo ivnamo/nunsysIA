@@ -42,11 +42,13 @@ def test_settings_load_llm_and_embedding_provider_env(
 
 def test_settings_loads_deepagents_experiment_env(monkeypatch) -> None:
     get_settings.cache_clear()
+    monkeypatch.setenv("AGENT_MODE", "deepagent")
     monkeypatch.setenv("ENABLE_DEEPAGENTS_EXPERIMENT", "true")
     monkeypatch.setenv("DEEPAGENTS_MODEL", "google_genai:gemini-3.5-flash")
 
     settings = get_settings()
 
+    assert settings.agent_mode == "deepagent"
     assert settings.enable_deepagents_experiment is True
     assert settings.deepagents_model == "google_genai:gemini-3.5-flash"
 

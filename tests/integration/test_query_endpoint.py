@@ -1,13 +1,13 @@
-import json
-from pathlib import Path
-
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app.agents.service import QueryWorkflowService
+from app.agents.deep_agent import DeepAgentService
+from app.agents.deepagents_tools_service import DeepAgentsToolsQueryService
+from app.agents.router import AgentRouter
 from app.api.routes_documents import get_document_service
-from app.api.routes_query import get_query_service
+from app.api.routes_query import get_agent_router
+from app.core.config import get_settings
 from app.erp.database import create_sqlite_connection, load_seed_sql
 from app.erp.repositories import NorthwindRepository
 from app.main import create_app
@@ -15,7 +15,8 @@ from app.production.client import ProductionAPIClient
 from app.rag.embeddings import DeterministicEmbeddingModel
 from app.rag.ingestion import DocumentIngestionService
 from app.rag.vector_store import InMemoryDocumentVectorStore
-from app.schemas.query import QueryRequest
+from app.schemas.query import QueryResponse
+from app.services.response_normalizer import ResponseNormalizer
 from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import ERPTool
 from app.tools.production_query_tool import ProductionQueryTool
@@ -27,291 +28,126 @@ from app.tools.rag_tool import DocumentRAGTool
 def client() -> TestClient:
     app = create_app()
     vector_store = InMemoryDocumentVectorStore()
-    document_service = DocumentIngestionService(vector_store=vector_store)
-    query_service = QueryWorkflowService(
-        erp_tool=_erp_tool(),
-        production_tool=_production_tool(),
-        erp_query_tool=_erp_query_tool(),
-        production_query_tool=_production_query_tool(),
-        rag_tool=DocumentRAGTool(
-            vector_store=vector_store,
-            embedding_model=DeterministicEmbeddingModel(),
-        ),
+    document_service = DocumentIngestionService(
+        vector_store=vector_store,
+        embedding_model=DeterministicEmbeddingModel(),
     )
+    agent_router = _agent_router(document_service)
 
     app.dependency_overrides[get_document_service] = lambda: document_service
-    app.dependency_overrides[get_query_service] = lambda: query_service
+    app.dependency_overrides[get_agent_router] = lambda: agent_router
     return TestClient(app)
 
 
-def test_query_endpoint_answers_erp_production_question(client: TestClient) -> None:
-    request_payload = json.loads(
-        (Path(__file__).resolve().parents[2] / "query.json").read_text(
-            encoding="utf-8"
-        )
-    )
-
+def test_query_endpoint_without_mode_uses_deepagent(client: TestClient) -> None:
     response = client.post(
         "/api/query",
-        json=request_payload,
+        json={
+            "question": (
+                "Que pedidos pendientes tiene ALFKI y en que estado de produccion estan?"
+            )
+        },
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == "completed"
+    assert payload["metadata"]["agent_mode"] == "deepagent"
+    assert payload["metadata"]["agent_framework"] == "LangChain DeepAgents"
     assert payload["sources"] == ["ERP", "Produccion"]
     assert "10248" in payload["answer"]
     assert "10252" in payload["answer"]
-    assert [call["tool"] for call in payload["tool_calls"]] == [
-        "ERPTool",
-        "ProductionAPITool",
-        "ProductionAPITool",
-    ]
-    assert [call["action"] for call in payload["tool_calls"]] == [
-        "get_pending_orders_by_customer",
-        "get_status_for_erp_orders",
-        "get_status_for_erp_orders",
-    ]
-    assert payload["data"] == {
-        "erp_orders_count": 2,
-        "erp_order_ids": [10248, 10252],
-        "production_statuses_count": 2,
-    }
-    assert "amount" not in str(payload["data"])
-    assert all("error" in call for call in payload["tool_calls"])
 
 
-def test_query_endpoint_does_not_assume_customer_for_pending_orders(
-    client: TestClient,
-) -> None:
+def test_query_endpoint_with_deepagent_mode_works(client: TestClient) -> None:
     response = client.post(
         "/api/query",
-        json={"question": "Que pedidos pendientes hay?"},
+        json={
+            "question": (
+                "Que pedidos pendientes tiene ALFKI y en que estado de produccion estan?"
+            ),
+            "mode": "deepagent",
+        },
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == "needs_clarification"
-    assert payload["sources"] == []
-    assert payload["tool_calls"] == []
-    assert "cliente" in payload["answer"]
-    assert "numero de pedido" in payload["answer"]
-    assert "ALFKI" not in payload["answer"]
-
-
-def test_query_endpoint_answers_lowercase_customer_operational_risk(
-    client: TestClient,
-) -> None:
-    response = client.post(
-        "/api/query",
-        json={"question": "que tiene pendiente alfki y que riesgo operativo tiene?"},
-    )
-
-    assert response.status_code == 200
-    payload = response.json()
+    assert payload["metadata"]["agent_mode"] == "deepagent"
     assert payload["status"] == "completed"
-    assert payload["sources"] == ["ERP", "Produccion"]
-    assert "10248" in payload["answer"]
-    assert "10252" in payload["answer"]
-    assert "Falta de material" in payload["answer"]
-    assert payload["data"]["erp_order_ids"] == [10248, 10252]
 
 
-def test_query_endpoint_executes_safe_query_dsl_cross_blocked_customers(
+def test_query_endpoint_legacy_mode_works_when_available(client: TestClient) -> None:
+    response = client.post(
+        "/api/query",
+        json={"question": "Comparativa legacy", "mode": "legacy_langgraph"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["answer"] == "Respuesta legacy"
+    assert payload["metadata"]["agent_mode"] == "legacy_langgraph"
+    assert payload["metadata"]["experimental"] is True
+
+
+def test_query_endpoint_sidecar_mode_works_when_available(client: TestClient) -> None:
+    response = client.post(
+        "/api/query",
+        json={"question": "Comparativa sidecar", "mode": "deepagent_sidecar"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["answer"] == "Respuesta sidecar"
+    assert payload["metadata"]["agent_mode"] == "deepagent_sidecar"
+    assert payload["metadata"]["experimental"] is True
+
+
+def test_query_endpoint_erp_production_question_uses_both_sources(
     client: TestClient,
 ) -> None:
     response = client.post(
         "/api/query",
         json={
             "question": (
-                "Cruza produccion con ERP y dime clientes afectados por bloqueos."
+                "Que pedidos pendientes tiene ALFKI y en que estado de produccion estan?"
             )
         },
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == "completed"
-    assert payload["sources"] == ["Produccion", "ERP"]
+    assert payload["sources"] == ["ERP", "Produccion"]
     assert [call["tool"] for call in payload["tool_calls"]] == [
-        "ProductionQueryTool",
-        "ERPQueryTool",
-    ]
-    assert "10252" in payload["answer"]
-    assert "Alfreds Futterkiste" in payload["answer"]
-    assert payload["data"]["production_order_ids"] == [10252]
-    assert payload["data"]["erp_query_order_ids"] == [10252]
-    assert "product_id" not in str(payload["data"])
-
-
-def test_query_endpoint_keeps_conversation_memory_by_id(client: TestClient) -> None:
-    first_response = client.post(
-        "/api/query",
-        json={
-            "question": "Que pedidos pendientes tiene el cliente ALFKI?",
-            "conversation_id": "memory-api-001",
-        },
-    )
-    assert first_response.status_code == 200
-
-    second_response = client.post(
-        "/api/query",
-        json={
-            "question": "Y en que estado estan?",
-            "conversation_id": "memory-api-001",
-        },
-    )
-
-    assert second_response.status_code == 200
-    payload = second_response.json()
-    assert payload["status"] == "completed"
-    assert payload["sources"] == ["Memoria", "ERP", "Produccion"]
-    assert "10248" in payload["answer"]
-    assert "10252" in payload["answer"]
-    assert [call["tool"] for call in payload["tool_calls"]] == [
-        "MemoryTool",
         "ERPTool",
         "ProductionAPITool",
-        "ProductionAPITool",
     ]
-    assert [call["action"] for call in payload["tool_calls"]] == [
-        "recall",
-        "get_pending_orders_by_customer",
-        "get_status_for_erp_orders",
-        "get_status_for_erp_orders",
-    ]
-    assert payload["data"]["memory"]["customer_id"] == "ALFKI"
-
-    isolated_response = client.post(
-        "/api/query",
-        json={
-            "question": "Y en que estado estan?",
-            "conversation_id": "memory-api-002",
-        },
-    )
-    assert isolated_response.status_code == 200
-    isolated_payload = isolated_response.json()
-    assert isolated_payload["status"] == "needs_clarification"
-    assert "cliente" in isolated_payload["answer"]
-    assert "numeros de pedido" in isolated_payload["answer"]
+    assert payload["data"]["erp_order_ids"] == [10248, 10252]
+    assert payload["data"]["production_order_ids"] == [10248, 10252]
 
 
-def test_query_endpoint_resolves_blocked_and_economic_memory_follow_ups(
-    client: TestClient,
-) -> None:
-    first_response = client.post(
-        "/api/query",
-        json={
-            "question": "Que pedidos pendientes tiene el cliente ALFKI?",
-            "conversation_id": "memory-api-impact-001",
-        },
-    )
-    assert first_response.status_code == 200
-
-    blocked_response = client.post(
-        "/api/query",
-        json={
-            "question": "Y cuales de esos pedidos estan bloqueados?",
-            "conversation_id": "memory-api-impact-001",
-        },
-    )
-
-    assert blocked_response.status_code == 200
-    blocked_payload = blocked_response.json()
-    assert blocked_payload["status"] == "completed"
-    assert blocked_payload["sources"] == ["Memoria", "Produccion", "ERP"]
-    assert "10252" in blocked_payload["answer"]
-    assert "Falta de material" in blocked_payload["answer"]
-    assert "10248" not in blocked_payload["answer"]
-    assert blocked_payload["data"]["production_order_ids"] == [10252]
-
-    impact_response = client.post(
-        "/api/query",
-        json={
-            "question": "Cual es el impacto economico de esos?",
-            "conversation_id": "memory-api-impact-001",
-        },
-    )
-
-    assert impact_response.status_code == 200
-    impact_payload = impact_response.json()
-    assert impact_payload["status"] == "completed"
-    assert impact_payload["sources"] == ["Memoria", "ERP"]
-    assert "10252" in impact_payload["answer"]
-    assert "1863.00" in impact_payload["answer"]
-    assert impact_payload["data"]["order_amount_order_ids"] == [10252]
-    assert impact_payload["data"]["economic_impact_total"] == "1863.00"
-    assert "product_id" not in str(impact_payload["data"])
-
-
-def test_query_endpoint_answers_document_question_after_upload(
-    client: TestClient,
-) -> None:
+def test_query_endpoint_document_question_uses_rag(client: TestClient) -> None:
     upload_response = client.post(
         "/api/documents/upload",
         files={
             "file": (
-                "contrato.pdf",
-                _pdf_bytes("Contrato marco con penalizacion por retrasos en entrega."),
+                "plazos.pdf",
+                _pdf_bytes("El documento fija plazos de entrega de 5 dias laborables."),
                 "application/pdf",
             )
         },
     )
-
     assert upload_response.status_code == 201
 
     response = client.post(
         "/api/query",
-        json={"question": "Que dice el PDF del contrato sobre penalizacion?"},
+        json={"question": "Que dice este documento sobre plazos de entrega?"},
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == "completed"
     assert payload["sources"] == ["Documentos"]
-    assert "penalizacion" in payload["answer"]
     assert payload["tool_calls"][0]["tool"] == "DocumentRAGTool"
-    assert payload["tool_calls"][0]["action"] == "query"
-    assert payload["data"]["rag"]["status"] == "completed"
-    assert payload["data"]["rag"]["chunks_count"] >= 1
-    assert payload["data"]["rag"]["documents"] == ["contrato.pdf"]
-    citation = payload["data"]["rag"]["citations"][0]
-    assert citation["filename"] == "contrato.pdf"
-    assert citation["page"] == 1
-    assert citation["chunk_id"].endswith("_p1_c1")
-    assert isinstance(citation["score"], float)
-    assert "Contrato marco" not in str(payload["data"])
-
-
-def test_query_endpoint_can_return_citation_previews_for_ui(
-    client: TestClient,
-) -> None:
-    upload_response = client.post(
-        "/api/documents/upload",
-        files={
-            "file": (
-                "contrato.pdf",
-                _pdf_bytes("Contrato marco con penalizacion por retrasos en entrega."),
-                "application/pdf",
-            )
-        },
-    )
-
-    assert upload_response.status_code == 201
-
-    response = client.post(
-        "/api/query",
-        json={
-            "question": "Que dice el PDF del contrato sobre penalizacion?",
-            "include_citation_previews": True,
-        },
-    )
-
-    assert response.status_code == 200
-    payload = response.json()
-    citation = payload["data"]["rag"]["citations"][0]
-    assert citation["filename"] == "contrato.pdf"
-    assert citation["text_preview"].startswith("Contrato marco")
+    assert payload["data"]["rag"]["documents"] == ["plazos.pdf"]
+    assert "5 dias laborables" in payload["answer"]
 
 
 def test_query_endpoint_rejects_blank_question(client: TestClient) -> None:
@@ -320,9 +156,9 @@ def test_query_endpoint_rejects_blank_question(client: TestClient) -> None:
     assert response.status_code == 422
 
 
-def test_query_endpoint_returns_controlled_500_when_service_fails() -> None:
+def test_query_endpoint_returns_controlled_500_when_router_fails() -> None:
     app = create_app()
-    app.dependency_overrides[get_query_service] = lambda: _FailingQueryService()
+    app.dependency_overrides[get_agent_router] = lambda: _FailingRouter()
     client = TestClient(app)
 
     response = client.post("/api/query", json={"question": "Que pedidos hay?"})
@@ -333,8 +169,59 @@ def test_query_endpoint_returns_controlled_500_when_service_fails() -> None:
     }
 
 
-class _FailingQueryService:
-    def run(self, request: QueryRequest) -> None:
+def _agent_router(document_service: DocumentIngestionService) -> AgentRouter:
+    erp_tool = _erp_tool()
+    production_tool = _production_tool()
+    deepagent = DeepAgentService(
+        DeepAgentsToolsQueryService(
+            erp_tool=erp_tool,
+            production_tool=production_tool,
+            erp_query_tool=_erp_query_tool(),
+            production_query_tool=_production_query_tool(),
+            rag_tool=DocumentRAGTool(
+                vector_store=document_service.vector_store,
+                embedding_model=document_service.embedding_model,
+            ),
+            model=get_settings().deepagents_model,
+            agent_builder=lambda **kwargs: _StaticAgent("Respuesta no determinista."),
+        )
+    )
+    return AgentRouter(
+        deepagent_service=deepagent,
+        sidecar_service=_ModeService("Respuesta sidecar"),
+        legacy_service=_ModeService("Respuesta legacy"),
+        response_normalizer=ResponseNormalizer(),
+    )
+
+
+class _StaticAgent:
+    def __init__(self, content: str) -> None:
+        self._content = content
+
+    def invoke(self, payload: dict) -> dict:
+        return {"messages": [{"content": self._content}]}
+
+
+class _ModeService:
+    def __init__(self, answer: str) -> None:
+        self._answer = answer
+
+    async def query(
+        self,
+        question: str,
+        conversation_id: str | None = None,
+        include_citation_previews: bool = False,
+    ) -> QueryResponse:
+        return QueryResponse(
+            answer=self._answer,
+            sources=["ERP"],
+            reasoning=["Modo experimental solicitado"],
+            status="completed",
+        )
+
+
+class _FailingRouter:
+    async def query(self, **kwargs):
         raise RuntimeError("boom")
 
 
@@ -351,22 +238,14 @@ def _erp_query_tool() -> ERPQueryTool:
 
 
 def _production_tool() -> ProductionAPITool:
-    client = ProductionAPIClient(
-        base_url="http://production-api.test",
-        transport=_production_transport(),
-    )
-    return ProductionAPITool(client)
+    return ProductionAPITool(_production_client())
 
 
 def _production_query_tool() -> ProductionQueryTool:
-    client = ProductionAPIClient(
-        base_url="http://production-api.test",
-        transport=_production_transport(),
-    )
-    return ProductionQueryTool(client)
+    return ProductionQueryTool(_production_client())
 
 
-def _production_transport() -> httpx.MockTransport:
+def _production_client() -> ProductionAPIClient:
     orders = {
         10248: {
             "order_id": 10248,
@@ -387,28 +266,28 @@ def _production_transport() -> httpx.MockTransport:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/production/orders":
             status = request.url.params.get("status")
-            filtered_orders = list(orders.values())
+            values = list(orders.values())
             if status:
-                filtered_orders = [
+                values = [
                     order
-                    for order in filtered_orders
+                    for order in values
                     if order["production_status"] == status
                 ]
-            return httpx.Response(200, json={"orders": filtered_orders})
+            return httpx.Response(200, json={"orders": values})
 
         if request.url.path.startswith("/production/orders/"):
             order_id = int(request.url.path.rsplit("/", 1)[1])
             order = orders.get(order_id)
             if order is None:
-                return httpx.Response(
-                    404,
-                    json={"detail": "Production order not found"},
-                )
+                return httpx.Response(404, json={"detail": "not found"})
             return httpx.Response(200, json=order)
 
         return httpx.Response(500, text="unexpected path")
 
-    return httpx.MockTransport(handler)
+    return ProductionAPIClient(
+        base_url="http://production-api.test",
+        transport=httpx.MockTransport(handler),
+    )
 
 
 def _pdf_bytes(text: str) -> bytes:

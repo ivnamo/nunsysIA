@@ -58,6 +58,33 @@ class _RAGSpamAgent:
         return {"messages": [{"content": "Respuesta documental con presupuesto RAG."}]}
 
 
+class _DocumentRedactionAgent:
+    def __init__(self, seen: dict) -> None:
+        self._seen = seen
+
+    def invoke(self, payload: dict) -> dict:
+        prompt = payload["messages"][0]["content"]
+        self._seen["prompt"] = prompt
+        return {
+            "messages": [
+                {
+                    "content": (
+                        "```json\n"
+                        "{\n"
+                        '  "answer": "El documento establece que, para pedidos '
+                        "standard, el plazo maximo de entrega es de 5 dias "
+                        "laborables desde la liberacion de produccion. Tambien "
+                        'fija 48 horas para pedidos urgentes.",\n'
+                        '  "sources": ["Documentos"],\n'
+                        '  "reasoning": ["Sintesis documental"]\n'
+                        "}\n"
+                        "```"
+                    )
+                }
+            ]
+        }
+
+
 class _FollowupAgent:
     def __init__(self, tools):
         self._tools = {tool.__name__: tool for tool in tools}
@@ -105,6 +132,18 @@ class _TodosAgent:
         }
 
 
+class _DelayedOverqueryAgent:
+    def __init__(self, tools):
+        self._tools = {tool.__name__: tool for tool in tools}
+
+    def invoke(self, payload: dict) -> dict:
+        if "query_production_orders" in self._tools:
+            self._tools["query_production_orders"]()
+        if "query_erp_orders" in self._tools:
+            self._tools["query_erp_orders"](limit=2)
+        return {"messages": [{"content": "Respuesta no determinista."}]}
+
+
 class _StaticAgent:
     def __init__(self, content: str) -> None:
         self._content = content
@@ -135,6 +174,45 @@ class _CountingRAGTool:
                             "filename": "contrato.pdf",
                             "page": 1,
                             "chunk_id": "contrato-1",
+                        },
+                    }
+                ],
+            },
+            tool_call=ToolCallTrace(
+                tool="DocumentRAGTool",
+                action="query",
+                args=tool_input.model_dump(),
+                status="success",
+                output_summary="1 chunks documentales recuperados",
+                duration_ms=0,
+                source="Documentos",
+            ),
+        )
+
+
+class _ChunkAnswerRAGTool:
+    def query(self, tool_input: DocumentRAGInput) -> ToolResult:
+        return ToolResult(
+            data={
+                "answer": (
+                    "Contrato marco de logistica 2026 - version extendida "
+                    "Pagina 2 de 4 - Plazos ordinarios: Los pedidos standard "
+                    "deben entregarse en un plazo maximo de 5 dias laborables."
+                ),
+                "status": "completed",
+                "chunks": [
+                    {
+                        "text": (
+                            "Contrato marco de logistica 2026 - version extendida "
+                            "Pagina 2 de 4 - Plazos ordinarios: Los pedidos "
+                            "standard deben entregarse en un plazo maximo de "
+                            "5 dias laborables desde la liberacion de produccion."
+                        ),
+                        "score": 0.91,
+                        "metadata": {
+                            "filename": "contrato.pdf",
+                            "page": 2,
+                            "chunk_id": "contrato-2",
                         },
                     }
                 ],
@@ -254,6 +332,38 @@ def test_deepagents_tools_service_limits_document_queries() -> None:
     assert response.data["rag"]["chunks_count"] == 1
 
 
+def test_deepagents_tools_service_uses_deepagent_redaction_for_documents() -> None:
+    seen: dict = {}
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_ChunkAnswerRAGTool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _DocumentRedactionAgent(seen),
+    )
+
+    response = service.run(
+        QueryRequest(
+            question="Que dice el documento sobre plazos de entrega standard?",
+            conversation_id="tools-rag-redaction",
+        )
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Documentos"]
+    assert response.answer.startswith(
+        "El documento establece que, para pedidos standard"
+    )
+    assert "```json" not in response.answer
+    assert '"answer"' not in response.answer
+    assert "Pagina 2 de 4" not in response.answer
+    assert "Contexto documental recuperado" in seen["prompt"]
+    assert "No pegues chunks completos" in seen["prompt"]
+    assert "contrato.pdf, pagina 2" in seen["prompt"]
+
+
 def test_deepagents_tools_service_preflights_isolated_followup() -> None:
     service = DeepAgentsToolsQueryService(
         erp_tool=_erp_tool(),
@@ -349,7 +459,7 @@ def test_deepagents_tools_service_handles_delayed_orders_beta_case() -> None:
         production_query_tool=_production_query_tool(),
         rag_tool=_rag_tool(),
         model="google_genai:gemini-3.5-flash",
-        agent_builder=lambda **kwargs: _StaticAgent("Respuesta no determinista."),
+        agent_builder=lambda **kwargs: _DelayedOverqueryAgent(kwargs["tools"]),
     )
 
     response = service.run(
@@ -368,6 +478,9 @@ def test_deepagents_tools_service_handles_delayed_orders_beta_case() -> None:
     assert response.data["production_order_ids"] == [10301]
     assert "10301" in response.answer
     assert "ANATR" in response.answer
+    assert "10252" not in response.answer
+    assert "10312" not in response.answer
+    assert "bloqueado" not in response.answer
 
 
 def test_deepagents_tools_service_handles_month_summary_beta_case() -> None:
@@ -396,6 +509,8 @@ def test_deepagents_tools_service_handles_month_summary_beta_case() -> None:
     assert "2026-05" in response.answer
     assert "bloqueado" in response.answer
     assert "retrasado" in response.answer
+    assert "enviado" in response.answer
+    assert "shipped" not in response.answer
 
 
 def test_deepagents_tools_service_resolves_followups_with_erp_and_production() -> None:

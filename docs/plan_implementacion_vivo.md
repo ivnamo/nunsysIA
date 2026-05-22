@@ -1437,6 +1437,189 @@ Estado:
   - BT-V2-01: el grounding ya no dispara fallback por capitalizacion de un
     titulo documental presente en evidencias.
 
+## Fase R21 - Sidecar Deep Agents estable
+
+Prioridad: **antes de abrir flujo alternativo**.
+
+Decision:
+
+- Mantener el workflow principal en LangGraph + LangChain como ruta estable:
+  `/api/query` sigue ejecutando Planner -> Reasoner/Executor -> Validator ->
+  FinalResponseBuilder.
+- Mantener `app.agents.deepagents_adapter` como compatibilidad literal con la
+  libreria `deepagents`: un Deep Agent real envuelve el workflow auditado como
+  tool unica `consultar_flujo_agentic`.
+- No instalar `deepagents` en `requirements.txt` principal, porque la version
+  probada exige LangChain/LangGraph 1.x y el runtime estable esta fijado en
+  LangChain 0.3 y LangGraph 0.2.
+
+Evidencia:
+
+- Commit de sidecar opcional: `97ba10f feat(agents): add optional deepagents adapter`.
+- Prueba focal en entorno principal sin `deepagents` instalado:
+  `pytest tests/unit/test_deepagents_adapter.py -q` -> `2 passed`.
+- Prueba exploratoria en entorno temporal compatible:
+  `deepagents==0.6.3`, `langchain==1.3.1`, `langgraph==1.2.1`.
+- El sidecar construye e invoca correctamente con
+  `google_genai:gemini-3.5-flash`; `gemini-2.5-flash` no genero tool calls de
+  forma fiable en Deep Agents durante la prueba.
+
+Criterio de aceptacion:
+
+- El adapter queda versionado como ruta estable de compatibilidad.
+- La demo puede defender que Deep Agents existe sin sustituir la arquitectura
+  controlada.
+- Cualquier experimento posterior debe vivir fuera de `/api/query` hasta
+  comparar resultados contra la ruta estable.
+
+Estado:
+
+- Cerrada como baseline estable de Deep Agents sidecar.
+- Marca git prevista: `stable-deepagents-sidecar`.
+
+## Fase R22 - Flujo alternativo Deep Agents comparativo
+
+Prioridad: **experimental, despues de R21 estable**.
+
+Objetivo:
+
+- Crear una ruta alternativa para probar Deep Agents como flujo visible sin
+  tocar la ruta estable `/api/query`.
+- Comparar respuestas, fuentes, tool calls, fallbacks, status y datos publicos
+  contra el workflow actual antes de decidir si merece evolucionar.
+
+Restricciones:
+
+- No sustituir `QueryWorkflowService` ni `run_agent_graph`.
+- No cambiar el contrato de `/api/query`.
+- No mezclar dependencias incompatibles en el entorno principal sin decision
+  explicita.
+- Mantener trazabilidad y `QueryResponse` como formato de comparacion.
+- El flujo alternativo debe estar detras de endpoint separado, script opt-in o
+  flag clara.
+
+### R22.1 - Diseno tecnico del flujo alternativo
+
+Archivos previstos:
+
+- `app/agents/deepagents_service.py`
+- `app/api/routes_deepagents.py` o script opt-in si se decide no exponer API.
+- `docs/DEMO_SCRIPT.md`
+- `docs/API_CONTRACT.md` si se anade endpoint experimental.
+
+Cambio esperado:
+
+- Definir una interfaz `DeepAgentsQueryService.run(QueryRequest) ->
+  QueryResponse`.
+- Decidir si el primer experimento invoca el sidecar actual o tools
+  individuales.
+- Mantener el endpoint separado como `/api/query/deepagents` o
+  `/api/experimental/deepagents/query`.
+- Documentar que es experimental y no reemplaza la ruta validada.
+
+Criterio de aceptacion:
+
+- El diseno no introduce arquitectura paralela productiva.
+- Se puede activar/desactivar sin afectar Chainlit ni beta obligatoria.
+- La respuesta se normaliza a `QueryResponse`.
+
+### R22.2 - Primer experimento seguro: Deep Agent como entrada alternativa
+
+Cambio esperado:
+
+- Usar `create_deep_agent` desde `requirements-deepagents.txt` solo en entorno
+  compatible.
+- Construir un Deep Agent con modelo probado
+  `google_genai:gemini-3.5-flash`.
+- Darle acceso a la tool `consultar_flujo_agentic` del adapter actual.
+- Convertir la salida del Deep Agent a `QueryResponse`, preservando la
+  respuesta auditada devuelta por la tool.
+
+Tests minimos:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\unit\test_deepagents_adapter.py -q
+```
+
+Validacion experimental:
+
+```powershell
+.\.pytest-tmp\deepagents-venv\Scripts\python.exe scripts\run_deepagents_comparison.py
+```
+
+Criterio de aceptacion:
+
+- La ruta alternativa no modifica resultados de `/api/query`.
+- Si `deepagents` no esta instalado, devuelve error controlado o queda omitida.
+- En entorno compatible, el Deep Agent llama la tool y devuelve una respuesta
+  comparable.
+
+### R22.3 - Comparador contra workflow estable
+
+Archivos previstos:
+
+- `scripts/run_deepagents_comparison.py`
+- `docs/DEEPAGENTS_COMPARISON_REPORT.md`
+- tests unitarios de normalizacion/comparacion si hay logica propia.
+
+Cambio esperado:
+
+- Ejecutar la misma bateria corta contra:
+  - workflow estable LangGraph/LangChain;
+  - flujo alternativo Deep Agents.
+- Comparar `status`, `sources`, `tool_calls`, `fallbacks`, `data` y hechos
+  criticos esperados.
+- Generar informe Markdown con veredicto `PASS/PARTIAL/FAIL` por caso.
+
+Casos iniciales:
+
+- ALFKI pedidos pendientes y estado de produccion.
+- Bloqueos de produccion cruzados con ERP.
+- Penalizacion potencial con documento contractual cargado.
+- Follow-up conversacional con `conversation_id`.
+- Pregunta fuera de evidencia documental.
+
+Criterio de aceptacion:
+
+- El informe deja claro si Deep Agents aporta valor o solo envuelve el flujo.
+- Las divergencias quedan registradas con causa probable.
+- No se acepta el flujo alternativo como estable si pierde trazabilidad,
+  fuentes o guardrails.
+
+### R22.4 - Experimento avanzado con tools individuales
+
+Cambio esperado:
+
+- Exponer wrappers seguros para `ERPTool`, `ProductionAPITool`,
+  `ERPQueryTool`, `ProductionQueryTool`, `DocumentRAGTool` y `MemoryTool`.
+- Forzar schemas Pydantic y lista cerrada de acciones.
+- Reconstruir trazabilidad publica compatible con `ToolCallTrace`.
+- Evaluar si Deep Agents planifica mejor o peor que el Planner actual.
+
+Criterio de aceptacion:
+
+- Solo avanzar si R22.2/R22.3 son estables.
+- El Deep Agent no puede inventar fuentes ni saltarse RAG cuando hay pregunta
+  documental.
+- El resultado sigue siendo `QueryResponse` y pasa comparacion contra casos
+  beta criticos.
+
+### R22.5 - Decision tecnica
+
+Opciones de cierre:
+
+- Mantener solo sidecar estable si el flujo alternativo no aporta valor real.
+- Mantener endpoint experimental para demo si aporta defensa del requisito sin
+  degradar trazabilidad.
+- Promover parte del flujo Deep Agents solo si supera comparacion, dependencias
+  y coste de mantenimiento.
+
+Criterio de aceptacion:
+
+- Decision documentada en `docs/ARCHITECTURE.md` y `docs/DEMO_SCRIPT.md`.
+- Si se promueve algo, se actualizan tests, contrato y guia manual.
+- Si se descarta, se conserva R21 como cobertura estable del requisito literal.
+
 ## Matriz de tests por tipo de cambio
 
 | Cambio | Tests focalizados |
@@ -1454,6 +1637,8 @@ Estado:
 | Chainlit | `tests/unit/test_chainlit_client.py`, `tests/unit/test_chainlit_formatting.py`, `tests/unit/test_chainlit_thinking.py` |
 | Trazabilidad | `tests/unit/test_traceability.py`, `tests/integration/test_query_endpoint.py` |
 | Beta obligatoria | `tests/unit/test_beta_validation_support.py`, `tests/integration/test_real_llm_beta_obligatory.py` |
+| Deep Agents sidecar | `tests/unit/test_deepagents_adapter.py` |
+| Deep Agents comparativo | `scripts/run_deepagents_comparison.py`, `docs/DEEPAGENTS_COMPARISON_REPORT.md` |
 | Runtime Docker | `pytest` completo + checklist manual |
 
 ## Checklist antes de cada commit
@@ -1522,3 +1707,5 @@ Estado:
 | 2026-05-22 | R17 | cerrado | Respuesta conversacional grounded mejorada; focales 33 passed; `pytest`: 191 passed; BT-parcial Docker/Gemini PASS | este bloque |
 | 2026-05-22 | R18 | cerrado | Tests `real_llm` opt-in implementados; suite rapida 191 passed + 5 skipped; `pytest -m real_llm`: 5 passed contra proveedor real | este bloque |
 | 2026-05-22 | R19 | cerrado | Hotfix ensayo manual: `Dame los pedidos que puedan generar penalizacion...` entra por plan mixto determinista; planner 26 passed; graph 17 passed; `pytest`: 193 passed + 5 skipped | este bloque |
+| 2026-05-22 | R21 | cerrado | Sidecar opcional Deep Agents estable; adapter versionado; focal `tests/unit/test_deepagents_adapter.py`: 2 passed; marca prevista `stable-deepagents-sidecar` | `97ba10f` |
+| 2026-05-22 | R22 | planificado | Flujo alternativo Deep Agents comparativo por endpoint/script opt-in; no toca `/api/query` hasta decidir con informe | pendiente |

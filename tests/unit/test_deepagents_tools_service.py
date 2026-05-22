@@ -1,5 +1,6 @@
 import httpx
 
+from app.agents import deepagents_tools_service as service_module
 from app.agents.deepagents_tools_service import DeepAgentsToolsQueryService
 from app.core.tracing import ToolCallTrace, ToolResult
 from app.erp.database import create_sqlite_connection, load_seed_sql
@@ -74,6 +75,32 @@ class _FollowupAgent:
                         "actuales consultados."
                     )
                 }
+            ]
+        }
+
+
+class _TodosAgent:
+    def __init__(self, tools):
+        self._tools = {tool.__name__: tool for tool in tools}
+
+    def invoke(self, payload: dict) -> dict:
+        self._tools["query_erp_orders"](limit=1)
+        return {
+            "messages": [
+                {
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "name": "write_todos",
+                            "args": {
+                                "todos": [
+                                    {"content": "Consultar ERP", "status": "done"}
+                                ]
+                            },
+                        }
+                    ],
+                },
+                {"content": "Respuesta con planificacion interna Deep Agents."},
             ]
         }
 
@@ -224,6 +251,56 @@ def test_deepagents_tools_service_resolves_followups_with_erp_and_production() -
         "ERPQueryTool",
         "ProductionAPITool",
     ]
+
+
+def test_deepagents_tools_service_exposes_sanitized_todo_usage() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _TodosAgent(kwargs["tools"]),
+    )
+
+    response = service.run(
+        QueryRequest(
+            question="Cruza produccion con ERP y dime clientes afectados por bloqueos.",
+            conversation_id="tools-todos",
+        )
+    )
+
+    assert response.data["deepagents_planning"] == {
+        "todos_used": True,
+        "todo_tool_calls_count": 1,
+    }
+    assert "Consultar ERP" not in str(response.data["deepagents_planning"])
+
+
+def test_deepagents_business_harness_excludes_system_tools() -> None:
+    captured: dict = {}
+
+    class _Profile:
+        def __init__(self, excluded_tools):
+            self.excluded_tools = excluded_tools
+
+    def register(key, profile) -> None:
+        captured["key"] = key
+        captured["excluded_tools"] = profile.excluded_tools
+
+    service_module._REGISTERED_BUSINESS_HARNESS_MODELS.clear()
+    service_module._register_business_harness_profile(
+        "google_genai:gemini-3.5-flash",
+        harness_profile=_Profile,
+        register_harness_profile=register,
+    )
+
+    assert captured["key"] == "google_genai:gemini-3.5-flash"
+    assert {"read_file", "write_file", "execute", "task"}.issubset(
+        captured["excluded_tools"]
+    )
+    assert "write_todos" not in captured["excluded_tools"]
 
 
 def _erp_tool() -> ERPTool:

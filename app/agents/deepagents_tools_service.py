@@ -35,6 +35,19 @@ from app.tools.rag_tool import DocumentRAGInput, DocumentRAGTool
 
 AgentBuilder = Callable[..., Any]
 _CACHE_MISS = object()
+_DEEPAGENTS_BUSINESS_EXCLUDED_TOOLS = frozenset(
+    {
+        "ls",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "glob",
+        "grep",
+        "execute",
+        "task",
+    }
+)
+_REGISTERED_BUSINESS_HARNESS_MODELS: set[str] = set()
 
 
 @dataclass(frozen=True)
@@ -106,6 +119,7 @@ class DeepAgentsToolsQueryService:
                 ]
             }
         )
+        execution.record_deepagents_planning(result)
         response = execution.build_response(_last_message_text(result))
         self._memory_store.remember(
             conversation_id=request.conversation_id,
@@ -540,9 +554,24 @@ class _DirectToolsExecution:
             self._rag_calls += 1
             return True
 
+    def record_deepagents_planning(self, result: Any) -> None:
+        todo_tool_calls_count = _count_tool_calls(result, "write_todos")
+        if todo_tool_calls_count <= 0:
+            return
+        with self._lock:
+            self.data["deepagents_planning"] = {
+                "todos_used": True,
+                "todo_tool_calls_count": todo_tool_calls_count,
+            }
+
     def build_response(self, answer: str | None) -> QueryResponse:
         status = self._status(answer)
         normalized_answer = _normalized_answer(answer, status)
+        public_data = build_public_data_summary(
+            self.data,
+            include_rag_text_preview=self._include_citation_previews,
+        )
+        public_data = _with_deepagents_planning(public_data, self.data)
         return QueryResponse(
             answer=normalized_answer,
             sources=list(self.sources),
@@ -551,10 +580,7 @@ class _DirectToolsExecution:
             fallbacks=list(self.fallbacks),
             confidence=_confidence(status),
             status=status,
-            data=build_public_data_summary(
-                self.data,
-                include_rag_text_preview=self._include_citation_previews,
-            ),
+            data=public_data,
             failure_reason=None,
         )
 
@@ -597,11 +623,16 @@ def _create_deep_agent(**kwargs: Any) -> Any:
             "en un entorno compatible para activar este flujo experimental."
         )
     try:
-        from deepagents import create_deep_agent
+        from deepagents import HarnessProfile, create_deep_agent, register_harness_profile
     except ImportError as exc:
         raise DeepAgentsUnavailableError(
             "deepagents esta instalado pero no puede importarse correctamente."
         ) from exc
+    _register_business_harness_profile(
+        kwargs.get("model"),
+        harness_profile=HarnessProfile,
+        register_harness_profile=register_harness_profile,
+    )
     return create_deep_agent(**kwargs)
 
 
@@ -611,6 +642,7 @@ def _direct_tools_user_message(request: QueryRequest) -> str:
             f"Pregunta: {request.question}",
             f"conversation_id: {request.conversation_id or ''}",
             "Usa solo las tools disponibles para obtener datos antes de responder.",
+            "Usa write_todos en consultas multi-fuente o con varios pasos.",
             "Si aparece una tool compuesta, usala antes que repetir primitives.",
             "No repitas consultas con los mismos argumentos.",
             "Si la pregunta es documental o contractual, haz una sola consulta documental.",
@@ -644,6 +676,50 @@ def _content_text(content: Any) -> str | None:
     return None
 
 
+def _count_tool_calls(result: Any, tool_name: str) -> int:
+    messages = _mapping_value(result, "messages") or []
+    ai_tool_call_count = 0
+    tool_message_count = 0
+    for message in messages:
+        for tool_call in _message_tool_calls(message):
+            if _tool_call_name(tool_call) == tool_name:
+                ai_tool_call_count += 1
+        if _mapping_value(message, "name") == tool_name:
+            tool_message_count += 1
+    return ai_tool_call_count or tool_message_count
+
+
+def _message_tool_calls(message: Any) -> list[Any]:
+    tool_calls = _mapping_value(message, "tool_calls")
+    if isinstance(tool_calls, list):
+        return tool_calls
+    additional_kwargs = _mapping_value(message, "additional_kwargs")
+    if isinstance(additional_kwargs, dict) and isinstance(
+        additional_kwargs.get("tool_calls"),
+        list,
+    ):
+        return additional_kwargs["tool_calls"]
+    content = _mapping_value(message, "content")
+    if isinstance(content, list):
+        return [
+            item
+            for item in content
+            if isinstance(item, dict)
+            and item.get("type") in {"tool_use", "tool_call"}
+        ]
+    return []
+
+
+def _tool_call_name(tool_call: Any) -> str | None:
+    name = _mapping_value(tool_call, "name")
+    if isinstance(name, str):
+        return name
+    function = _mapping_value(tool_call, "function")
+    if isinstance(function, dict) and isinstance(function.get("name"), str):
+        return function["name"]
+    return None
+
+
 def _mapping_value(value: Any, key: str) -> Any:
     if isinstance(value, dict):
         return value.get(key)
@@ -669,6 +745,38 @@ def _confidence(status: QueryStatus) -> float | None:
     if status == "insufficient_context":
         return 0.45
     return None
+
+
+def _with_deepagents_planning(
+    public_data: dict[str, Any] | None,
+    raw_data: dict[str, Any],
+) -> dict[str, Any] | None:
+    planning = raw_data.get("deepagents_planning")
+    if not isinstance(planning, dict):
+        return public_data
+    summary = dict(public_data or {})
+    summary["deepagents_planning"] = {
+        "todos_used": bool(planning.get("todos_used")),
+        "todo_tool_calls_count": int(planning.get("todo_tool_calls_count") or 0),
+    }
+    return summary
+
+
+def _register_business_harness_profile(
+    model: Any,
+    harness_profile: Any,
+    register_harness_profile: Any,
+) -> None:
+    if not isinstance(model, str) or not model.strip():
+        return
+    model_key = model.strip()
+    if model_key in _REGISTERED_BUSINESS_HARNESS_MODELS:
+        return
+    register_harness_profile(
+        model_key,
+        harness_profile(excluded_tools=_DEEPAGENTS_BUSINESS_EXCLUDED_TOOLS),
+    )
+    _REGISTERED_BUSINESS_HARNESS_MODELS.add(model_key)
 
 
 def _dedupe_tools(tools: list[Callable[..., Any]]) -> list[Callable[..., Any]]:
@@ -867,8 +975,12 @@ _DIRECT_TOOLS_SYSTEM_PROMPT = """Eres un Deep Agent experimental de nunsysIA.
 Tienes acceso directo a tools deterministas de ERP, produccion, memoria y RAG.
 No inventes datos: responde solo con datos devueltos por las tools.
 El runtime solo te expone las tools necesarias para la intencion detectada.
+Conservas `write_todos` como herramienta nativa de planificacion de Deep Agents.
+No tienes acceso a filesystem, shell ni subagentes para este endpoint de negocio.
 
 Reglas:
+- Si la consulta requiere varias fuentes, varios pedidos o varios pasos, crea y actualiza una lista breve con `write_todos`.
+- En consultas simples de una sola fuente, responde sin `write_todos`.
 - Prefiere las tools compuestas cuando esten disponibles; ya hacen los cruces seguros.
 - Para pedidos de un cliente, usa ERP y despues produccion por order_id.
 - Para bloqueos/retrasos de produccion, consulta produccion y cruza con ERP por order_id.

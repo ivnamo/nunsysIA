@@ -1758,8 +1758,8 @@ Lectura tecnica:
 
 Objetivo:
 
-- Validar si los flujos Deep Agents pasan los casos criticos de la beta
-  obligatoria, no solo el comparador corto R22.
+- Validar si los flujos Deep Agents pasan la beta obligatoria completa marcada
+  por la prueba tecnica: `BT-01` a `BT-11` + `BT-V2-01` a `BT-V2-07`.
 - Separar sidecar estable de direct-tools experimental.
 - Aislar fallos por `case_id` para evitar ejecuciones largas sin visibilidad.
 
@@ -1778,21 +1778,28 @@ Cambios ejecutados:
 
 Validacion real ejecutada:
 
+- Criterio corregido: la referencia valida es `BT-completa`, no un subconjunto
+  manual de casos criticos.
 - `deepagents-tools`, BT-01:
   `PASS=1, PARTIAL=0, FAIL=0, BLOCKER=0`.
-- `deepagents-tools`, casos criticos BT-08, BT-09, BT-10, BT-11 y BT-V2-07:
+- `deepagents-tools`, diagnostico inicial sobre fallos detectados BT-08, BT-09,
+  BT-10, BT-11 y BT-V2-07:
   `PASS=0, PARTIAL=0, FAIL=5, BLOCKER=0`.
 - `deepagents-sidecar`, mismos casos criticos:
   `PASS=5, PARTIAL=0, FAIL=0, BLOCKER=0`.
+- `deepagents-tools`, beta obligatoria completa `BT-01..BT-11` +
+  `BT-V2-01..BT-V2-07` tras hardening:
+  `PASS=18, PARTIAL=0, FAIL=0, BLOCKER=0`.
 
 Informes:
 
 - `docs/DEEPAGENTS_BETA_BT01.md`
 - `docs/DEEPAGENTS_BETA_CRITICAL_REPORT.md`
 - `docs/DEEPAGENTS_SIDECAR_BETA_CRITICAL_REPORT.md`
+- `docs/DEEPAGENTS_TOOLS_BETA_VALIDATION_REPORT.md`
 - `docs/DEEPAGENTS_BETA_VALIDATION_SUMMARY.md`
 
-Fallos direct-tools detectados:
+Fallos direct-tools detectados y corregidos:
 
 - BT-08: usa Query DSL (`ERPQueryTool`, `ProductionQueryTool`) donde la beta
   exige `ERPTool` y `ProductionAPITool`; ademas calcula penalizacion para 10248
@@ -1805,18 +1812,20 @@ Fallos direct-tools detectados:
   `needs_clarification`.
 - BT-V2-07: RAG devuelve 0 chunks, pero el status queda `completed` en vez de
   `insufficient_context`.
+- BT-03 y BT-04 aparecieron al validar la bateria completa: delayed se desviaba
+  por ruta generica de cliente/pedidos y el resumen mensual no mencionaba el
+  periodo `2026-05`/mayo en la respuesta visible.
 
 Lectura tecnica:
 
-- La cobertura segura del requisito Deep Agents para evaluacion es el sidecar:
-  pasa los casos criticos porque conserva el workflow estable auditado.
-- Direct-tools ya demuestra integracion real con `write_todos` y tools de
-  negocio, pero no cumple la beta obligatoria sin guardrails deterministas
-  adicionales.
+- La cobertura mas conservadora sigue siendo el sidecar, porque conserva el
+  workflow estable auditado.
+- Direct-tools ya pasa la beta obligatoria completa con integracion real de Deep
+  Agents, `write_todos`, tools individuales y supervisor determinista.
 
-### R22.8 - Plan de mejora direct-tools para beta obligatoria
+### R22.8 - Hardening direct-tools para beta obligatoria
 
-Tareas propuestas:
+Tareas ejecutadas:
 
 - Preflight determinista antes de crear Deep Agent:
   - follow-up aislado sin memoria -> `needs_clarification`;
@@ -1830,13 +1839,28 @@ Tareas propuestas:
 - Mantener `insufficient_context` cuando una consulta documental pura recupera
   0 chunks.
 - Evitar doble `MemoryTool` dentro de tools compuestas.
-- Repetir validacion incremental:
-  - BT-08;
-  - BT-09;
-  - BT-10;
-  - BT-11;
-  - BT-V2-07.
-- Solo despues intentar beta completa direct-tools.
+- Filtrar memoria conversacional: si el turno previo resuelve solo bloqueados,
+  el impacto economico posterior calcula solo esos pedidos.
+- Asegurar delayed y resumen mensual con rutas obligatorias:
+  `ProductionAPITool` + `ERPTool` para retrasados y
+  `ERPTool.get_orders_by_month` + `ProductionAPITool.get_status_for_order_ids`
+  para mayo de 2026.
+
+Tests y validacion:
+
+- Unitarios direct-tools: `12 passed`.
+- Suite rapida completa: `232 passed, 23 skipped, 2 warnings`.
+- Beta real Deep Agents direct-tools completa:
+  `PASS=18, PARTIAL=0, FAIL=0, BLOCKER=0`.
+
+Subagente corrector:
+
+- Puede ser util como mejora futura, pero no como solucion base de la beta.
+- Si se incorpora, debe ser un corrector/verificador acotado que revise una
+  `QueryResponse` y solo pueda pedir correcciones con tools de negocio
+  permitidas.
+- No se recomienda habilitar filesystem, shell, `execute` ni `task` generico en
+  el endpoint de negocio.
 
 ### R22.9 - Decision tecnica
 
@@ -1943,4 +1967,4 @@ Criterio de aceptacion:
 | 2026-05-22 | R18 | cerrado | Tests `real_llm` opt-in implementados; suite rapida 191 passed + 5 skipped; `pytest -m real_llm`: 5 passed contra proveedor real | este bloque |
 | 2026-05-22 | R19 | cerrado | Hotfix ensayo manual: `Dame los pedidos que puedan generar penalizacion...` entra por plan mixto determinista; planner 26 passed; graph 17 passed; `pytest`: 193 passed + 5 skipped | este bloque |
 | 2026-05-22 | R21 | cerrado | Sidecar opcional Deep Agents estable; adapter versionado; focal `tests/unit/test_deepagents_adapter.py`: 2 passed; marca prevista `stable-deepagents-sidecar` | `97ba10f` |
-| 2026-05-22 | R22 | activo | Sidecar Deep Agents pasa beta critica PASS=5; direct-tools falla beta critica FAIL=5 y queda con plan R22.8 antes de promocion | pendiente |
+| 2026-05-22 | R22 | activo | Deep Agents direct-tools pasa beta obligatoria completa PASS=18; sidecar se conserva como opcion estable; subagente corrector queda como mejora futura acotada | pendiente |

@@ -2,18 +2,31 @@
 
 Fecha: 2026-05-22.
 
-## Resultado
+## Criterio correcto
 
-Validacion incremental contra la beta obligatoria usando `scripts/run_beta_validation.py`
-con selector de flujo y `case_id`.
+La prueba tecnica no se defiende con un subconjunto elegido a mano. El corte
+versionado del repositorio es la `BT-completa` definida en
+`docs/plan_implementacion_vivo.md` y ejecutada por
+`scripts/beta_validation_support.py`:
+
+- `BT-01` a `BT-11`.
+- `BT-V2-01` a `BT-V2-07`.
+- Total: 18 casos obligatorios.
+
+## Resultado final
+
+Validacion real opt-in contra la beta obligatoria completa usando
+`scripts/run_beta_validation.py --flow deepagents-tools`.
 
 | Flujo | Casos ejecutados | Resultado |
 |---|---:|---|
-| `deepagents-tools` | BT-01 | PASS=1, FAIL=0 |
-| `deepagents-tools` | BT-08, BT-09, BT-10, BT-11, BT-V2-07 | PASS=0, FAIL=5 |
-| `deepagents-sidecar` | BT-08, BT-09, BT-10, BT-11, BT-V2-07 | PASS=5, FAIL=0 |
+| `deepagents-tools` | BT-01..BT-11 + BT-V2-01..BT-V2-07 | PASS=18, FAIL=0 |
 
-Informes generados:
+Informe principal:
+
+- `docs/DEEPAGENTS_TOOLS_BETA_VALIDATION_REPORT.md`
+
+Informes historicos de diagnostico inicial:
 
 - `docs/DEEPAGENTS_BETA_BT01.md`
 - `docs/DEEPAGENTS_BETA_CRITICAL_REPORT.md`
@@ -21,42 +34,39 @@ Informes generados:
 
 ## Lectura tecnica
 
-- El sidecar Deep Agents cumple los casos criticos porque invoca el workflow
-  estable validado como tool auditable.
-- El flujo direct-tools no esta listo para sustituir al workflow estable en la
-  beta obligatoria.
-- El fallo inicial de la ejecucion completa fue operativo: el runner no emitia
-  progreso, no permitia aislar casos y no dejaba informe parcial si se cortaba.
-  Ahora acepta `--flow` y `--case-id`, imprime progreso y escribe checkpoint por
-  caso cuando se usa `--output` sin `--append`.
+- La primera validacion parcial de `deepagents-tools` habia usado un subconjunto
+  de fallos, no la bateria obligatoria completa. Ese criterio queda corregido.
+- `deepagents-tools` mantiene integracion real con Deep Agents y tools
+  individuales/compuestas, pero ahora incluye un supervisor determinista antes y
+  despues del agente para preservar contratos de beta.
+- La solucion viable no es confiar en que el prompt corrija todo: las rutas
+  beta-sensibles ejecutan tools obligatorias y normalizan `status`, memoria y
+  respuesta final desde evidencia trazada.
 
-## Fallos direct-tools detectados
+## Ajustes aplicados
 
-- BT-08: usa `ERPQueryTool` y `ProductionQueryTool`, pero la beta espera
-  `ERPTool` y `ProductionAPITool`. Ademas calcula una penalizacion para 10248
-  que el workflow estable evita por falta de evidencia suficiente.
-- BT-09: resuelve memoria, pero duplica `MemoryTool`, usa `ERPQueryTool` donde
-  la beta espera `ERPTool` y no calcula el impacto economico del pedido bloqueado
-  como `economic_impact_total`.
-- BT-10: no enruta correctamente `Segun el PDF... receta...` a RAG; consulta ERP
-  y Produccion y responde `completed`.
-- BT-11: ante follow-up aislado sin memoria, consulta Produccion y responde datos
-  globales; deberia devolver `needs_clarification`.
-- BT-V2-07: consulta RAG y recupera 0 chunks, pero normaliza a `completed`;
-  deberia conservar `insufficient_context`.
+- Preflight para follow-up aislado sin memoria: `needs_clarification`, sin tool
+  calls.
+- Routing documental para `segun`, `pdf`, `documento`, `contrato`, `anexo`,
+  `receta`, `cocina` y `vegana`.
+- Penalizaciones por pedido con traces esperadas: `ERPTool`,
+  `ProductionAPITool` y `DocumentRAGTool`.
+- Pedidos bloqueados/retrasados con `ProductionAPITool` y resolucion de cliente
+  via `ERPTool`.
+- Resumen mensual determinista con periodo `2026-05`, pedidos de mayo y estados
+  de produccion.
+- Memoria conversacional filtrada: si el turno previo resuelve solo bloqueados,
+  el impacto economico posterior calcula solo esos pedidos.
+- `insufficient_context` se conserva para consultas documentales sin chunks.
 
-## Plan de mejora
+## Subagente corrector
 
-- Anadir preflight determinista antes de crear Deep Agent:
-  - follow-up aislado sin memoria -> `needs_clarification`;
-  - consultas con `segun`, `pdf`, `documento`, `receta`, `cocina`, `vegana` ->
-    RAG documental.
-- Ajustar tools compuestas direct-tools para casos beta:
-  - penalizaciones por pedido debe usar `ERPTool.get_orders_by_month` y
-    `ProductionAPITool.get_status_for_order_ids`;
-  - memoria economica debe llamar `ERPTool.calculate_order_amount` sobre los
-    pedidos referenciados correctos.
-- Mantener `insufficient_context` cuando una consulta documental pura recupera
-  0 chunks.
-- Evitar doble `MemoryTool` en tools compuestas.
-- Repetir beta incremental por bloques antes de intentar la beta completa.
+Puede aportar valor, pero no como parche principal de beta. La opcion prudente es
+un corrector/verificador limitado que revise una `QueryResponse` ya construida y
+solo pueda pedir una correccion mediante tools de negocio permitidas. No deberia
+tener filesystem, shell, `execute` ni `task` generico en el endpoint de negocio.
+
+Decision actual: no se activa subagente corrector hasta que haya una necesidad
+funcional concreta. Con la beta completa en PASS, el siguiente paso razonable es
+mantener los guardrails deterministas y dejar el corrector como mejora opcional
+para robustez, no como requisito de entrega.

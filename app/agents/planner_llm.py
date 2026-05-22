@@ -88,8 +88,11 @@ Business examples:
 - Isolated follow-up without conversation history: clarification, no steps.
 - Pending orders for a customer: ERPTool.get_pending_orders_by_customer.
 - Pending orders plus production status: ERP first, then ProductionAPITool.get_status_for_erp_orders.
+- Pending orders plus risk, SLA, impact or operational problems: ERP first, then ProductionAPITool.get_status_for_erp_orders.
 - Blocked orders and reason: ProductionAPITool.list_orders(status=blocked), then ERPTool.get_customers_for_production_orders.
 - Delayed orders and affected customers: ProductionAPITool.list_orders(status=delayed), then ERPTool.get_customers_for_production_orders.
+- Stopped, stuck or problematic production orders: ProductionAPITool.list_orders(status=blocked), ProductionAPITool.list_orders(status=delayed), then ERPTool.get_customers_for_production_orders.
+- Explicit order IDs with status or risk: ProductionAPITool.get_status_for_order_ids, then ERPTool.get_customers_for_production_orders.
 - This month summary: ERPTool.get_orders_by_month(year=2026, month=5), then ProductionAPITool.get_status_for_erp_orders.
 - Penalties by order based on current order state: ERPTool.get_orders_by_month(year=2026, month=5), then ProductionAPITool.get_status_for_erp_orders, then DocumentRAGTool.query.
 - Conversational blocked orders from previous order IDs: MemoryTool.recall, then ProductionAPITool.get_status_for_order_ids(status=blocked), then ERPTool.get_customers_for_production_orders.

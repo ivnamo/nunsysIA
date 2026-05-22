@@ -6,6 +6,9 @@ from typing import Any
 from app.agents.state import AgentState
 
 
+_KNOWN_CUSTOMER_IDS = {"ALFKI", "ANATR"}
+
+
 def extract_customer_id(question: str) -> str | None:
     explicit_customer = re.search(
         r"\bcliente\s+([A-Za-z]{5})\b",
@@ -14,8 +17,21 @@ def extract_customer_id(question: str) -> str | None:
     )
     if explicit_customer:
         return explicit_customer.group(1).upper()
+    for token in re.findall(r"\b[A-Za-z]{5}\b", question):
+        candidate = token.upper()
+        if candidate in _KNOWN_CUSTOMER_IDS:
+            return candidate
     matches = re.findall(r"\b[A-Z]{5}\b", question)
     return matches[0] if matches else None
+
+
+def extract_order_ids_from_text(question: str) -> list[int]:
+    order_ids: list[int] = []
+    for match in re.findall(r"\b\d{5,6}\b", question):
+        order_id = int(match)
+        if order_id not in order_ids:
+            order_ids.append(order_id)
+    return order_ids
 
 
 def compact_history_for_prompt(state: AgentState) -> str:

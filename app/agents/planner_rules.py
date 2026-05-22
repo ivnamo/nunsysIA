@@ -3,7 +3,7 @@ from app.agents.planner_context import (
     missing_customer_plan,
 )
 from app.agents.planner_models import ExecutionPlan, PlanStep
-from app.agents.planner_utils import extract_customer_id
+from app.agents.planner_utils import extract_customer_id, extract_order_ids_from_text
 from app.agents.state import AgentIntent, AgentState
 
 
@@ -69,6 +69,29 @@ def build_rule_based_plan(
             answer_requirements=["Responder solo con chunks documentales recuperados."],
         )
 
+    order_ids = extract_order_ids_from_text(question)
+    if order_ids and _is_order_status_query(normalized):
+        return ExecutionPlan(
+            intent="erp_production",
+            steps=[
+                PlanStep(
+                    step_id=1,
+                    tool="ProductionAPITool",
+                    action="get_status_for_order_ids",
+                    args={"order_ids": order_ids},
+                ),
+                PlanStep(
+                    step_id=2,
+                    tool="ERPTool",
+                    action="get_customers_for_production_orders",
+                ),
+            ],
+            expected_sources=["Produccion", "ERP"],
+            answer_requirements=[
+                "Devolver estado de produccion y cliente ERP para los pedidos indicados.",
+            ],
+        )
+
     if "bloquead" in normalized:
         return ExecutionPlan(
             intent="erp_production",
@@ -111,6 +134,34 @@ def build_rule_based_plan(
             ],
         )
 
+    if _is_problematic_production_query(normalized):
+        return ExecutionPlan(
+            intent="erp_production",
+            steps=[
+                PlanStep(
+                    step_id=1,
+                    tool="ProductionAPITool",
+                    action="list_orders",
+                    args={"status": "blocked"},
+                ),
+                PlanStep(
+                    step_id=2,
+                    tool="ProductionAPITool",
+                    action="list_orders",
+                    args={"status": "delayed"},
+                ),
+                PlanStep(
+                    step_id=3,
+                    tool="ERPTool",
+                    action="get_customers_for_production_orders",
+                ),
+            ],
+            expected_sources=["Produccion", "ERP"],
+            answer_requirements=[
+                "Devolver pedidos bloqueados y retrasados con cliente ERP y motivo operativo.",
+            ],
+        )
+
     if "mes" in normalized or "resumen" in normalized:
         return ExecutionPlan(
             intent="erp_production",
@@ -144,7 +195,7 @@ def build_rule_based_plan(
             )
         ]
         expected_sources = ["ERP"]
-        if "producci" in normalized or "estado" in normalized:
+        if _pending_query_requires_production(normalized):
             steps.append(
                 PlanStep(
                     step_id=2,
@@ -189,6 +240,27 @@ def is_order_penalty_query(normalized: str) -> bool:
     )
 
 
+def should_prefer_rule_based_plan(question: str, normalized: str) -> bool:
+    if is_order_penalty_query(normalized):
+        return True
+
+    order_ids = extract_order_ids_from_text(question)
+    if order_ids and _is_order_status_query(normalized):
+        return True
+
+    if _is_problematic_production_query(normalized):
+        return True
+
+    if (
+        "pendient" in normalized
+        and extract_customer_id(question) is not None
+        and _pending_query_uses_flexible_business_terms(normalized)
+    ):
+        return True
+
+    return False
+
+
 def _is_document_query(normalized: str) -> bool:
     return any(
         marker in normalized
@@ -196,10 +268,83 @@ def _is_document_query(normalized: str) -> bool:
             "document",
             "pdf",
             "contrato",
+            "sla",
+            "normativa",
             "plazo",
             "penalizacion",
             "penalizaci",
             "clausula",
             "entrega",
+        )
+    )
+
+
+def _is_problematic_production_query(normalized: str) -> bool:
+    if "producci" not in normalized:
+        return False
+    if "bloquead" in normalized or "retrasad" in normalized or "demor" in normalized:
+        return False
+    return any(
+        marker in normalized
+        for marker in (
+            "parad",
+            "atascad",
+            "problema",
+            "problemas",
+            "riesgo",
+            "incidencia",
+            "incidencias",
+        )
+    )
+
+
+def _is_order_status_query(normalized: str) -> bool:
+    if "pedido" not in normalized and "order" not in normalized:
+        return False
+    if normalized.strip(" ?!¡¿").startswith(("pedido", "order")):
+        return True
+    return any(
+        marker in normalized
+        for marker in (
+            "estado",
+            "producci",
+            "bloquead",
+            "retrasad",
+            "parad",
+            "atascad",
+            "problema",
+            "riesgo",
+        )
+    )
+
+
+def _pending_query_uses_flexible_business_terms(normalized: str) -> bool:
+    return any(
+        marker in normalized
+        for marker in (
+            "riesgo",
+            "problema",
+            "parad",
+            "atascad",
+            "sla",
+            "impacto",
+            "penaliz",
+        )
+    )
+
+
+def _pending_query_requires_production(normalized: str) -> bool:
+    return any(
+        marker in normalized
+        for marker in (
+            "producci",
+            "estado",
+            "riesgo",
+            "problema",
+            "parad",
+            "atascad",
+            "sla",
+            "impacto",
+            "penaliz",
         )
     )

@@ -4,7 +4,7 @@ from app.agents.planner_context import (
 )
 from app.agents.planner_llm import build_llm_plan, planner_fallback
 from app.agents.planner_models import ExecutionPlan, PlanStep, PlanTool
-from app.agents.planner_rules import build_rule_based_plan, is_order_penalty_query
+from app.agents.planner_rules import build_rule_based_plan, should_prefer_rule_based_plan
 from app.agents.planner_utils import extract_customer_id
 from app.agents.state import AgentState
 from app.core.llm import ChatModel
@@ -58,7 +58,7 @@ class PlannerAgent:
         if contextual_plan is not None:
             return contextual_plan, None
 
-        if is_order_penalty_query(normalized):
+        if should_prefer_rule_based_plan(question, normalized):
             return build_rule_based_plan(question, normalized, state), None
 
         if self._chat_model is None:

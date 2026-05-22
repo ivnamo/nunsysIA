@@ -118,6 +118,136 @@ def test_planner_creates_blocked_orders_plan() -> None:
     ]
 
 
+def test_planner_routes_problematic_production_orders_to_blocked_and_delayed() -> None:
+    planner = PlannerAgent()
+
+    state = planner(
+        {
+            "question": "Que pedidos tengo parados o con problemas de produccion?",
+            "attempts": 0,
+        }
+    )
+
+    assert state["intent"] == "erp_production"
+    assert state["plan"]["expected_sources"] == ["Produccion", "ERP"]
+    assert [step["action"] for step in state["plan"]["steps"]] == [
+        "list_orders",
+        "list_orders",
+        "get_customers_for_production_orders",
+    ]
+    assert state["plan"]["steps"][0]["args"] == {"status": "blocked"}
+    assert state["plan"]["steps"][1]["args"] == {"status": "delayed"}
+
+
+def test_planner_routes_lowercase_customer_with_operational_risk() -> None:
+    planner = PlannerAgent()
+
+    state = planner(
+        {
+            "question": "que tiene pendiente alfki y que riesgo operativo tiene?",
+            "attempts": 0,
+        }
+    )
+
+    assert state["intent"] == "erp_production"
+    assert state["plan"]["expected_sources"] == ["ERP", "Produccion"]
+    assert state["plan"]["steps"][0]["args"] == {"customer_id": "ALFKI"}
+    assert [step["action"] for step in state["plan"]["steps"]] == [
+        "get_pending_orders_by_customer",
+        "get_status_for_erp_orders",
+    ]
+
+
+def test_planner_routes_explicit_order_id_status_query() -> None:
+    planner = PlannerAgent()
+
+    state = planner(
+        {"question": "en que estado esta el pedido 10252?", "attempts": 0}
+    )
+
+    assert state["intent"] == "erp_production"
+    assert state["plan"]["expected_sources"] == ["Produccion", "ERP"]
+    assert [step["action"] for step in state["plan"]["steps"]] == [
+        "get_status_for_order_ids",
+        "get_customers_for_production_orders",
+    ]
+    assert state["plan"]["steps"][0]["args"] == {"order_ids": [10252]}
+
+
+def test_planner_routes_bare_explicit_order_id_query() -> None:
+    planner = PlannerAgent()
+
+    state = planner({"question": "pedido 10252", "attempts": 0})
+
+    assert state["intent"] == "erp_production"
+    assert [step["action"] for step in state["plan"]["steps"]] == [
+        "get_status_for_order_ids",
+        "get_customers_for_production_orders",
+    ]
+    assert state["plan"]["steps"][0]["args"] == {"order_ids": [10252]}
+
+
+def test_planner_prefers_rules_for_bare_order_id_even_with_llm() -> None:
+    chat_model = _FakeChatModel(
+        """
+        {
+          "intent": "clarification",
+          "steps": [],
+          "expected_sources": [],
+          "answer_requirements": ["Pedir mas contexto."]
+        }
+        """
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner({"question": "pedido 10252", "attempts": 0})
+
+    assert chat_model.calls == 0
+    assert state["intent"] == "erp_production"
+    assert [step["action"] for step in state["plan"]["steps"]] == [
+        "get_status_for_order_ids",
+        "get_customers_for_production_orders",
+    ]
+
+
+def test_planner_prefers_rules_for_problematic_production_even_with_llm() -> None:
+    chat_model = _FakeChatModel(
+        '{"intent": "unsupported", "steps": [], "expected_sources": []}'
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner(
+        {
+            "question": "Que pedidos tengo parados o con problemas de produccion?",
+            "attempts": 0,
+        }
+    )
+
+    assert chat_model.calls == 0
+    assert [step["args"] for step in state["plan"]["steps"][:2]] == [
+        {"status": "blocked"},
+        {"status": "delayed"},
+    ]
+
+
+def test_planner_prefers_rules_for_customer_operational_risk_even_with_llm() -> None:
+    chat_model = _FakeChatModel(
+        '{"intent": "clarification", "steps": [], "expected_sources": []}'
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner(
+        {
+            "question": "que tiene pendiente alfki y que riesgo operativo tiene?",
+            "attempts": 0,
+        }
+    )
+
+    assert chat_model.calls == 0
+    assert state["intent"] == "erp_production"
+    assert state["plan"]["steps"][0]["args"] == {"customer_id": "ALFKI"}
+
+
 def test_planner_marks_documental_query_as_rag_with_document_tool_step() -> None:
     planner = PlannerAgent()
 

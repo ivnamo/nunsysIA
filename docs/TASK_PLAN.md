@@ -17,6 +17,8 @@ evaluables de demo:
 - Memoria conversacional simple de ultimas 5 interacciones por `conversation_id`.
 - Clarificaciones controladas con `needs_clarification` cuando una pregunta de
   dominio necesita cliente, pedido o contexto previo.
+- Planner flexible para sinonimos operativos, cliente en minusculas y pedidos
+  explicitos sin introducir Query DSL.
 
 Pendiente antes del cierre final:
 
@@ -25,9 +27,8 @@ Pendiente antes del cierre final:
 
 Extension opcional post-cierre:
 
-- R13-R18 en `docs/plan_implementacion_vivo.md`: planner flexible, Query DSL
-  segura, joins controlados y tests reales opt-in con LLM. No bloquea la
-  revision actual.
+- R14-R18 en `docs/plan_implementacion_vivo.md`: Query DSL segura, joins
+  controlados y tests reales opt-in con LLM. No bloquea la revision actual.
 
 ## Fase 0: Setup y estructura
 
@@ -312,7 +313,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`145 passed, 2 warnings`).
+- Mantener suite automatizada versionada actual (`156 passed, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.

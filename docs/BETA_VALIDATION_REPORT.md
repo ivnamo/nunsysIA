@@ -2330,3 +2330,84 @@ Validacion automatizada local posterior:
 Decision: R12 queda cerrada. La POC diferencia ahora entre ambiguedad de dominio
 (`needs_clarification`), falta de evidencia documental (`insufficient_context`)
 y fuera de alcance (`unsupported`).
+
+## Iteracion R13 - Planner flexible con Docker y Gemini real
+
+Fecha: 2026-05-22.
+
+Objetivo:
+
+- Validar sinonimos operativos sin introducir Query DSL.
+- Confirmar cliente en minusculas y pedido explicito.
+- Asegurar que rutas especificas existentes no se degradan.
+
+Runtime:
+
+- Docker Compose con `docker-compose.secrets.yml`.
+- `LLM_PROVIDER=gemini`.
+- `EMBEDDING_PROVIDER=deterministic` porque R13 no cambia RAG ni embeddings.
+- ChromaDB HTTP activo.
+- Coleccion: `beta_r13_flexible_planner_20260522`.
+- Backend, production mock y ChromaDB: `healthy`.
+
+Casos ejecutados:
+
+### R13-PROBLEMATIC - PASS
+
+Pregunta: `Que pedidos tengo parados o con problemas de produccion?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["Produccion", "ERP"]`
+- `tool_calls`: `ProductionAPITool.list_orders(blocked)`,
+  `ProductionAPITool.list_orders(delayed)` y resoluciones ERP por pedido.
+- `data.production_order_ids`: `[10252, 10312, 10301]`
+- `fallbacks_count`: `0`
+
+### R13-LOWER-ALFKI-RISK - PASS
+
+Pregunta: `que tiene pendiente alfki y que riesgo operativo tiene?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion"]`
+- `tool_calls`: `ERPTool.get_pending_orders_by_customer` y
+  `ProductionAPITool.get_status_for_erp_orders`
+- `data.erp_order_ids`: `[10248, 10252]`
+- `fallbacks_count`: `0`
+
+### R13-ORDER-ID - PASS
+
+Pregunta: `pedido 10252`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["Produccion", "ERP"]`
+- `tool_calls`: `ProductionAPITool.get_status_for_order_ids` y
+  `ERPTool.get_customers_for_production_orders`
+- `data.production_order_ids`: `[10252]`
+- `fallbacks_count`: `0`
+
+### R13-DELAYED-EXISTING - PASS
+
+Pregunta: `Que clientes tienen pedidos retrasados por problemas de produccion?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["Produccion", "ERP"]`
+- `tool_calls`: ruta especifica de retrasados conservada.
+- `data.production_order_ids`: `[10301]`
+- `fallbacks_count`: `0`
+
+Validacion automatizada local posterior:
+
+- Suite completa: `156 passed, 2 warnings`.
+
+Decision: R13 queda cerrada. La flexibilidad conversacional se amplia sin DSL,
+sin SQL/HTTP libre y sin degradar trazabilidad. Los casos con pedido explicito,
+produccion problematica abierta y riesgo operativo se priorizan por reglas
+deterministas antes del planner LLM para evitar aclaraciones innecesarias.

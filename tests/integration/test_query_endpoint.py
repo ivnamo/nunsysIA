@@ -94,6 +94,24 @@ def test_query_endpoint_does_not_assume_customer_for_pending_orders(
     assert "ALFKI" not in payload["answer"]
 
 
+def test_query_endpoint_answers_lowercase_customer_operational_risk(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/query",
+        json={"question": "que tiene pendiente alfki y que riesgo operativo tiene?"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
+    assert payload["sources"] == ["ERP", "Produccion"]
+    assert "10248" in payload["answer"]
+    assert "10252" in payload["answer"]
+    assert "Falta de material" in payload["answer"]
+    assert payload["data"]["erp_order_ids"] == [10248, 10252]
+
+
 def test_query_endpoint_keeps_conversation_memory_by_id(client: TestClient) -> None:
     first_response = client.post(
         "/api/query",

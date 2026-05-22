@@ -207,7 +207,10 @@ class ReasonerExecutorAgent:
             result = self._production_tool.list_orders(
                 ProductionOrdersInput.model_validate(step.args)
             )
-            execution.data["production_orders"] = result.data
+            execution.data["production_orders"] = _merge_order_rows(
+                execution.data.get("production_orders"),
+                result.data,
+            )
             execution.add_result(
                 result,
                 "Consulta API de produccion por estado",
@@ -219,7 +222,10 @@ class ReasonerExecutorAgent:
             result = self._production_tool.get_status_for_order_ids(
                 ProductionOrdersByIdsInput.model_validate(step.args)
             )
-            execution.data["production_orders"] = result.data
+            execution.data["production_orders"] = _merge_order_rows(
+                execution.data.get("production_orders"),
+                result.data,
+            )
             execution.add_result(
                 result,
                 "Consulta API de produccion para pedidos referenciados",
@@ -387,3 +393,23 @@ def _order_ids_from_step(args: dict[str, Any]) -> list[int]:
         if order_id > 0 and order_id not in order_ids:
             order_ids.append(order_id)
     return order_ids
+
+
+def _merge_order_rows(
+    existing: Any,
+    incoming: Any,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen_order_ids: set[int] = set()
+    for source in (existing, incoming):
+        if not isinstance(source, list):
+            continue
+        for row in source:
+            if not isinstance(row, dict) or row.get("order_id") is None:
+                continue
+            order_id = int(row["order_id"])
+            if order_id in seen_order_ids:
+                continue
+            seen_order_ids.add(order_id)
+            rows.append(row)
+    return rows

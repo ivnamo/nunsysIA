@@ -10,7 +10,7 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R12 cerrada** y queda lista para demo/revision tecnica. El guion
+La POC tiene **R13 cerrada** y queda lista para demo/revision tecnica. El guion
 final esta en `docs/DEMO_SCRIPT.md`.
 
 Estado declarado y versionado:
@@ -23,7 +23,7 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `145 passed, 2 warnings`.
+- Suite automatizada declarada: `156 passed, 2 warnings`.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
   beta con LLM/embeddings reales.
 
@@ -162,7 +162,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R10 | cerrado | Docker Compose | Runtime no reproducible | `feat(runtime): add docker compose stack` |
 | R11 | cerrado | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
 | R12 | cerrado | Contrato de clarificacion | Ambiguedad tratada como fuera de dominio | `feat(agent): add clarification status for ambiguous queries` |
-| R13 | pendiente | Planner flexible con tools existentes | Routing rigido ante sinonimos de negocio | `feat(planner): broaden flexible business routing` |
+| R13 | cerrado | Planner flexible con tools existentes | Routing rigido ante sinonimos de negocio | `feat(planner): broaden flexible business routing` |
 | R14 | pendiente | Modelos y validadores de Query DSL | LLM demasiado cerca de SQL/HTTP libre | `feat(tools): add safe query dsl models` |
 | R15 | pendiente | ERPQueryTool y ProductionQueryTool | Consultas abiertas sin schema cerrado | `feat(tools): add safe ERP and production query dsl` |
 | R16 | pendiente | Reasoner para joins controlados | Cruces de datos ad hoc o duplicados | `feat(reasoner): execute flexible queries and business joins` |
@@ -974,6 +974,37 @@ Criterio de aceptacion:
 - Los casos demo existentes siguen en las rutas especificas.
 - No se reintroduce ningun default silencioso de cliente.
 
+Estado:
+
+- Cerrado el 2026-05-22.
+- `extract_customer_id()` reconoce IDs seed conocidos aunque lleguen en
+  minusculas, por ejemplo `alfki`.
+- El planner enruta pedidos explicitos como `pedido 10252` mediante
+  `ProductionAPITool.get_status_for_order_ids` y resolucion de cliente ERP.
+- El planner enruta `parados`, `atascados`, `con problemas`, `riesgo`, `SLA`,
+  `impacto` y `penalizacion` sin abrir SQL, HTTP ni Query DSL.
+- Para `parados o con problemas de produccion`, el plan ejecuta
+  `ProductionAPITool.list_orders(blocked)`,
+  `ProductionAPITool.list_orders(delayed)` y
+  `ERPTool.get_customers_for_production_orders`.
+- `ReasonerExecutorAgent` acumula y deduplica resultados de varias consultas de
+  produccion por `order_id`.
+- Tests focalizados:
+  - `tests/unit/test_planner.py`: 23 passed.
+  - `tests/integration/test_agent_graph.py`: 15 passed.
+  - `tests/integration/test_query_endpoint.py`: 8 passed.
+- Suite completa: `156 passed, 2 warnings`.
+- Smoke Docker con Gemini real y ChromaDB HTTP en coleccion
+  `beta_r13_flexible_planner_20260522`:
+  - `Que pedidos tengo parados o con problemas de produccion?`: `completed`,
+    fuentes `Produccion` y `ERP`, 3 pedidos problematicos, sin fallbacks.
+  - `que tiene pendiente alfki y que riesgo operativo tiene?`: `completed`,
+    fuentes `ERP` y `Produccion`, sin fallbacks.
+  - `pedido 10252`: `completed`, fuentes `Produccion` y
+    `ERP`, sin fallbacks.
+  - `Que clientes tienen pedidos retrasados por problemas de produccion?`:
+    `completed`, ruta especifica de retrasados conservada, sin fallbacks.
+
 ## Fase R14 - Modelos y validadores de Query DSL
 
 Prioridad: **antes de ejecutar cualquier query generica**.
@@ -1272,3 +1303,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R9 | cerrado | Replanning visible en `data.replanning` sin planes raw ni chain-of-thought; `pytest`: 142 passed | este bloque |
 | 2026-05-21 | R11 | cerrado | Guion demo final creado; Docker smoke final con Gemini/Chroma PASS sin fallbacks; `pytest`: 142 passed | este bloque |
 | 2026-05-21 | R12 | cerrado | `needs_clarification` implementado para ambiguedades de dominio; Docker smoke Gemini PASS; `pytest`: 145 passed | este bloque |
+| 2026-05-22 | R13 | cerrado | Planner flexible con sinonimos, cliente minusculas y pedido explicito; Docker smoke Gemini PASS; `pytest`: 156 passed | este bloque |

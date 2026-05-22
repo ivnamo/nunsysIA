@@ -42,9 +42,9 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R12 queda cerrada. La POC queda lista para demo/revision tecnica con guion
-final en `docs/DEMO_SCRIPT.md` y clarificaciones controladas para preguntas
-de dominio ambiguas.
+R13 queda cerrada. La POC queda lista para demo/revision tecnica con guion
+final en `docs/DEMO_SCRIPT.md`, clarificaciones controladas para preguntas
+de dominio ambiguas y planner flexible sobre tools existentes.
 
 Componentes implementados:
 
@@ -71,10 +71,12 @@ Componentes implementados:
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`
 - Estado `needs_clarification` para pedir cliente, pedido o contexto cuando
   faltan datos imprescindibles.
+- Planner flexible para cliente en minusculas, pedidos explicitos y sinonimos
+  operativos como `parados`, `atascados`, `con problemas` o `riesgo`.
 
 Suite versionada actual:
 
-- `145 passed, 2 warnings`
+- `156 passed, 2 warnings`
 - Smoke final Docker con Gemini real y ChromaDB HTTP: PASS sin fallbacks en
   casos ERP+produccion, RAG, mixto, memoria y guardrail.
 

@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R12 cerrada: POC lista para revision tecnica con clarificaciones controladas**.
-Siguiente bloque: **R13 planner flexible con tools existentes**, si se decide ampliar la demo.
+Estado actual: **R13 cerrada: POC lista para revision tecnica con planner flexible**.
+Siguiente bloque: **R14 modelos y validadores de Query DSL segura**, si se decide ampliar la demo.
 
 Este repositorio contiene:
 
@@ -68,7 +68,10 @@ Este repositorio contiene:
 - citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
 - memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
 - estado publico `needs_clarification` para ambiguedades de dominio sin ejecutar tools ni inventar datos.
-- suite automatizada versionada actual: `145 passed, 2 warnings`.
+- planner flexible para cliente en minusculas, pedidos explicitos y sinonimos
+  como `parados`, `atascados`, `con problemas` o `riesgo operativo`, usando
+  solo tools existentes.
+- suite automatizada versionada actual: `156 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -88,6 +91,8 @@ Disponible para ejecutar actualmente:
 - PDFs mock realistas en `data/sample_docs/` para probar RAG multi-documento.
 - follow-ups conversacionales simples por `conversation_id`, por ejemplo preguntar despues `Y en que estado estan?`.
 - clarificaciones controladas cuando falta cliente, pedido o contexto conversacional previo.
+- preguntas flexibles como `que tiene pendiente alfki y que riesgo operativo tiene?`
+  o `pedido 10252`.
 
 Cierre:
 
@@ -415,4 +420,8 @@ Chroma HTTP y 5 PDFs v2. La POC queda lista para demo/revision tecnica.
 
 R12 queda cerrada con `needs_clarification` para preguntas de dominio ambiguas:
 si falta cliente, pedido o contexto conversacional, el sistema pide una
-aclaracion concreta sin ejecutar tools. Suite actual: `145 passed, 2 warnings`.
+aclaracion concreta sin ejecutar tools.
+
+R13 queda cerrada con planner flexible sobre tools existentes: cliente en
+minusculas, pedido explicito y pedidos de produccion parados/con problemas.
+Suite actual: `156 passed, 2 warnings`.

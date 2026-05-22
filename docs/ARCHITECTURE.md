@@ -46,7 +46,7 @@ Interfaz conversacional para demo y pruebas manuales. Muestra respuesta, fuentes
 
 ### Planner Agent
 
-Clasifica la intencion de la pregunta y genera un plan estructurado. En la fase actual `PlannerAgent` es una fachada del nodo LangGraph: los modelos Pydantic viven en `planner_models.py`, el planner LLM y su timeout en `planner_llm.py`, las reglas deterministas en `planner_rules.py`/`planner_context.py` y la normalizacion de planes en `planner_normalization.py`. Puede usar Gemini/OpenAI si estan configurados, pero solo acepta planes que cumplan el schema Pydantic y una lista cerrada de tools/actions. Si el LLM falla, tarda demasiado o propone una accion no permitida, cae al planner determinista y lo declara como fallback visible. No ejecuta tools ni inventa datos. Cuando la pregunta es de dominio pero falta cliente, pedido, periodo o contexto conversacional, devuelve el intent interno `clarification` sin pasos.
+Clasifica la intencion de la pregunta y genera un plan estructurado. En la fase actual `PlannerAgent` es una fachada del nodo LangGraph: los modelos Pydantic viven en `planner_models.py`, el planner LLM y su timeout en `planner_llm.py`, las reglas deterministas en `planner_rules.py`/`planner_context.py` y la normalizacion de planes en `planner_normalization.py`. Puede usar Gemini/OpenAI si estan configurados, pero solo acepta planes que cumplan el schema Pydantic y una lista cerrada de tools/actions. Si el LLM falla, tarda demasiado o propone una accion no permitida, cae al planner determinista y lo declara como fallback visible. No ejecuta tools ni inventa datos. Cuando la pregunta es de dominio pero falta cliente, pedido, periodo o contexto conversacional, devuelve el intent interno `clarification` sin pasos. Las reglas deterministas cubren tambien sinonimos operativos (`parados`, `atascados`, `con problemas`, `riesgo`), clientes seed en minusculas y pedidos explicitos por ID, siempre con tools existentes.
 
 ### Reasoner / Executor Agent
 
@@ -152,11 +152,13 @@ Implementado en el repositorio y cubierto por tests/checklist manual:
 - Memoria conversacional simple con traza `Memoria`.
 - Docker Compose con backend, mock de produccion, Chainlit y ChromaDB HTTP real.
 - `needs_clarification` para ambiguedades de dominio sin consultar tools.
+- Planner flexible para sinonimos operativos, cliente en minusculas y pedidos
+  explicitos sin SQL ni HTTP libre.
 
 Extension opcional post-cierre:
 
-- R13-R18 del plan vivo: planner mas flexible, Query DSL segura, joins
-  controlados y tests reales opt-in.
+- R14-R18 del plan vivo: Query DSL segura, joins controlados y tests reales
+  opt-in.
 
 ## Justificacion de Arquitectura
 

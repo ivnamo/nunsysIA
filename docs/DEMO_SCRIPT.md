@@ -32,7 +32,7 @@ Desde la raiz del repo:
 Resultado esperado versionado:
 
 ```text
-145 passed, 2 warnings
+156 passed, 2 warnings
 ```
 
 Para demo Docker con Gemini real:
@@ -234,7 +234,7 @@ Defensa:
 - `fallbacks` son visibles; no se ocultan rutas alternativas.
 - La memoria no decide hechos de negocio; solo resuelve referencias.
 - Docker Compose valida backend, mock de produccion, Chainlit y ChromaDB HTTP.
-- La suite cubre contratos y regresiones criticas: `145 passed`.
+- La suite cubre contratos y regresiones criticas: `156 passed`.
 
 ## Deuda consciente que conviene admitir
 

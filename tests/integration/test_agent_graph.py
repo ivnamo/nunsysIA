@@ -213,6 +213,67 @@ def test_agent_graph_answers_delayed_orders_with_erp_customer_context(
     assert "Averia en linea de produccion" in response.answer
 
 
+def test_agent_graph_answers_problematic_production_orders(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        question="Que pedidos tengo parados o con problemas de produccion?",
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Produccion", "ERP"]
+    assert "10252" in response.answer
+    assert "10312" in response.answer
+    assert "10301" in response.answer
+    assert "Falta de material" in response.answer
+    assert "Falta de capacidad" in response.answer
+    assert "Averia en linea de produccion" in response.answer
+    assert [call.action for call in response.tool_calls[:3]] == [
+        "list_orders",
+        "list_orders",
+        "get_customers_for_production_orders",
+    ]
+    assert response.data["production_order_ids"] == [10252, 10312, 10301]
+
+
+def test_agent_graph_answers_lowercase_customer_operational_risk(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        question="que tiene pendiente alfki y que riesgo operativo tiene?",
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["ERP", "Produccion"]
+    assert "10248" in response.answer
+    assert "10252" in response.answer
+    assert "Falta de material" in response.answer
+
+
+def test_agent_graph_answers_explicit_order_status_query(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        question="en que estado esta el pedido 10252?",
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Produccion", "ERP"]
+    assert "10252" in response.answer
+    assert "Falta de material" in response.answer
+    assert "Alfreds Futterkiste" in response.answer
+    assert response.data["production_order_ids"] == [10252]
+
+
 def test_agent_graph_returns_insufficient_context_when_rag_tool_is_not_configured(
     erp_tool: ERPTool,
     production_tool: ProductionAPITool,

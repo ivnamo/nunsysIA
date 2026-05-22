@@ -33,6 +33,8 @@ class Settings(BaseModel):
     gemini_embedding_model: str = "gemini-embedding-001"
     openai_embedding_model: str = "text-embedding-3-small"
     embedding_model: str = "gemini-embedding-001"
+    enable_deepagents_experiment: bool = False
+    deepagents_model: str = "google_genai:gemini-3.5-flash"
 
 
 @lru_cache
@@ -83,6 +85,11 @@ def get_settings() -> Settings:
             "text-embedding-3-small",
         ),
         embedding_model=os.getenv("EMBEDDING_MODEL", "gemini-embedding-001"),
+        enable_deepagents_experiment=_env_bool("ENABLE_DEEPAGENTS_EXPERIMENT"),
+        deepagents_model=os.getenv(
+            "DEEPAGENTS_MODEL",
+            "google_genai:gemini-3.5-flash",
+        ),
     )
 
 
@@ -107,3 +114,10 @@ def _secret_from_env(name: str) -> str | None:
             return _empty_to_none(secret_file.read())
     except OSError as exc:
         raise RuntimeError(f"No se pudo leer {name}_FILE={file_path!r}.") from exc
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}

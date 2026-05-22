@@ -59,12 +59,14 @@ def _build_business_workflow_tool(workflow: BusinessWorkflow):
     def consultar_flujo_agentic(
         question: str,
         conversation_id: str | None = None,
+        include_citation_previews: bool = False,
     ) -> dict[str, Any]:
         """Consulta el workflow agentic empresarial auditado."""
         response = workflow.run(
             QueryRequest(
                 question=question,
                 conversation_id=conversation_id,
+                include_citation_previews=include_citation_previews,
             )
         )
         return response.model_dump(mode="json")
@@ -79,4 +81,9 @@ Usala para responder preguntas sobre ERP, produccion, documentos o memoria
 conversacional. No inventes datos ni sustituyas el workflow principal: resume
 la respuesta devuelta por la tool y conserva el estado, fuentes, tool calls y
 fallbacks cuando sean relevantes para auditoria.
+
+Cuando recibas una consulta de negocio, llama `consultar_flujo_agentic` una vez
+con la pregunta original, el `conversation_id` si se proporciona y
+`include_citation_previews` si se solicita. No uses herramientas de sistema ni
+filesystem para responder preguntas de negocio.
 """

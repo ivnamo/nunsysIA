@@ -40,6 +40,19 @@ def test_settings_load_llm_and_embedding_provider_env(
     get_settings.cache_clear()
 
 
+def test_settings_loads_deepagents_experiment_env(monkeypatch) -> None:
+    get_settings.cache_clear()
+    monkeypatch.setenv("ENABLE_DEEPAGENTS_EXPERIMENT", "true")
+    monkeypatch.setenv("DEEPAGENTS_MODEL", "google_genai:gemini-3.5-flash")
+
+    settings = get_settings()
+
+    assert settings.enable_deepagents_experiment is True
+    assert settings.deepagents_model == "google_genai:gemini-3.5-flash"
+
+    get_settings.cache_clear()
+
+
 def test_settings_loads_chroma_local_persistent_env(monkeypatch) -> None:
     get_settings.cache_clear()
     monkeypatch.setenv("CHROMA_MODE", "persistent")

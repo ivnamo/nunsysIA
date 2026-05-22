@@ -49,7 +49,7 @@ Detalle completo en `.cursor/rules/git-workflow.mdc`.
 ## Despues de Cada Fase
 
 - Ejecutar tests relevantes.
-- Resultado actual de la suite versionada: `191 passed, 5 skipped, 2 warnings`.
+- Resultado actual de la suite versionada: `193 passed, 5 skipped, 2 warnings`.
 - Si la fase toca comportamiento visible del LLM, ejecutar tambien:
   `RUN_REAL_LLM_TESTS=1 pytest -m real_llm -rs` con una clave real configurada.
 - Revisar archivos tocados.

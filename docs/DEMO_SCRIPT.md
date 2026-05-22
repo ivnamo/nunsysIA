@@ -32,7 +32,7 @@ Desde la raiz del repo:
 Resultado esperado versionado:
 
 ```text
-191 passed, 5 skipped, 2 warnings
+193 passed, 5 skipped, 2 warnings
 ```
 
 Validacion opt-in con LLM real antes de la demo:
@@ -45,7 +45,7 @@ $env:RUN_REAL_LLM_TESTS="1"
 Resultado esperado:
 
 ```text
-5 passed, 191 deselected, 2 warnings
+5 passed, 193 deselected, 2 warnings
 ```
 
 Para demo Docker con Gemini real:
@@ -271,7 +271,7 @@ Defensa:
 - `fallbacks` son visibles; no se ocultan rutas alternativas.
 - La memoria no decide hechos de negocio; solo resuelve referencias.
 - Docker Compose valida backend, mock de produccion, Chainlit y ChromaDB HTTP.
-- La suite cubre contratos y regresiones criticas: `191 passed` y deja los 5
+- La suite cubre contratos y regresiones criticas: `193 passed` y deja los 5
   tests `real_llm` como validacion opt-in.
 
 ## Deuda consciente que conviene admitir

@@ -81,8 +81,8 @@ Este repositorio contiene:
   tool calls visibles.
 - Respuesta final mas natural para cruces, respuestas parciales y
   clarificaciones, manteniendo validacion de hechos criticos contra evidencias.
-- suite automatizada versionada actual: `191 passed, 5 skipped, 2 warnings`.
-- suite opt-in con LLM real: `5 passed, 191 deselected, 2 warnings` usando
+- suite automatizada versionada actual: `193 passed, 5 skipped, 2 warnings`.
+- suite opt-in con LLM real: `5 passed, 193 deselected, 2 warnings` usando
   `RUN_REAL_LLM_TESTS=1`.
 
 Disponible para ejecutar actualmente:
@@ -462,4 +462,4 @@ soportados como `terminado` ante prompt injection.
 R18 queda cerrada con tests `real_llm` opt-in. Por defecto la suite rapida los
 salta; al activar `RUN_REAL_LLM_TESTS=1`, validan planner real, final real,
 Query DSL segura, memoria como referencia y guardrails de prompt injection.
-Suite actual: `191 passed, 5 skipped, 2 warnings`.
+Suite actual: `193 passed, 5 skipped, 2 warnings`.

@@ -432,6 +432,44 @@ def test_agent_graph_answers_order_penalties_with_erp_production_and_documents(
     assert response.data["rag"]["documents"] == ["anexo_penalizaciones_sla.pdf"]
 
 
+def test_agent_graph_answers_potential_penalty_orders_with_enriched_rag_query(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+) -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Penalizaciones por retrasos. No aplicacion por bloqueo de produccion, "
+            "falta de material, falta de capacidad o averia en linea."
+        ),
+        filename="anexo_penalizaciones_sla.pdf",
+    )
+
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        rag_tool=DocumentRAGTool(
+            vector_store=vector_store,
+            embedding_model=DeterministicEmbeddingModel(),
+        ),
+        question="Dame los pedidos que puedan generar penalizacion y dime por que.",
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["ERP", "Produccion", "Documentos"]
+    assert "Penalizaciones estimadas por pedido" in response.answer
+    assert "10252" in response.answer
+    assert "10301" in response.answer
+    assert "sin penalizacion aplicable" in response.answer
+    assert response.tool_calls[-1].tool == "DocumentRAGTool"
+    assert response.tool_calls[-1].args["query"] == (
+        "penalizaciones por retrasos no aplicacion bloqueo produccion falta "
+        "material falta capacidad averia linea"
+    )
+    assert response.data["rag"]["documents"] == ["anexo_penalizaciones_sla.pdf"]
+
+
 def test_agent_graph_blocks_order_penalties_when_document_context_is_insufficient(
     erp_tool: ERPTool,
     production_tool: ProductionAPITool,

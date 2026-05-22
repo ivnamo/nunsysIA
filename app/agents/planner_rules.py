@@ -286,6 +286,15 @@ def is_order_penalty_query(normalized: str) -> bool:
             "cada uno",
             "cada pedido",
             "en cada uno",
+            "generar",
+            "pueda",
+            "puedan",
+            "puede",
+            "pueden",
+            "aplica",
+            "aplicar",
+            "riesgo",
+            "por que",
         )
     )
 

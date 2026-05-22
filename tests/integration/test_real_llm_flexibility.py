@@ -76,6 +76,7 @@ def workflow_service(real_chat_model) -> QueryWorkflowService:
             embedding_model=embedding_model,
         ),
         chat_model=real_chat_model,
+        llm_timeout_seconds=_real_llm_timeout_seconds(),
     )
 
 
@@ -218,7 +219,7 @@ def _real_llm_settings() -> Settings:
             "llm_provider": provider,
             "embedding_provider": "deterministic",
             "llm_temperature": 0.0,
-            "llm_timeout_seconds": float(os.getenv("REAL_LLM_TIMEOUT_SECONDS", "90")),
+            "llm_timeout_seconds": _real_llm_timeout_seconds(),
         }
     )
 
@@ -240,6 +241,10 @@ def _assert_no_llm_fallbacks(response: QueryResponse) -> None:
 def _normalize_text(value: str) -> str:
     normalized = unicodedata.normalize("NFD", value.lower())
     return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+
+
+def _real_llm_timeout_seconds() -> float:
+    return float(os.getenv("REAL_LLM_TIMEOUT_SECONDS", "90"))
 
 
 def _production_transport() -> httpx.MockTransport:

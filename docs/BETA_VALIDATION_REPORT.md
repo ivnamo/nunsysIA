@@ -2760,3 +2760,57 @@ RUN_REAL_LLM_TESTS=1 pytest -m real_llm -rs
 Decision: R18 queda cerrada. La validacion LLM real queda automatizada y opt-in:
 sirve para ensayos beta locales antes de demo sin introducir dependencia de red
 ni coste en la suite rapida.
+
+## Incidencia de ensayo manual R19 - Penalizacion potencial
+
+Fecha: 2026-05-22.
+
+Pregunta detectada en Chainlit:
+
+```text
+Dame los pedidos que puedan generar penalizacion y dime por que.
+```
+
+Resultado observado antes del fix:
+
+- `status`: `insufficient_context`
+- `sources`: `["Produccion", "Documentos"]`
+- `tool_calls`: `ProductionAPITool.list_orders(blocked)`,
+  `ProductionAPITool.list_orders(delayed)`, `DocumentRAGTool.query`
+- `DocumentRAGTool`: `0 chunks relevantes recuperados`
+
+Diagnostico:
+
+- No era el comportamiento deseado para demo si los PDFs SLA estan cargados.
+- La pregunta es una variante flexible de penalizaciones por pedido, pero podia
+  quedar en una ruta LLM que consultaba produccion y lanzaba una query documental
+  demasiado pobre.
+- La ruta estable ya existia para penalizaciones por estado: ERP mensual,
+  produccion por pedido y RAG con query enriquecida sobre retrasos, exclusiones,
+  bloqueo, falta de material/capacidad y averia de linea.
+
+Fix aplicado:
+
+- La deteccion determinista de `is_order_penalty_query` incluye ahora
+  `generar`, `puedan`, `puede`, `pueden`, `aplica`, `aplicar`, `riesgo` y
+  `por que`.
+- Esa pregunta entra por plan mixto determinista y no depende de que el LLM
+  formule la query RAG.
+
+Validacion:
+
+```text
+tests/unit/test_planner.py
+26 passed
+
+tests/integration/test_agent_graph.py
+17 passed, 1 warning
+
+python -m pytest
+193 passed, 5 skipped, 2 warnings
+```
+
+Decision: hotfix aceptado antes de demo. Al repetir la pregunta en Chainlit tras
+reiniciar/reconstruir el backend, debe recuperar el anexo SLA y responder con
+pedidos/evidencia disponible, manteniendo `insufficient_context` solo si no hay
+documentos cargados.

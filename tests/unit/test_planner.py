@@ -331,6 +331,45 @@ def test_planner_routes_order_penalty_question_as_mixed_without_llm() -> None:
     assert state["plan"]["steps"][2]["action"] == "query"
 
 
+def test_planner_routes_potential_order_penalty_question_as_mixed_without_llm() -> None:
+    chat_model = _FakeChatModel(
+        """
+        {
+          "intent": "rag",
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "DocumentRAGTool",
+              "action": "query",
+              "args": {"query": "Dame los pedidos que puedan generar penalizacion y dime por que.", "top_k": 5},
+              "required": true
+            }
+          ],
+          "expected_sources": ["Documentos"],
+          "answer_requirements": []
+        }
+        """
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner(
+        {
+            "question": "Dame los pedidos que puedan generar penalizacion y dime por que.",
+            "attempts": 0,
+        }
+    )
+
+    assert chat_model.calls == 0
+    assert state["intent"] == "mixed"
+    assert state["plan"]["expected_sources"] == ["ERP", "Produccion", "Documentos"]
+    assert [step["tool"] for step in state["plan"]["steps"]] == [
+        "ERPTool",
+        "ProductionAPITool",
+        "DocumentRAGTool",
+    ]
+    assert "falta material" in state["plan"]["steps"][2]["args"]["query"]
+
+
 def test_planner_marks_out_of_scope_query_as_unsupported() -> None:
     planner = PlannerAgent()
 

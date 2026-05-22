@@ -23,8 +23,8 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `191 passed, 5 skipped, 2 warnings`.
-- Suite opt-in LLM real: `5 passed, 191 deselected, 2 warnings`.
+- Suite automatizada declarada: `193 passed, 5 skipped, 2 warnings`.
+- Suite opt-in LLM real: `5 passed, 193 deselected, 2 warnings`.
 - Query DSL segura modelada, validada, ejecutable desde tools internas e
   integrada en planner/reasoner para cruces controlados por `order_id`.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
@@ -171,6 +171,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R16 | cerrado | Reasoner para joins controlados | Cruces de datos ad hoc o duplicados | `feat(reasoner): execute flexible queries and business joins` |
 | R17 | cerrado | Respuesta conversacional grounded | Respuestas utiles pero demasiado rigidas | `feat(response): improve grounded conversational answers` |
 | R18 | cerrado | Stress tests reales opt-in | Validacion LLM real no automatizada | `test(llm): add opt-in real LLM stress validation` |
+| R19 | cerrado | Hotfix ensayo demo penalizacion potencial | Falso negativo RAG en pregunta flexible de penalizaciones | `fix(planner): route potential penalty queries deterministically` |
 
 ## Fase R1 - Guardrail documental en planes mixtos
 
@@ -1323,6 +1324,40 @@ Evidencia 2026-05-22:
 - Decision: R18 cerrado. Los tests reales quedan como validacion local de
   confianza antes de demo sin contaminar CI ni la suite determinista.
 
+## Fase R19 - Hotfix ensayo demo penalizacion potencial
+
+Prioridad: **antes de demo**.
+
+Problema:
+
+- En ensayo manual por Chainlit, la pregunta
+  `Dame los pedidos que puedan generar penalizacion y dime por que.` podia
+  quedar en `insufficient_context`.
+- El planner LLM ejecutaba Produccion y RAG, pero la query documental no siempre
+  incluia los terminos de evidencia que aparecen en el anexo SLA.
+
+Cambio aplicado:
+
+- La deteccion determinista de preguntas de penalizacion por pedido ahora cubre
+  expresiones como `generar penalizacion`, `puedan`, `puede`, `riesgo` y
+  `por que`.
+- La ruta fuerza el plan mixto ya validado: ERP mensual -> estados de
+  Produccion -> RAG con query enriquecida sobre retrasos, exclusiones, bloqueo,
+  falta de material/capacidad y averia de linea.
+
+Evidencia:
+
+- `tests/unit/test_planner.py`: `26 passed`.
+- `tests/integration/test_agent_graph.py`: `17 passed`.
+- Suite completa: `193 passed, 5 skipped, 2 warnings`.
+
+Criterio de aceptacion:
+
+- La pregunta flexible de penalizacion potencial recupera documentacion
+  suficiente cuando el anexo esta cargado.
+- Si no hay anexo/documentos, sigue devolviendo `insufficient_context` en vez de
+  inventar.
+
 ## Matriz de tests por tipo de cambio
 
 | Cambio | Tests focalizados |
@@ -1404,3 +1439,4 @@ Evidencia 2026-05-22:
 | 2026-05-22 | R16 | cerrado | Query DSL integrada en planner/reasoner con joins controlados por `order_id`; focales 57 passed; `pytest`: 188 passed; BT-smoke Docker/Gemini PASS | este bloque |
 | 2026-05-22 | R17 | cerrado | Respuesta conversacional grounded mejorada; focales 33 passed; `pytest`: 191 passed; BT-parcial Docker/Gemini PASS | este bloque |
 | 2026-05-22 | R18 | cerrado | Tests `real_llm` opt-in implementados; suite rapida 191 passed + 5 skipped; `pytest -m real_llm`: 5 passed contra proveedor real | este bloque |
+| 2026-05-22 | R19 | cerrado | Hotfix ensayo manual: `Dame los pedidos que puedan generar penalizacion...` entra por plan mixto determinista; planner 26 passed; graph 17 passed; `pytest`: 193 passed + 5 skipped | este bloque |

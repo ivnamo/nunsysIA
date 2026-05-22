@@ -50,6 +50,13 @@ Como experimento comparativo, existe tambien
 el comportamiento de Deep Agents frente a `/api/query`, no promocionarlo como
 ruta productiva.
 
+R22.4 anade `POST /api/experimental/deepagents/tools/query`, que expone tools
+individuales de ERP, Produccion, RAG y Memoria a Deep Agents. Este flujo registra
+`ToolCallTrace` y reconstruye `QueryResponse`, pero queda marcado como
+experimental: la comparacion real mostro respuestas correctas, aunque con
+estrategias de tool calls diferentes y sobreconsulta documental en preguntas sin
+evidencia.
+
 ## Componentes
 
 ### FastAPI
@@ -59,6 +66,7 @@ Expone la API del sistema:
 - `GET /health`
 - `POST /api/query`
 - `POST /api/experimental/deepagents/query` si se habilita el experimento
+- `POST /api/experimental/deepagents/tools/query` si se habilita el experimento
 - `POST /api/documents/upload`
 - `GET /api/documents`
 

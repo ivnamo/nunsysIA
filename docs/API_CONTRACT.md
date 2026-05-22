@@ -154,6 +154,34 @@ Errores posibles:
 - `503`: `deepagents` no esta instalado o el entorno no es compatible.
 - `500`: fallo no controlado del flujo experimental.
 
+## `POST /api/experimental/deepagents/tools/query`
+
+Descripcion: endpoint experimental R22.4 donde Deep Agents recibe tools
+individuales de ERP, Produccion, RAG y Memoria. A diferencia del sidecar, este
+flujo no llama al workflow LangGraph como tool unica; deja que Deep Agents
+decida que tools deterministas usar y reconstruye una `QueryResponse` con la
+traza publica registrada durante la ejecucion.
+
+Activacion:
+
+- Requiere `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
+- Requiere entorno compatible con `requirements-deepagents.txt`.
+- Mantiene el mismo request y response schema que `POST /api/query`.
+
+Uso previsto:
+
+- Comparacion tecnica, no ruta estable.
+- Evaluar si Deep Agents planifica bien con tools individuales.
+- Detectar divergencias de fuentes, tool calls, sobreconsulta o perdida de
+  guardrails antes de cualquier promocion.
+
+Errores posibles:
+
+- `404`: experimento no habilitado.
+- `422`: request invalido.
+- `503`: `deepagents` no esta instalado o el entorno no es compatible.
+- `500`: fallo no controlado del flujo experimental con tools individuales.
+
 En respuestas RAG completadas, `data.rag` debe incluir citas documentales por chunk sin exponer el texto completo del chunk:
 
 ```json

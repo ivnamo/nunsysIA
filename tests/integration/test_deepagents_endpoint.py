@@ -4,7 +4,9 @@ from app.agents.deepagents_service import DeepAgentsUnavailableError
 from app.api import routes_deepagents
 from app.api.routes_deepagents import (
     _cached_deepagents_query_service,
+    _cached_deepagents_tools_query_service,
     get_deepagents_query_service,
+    get_deepagents_tools_query_service,
 )
 from app.core.config import get_settings
 from app.main import create_app
@@ -81,11 +83,46 @@ def test_deepagents_endpoint_returns_query_response_from_service() -> None:
     ]
 
 
+def test_deepagents_tools_endpoint_returns_query_response_from_service() -> None:
+    app = create_app()
+    service = _FakeDeepAgentsService(
+        response=QueryResponse(
+            answer="Respuesta tools experimental",
+            sources=["ERP", "Produccion"],
+            reasoning=["Consulta directa via Deep Agents"],
+            tool_calls=[],
+            fallbacks=[],
+            confidence=0.75,
+            status="completed",
+            data={"erp_order_ids": [10248]},
+        )
+    )
+    app.dependency_overrides[get_deepagents_tools_query_service] = lambda: service
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/experimental/deepagents/tools/query",
+        json={"question": "Que pedidos tiene ALFKI?", "conversation_id": "deep-tools"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["answer"] == "Respuesta tools experimental"
+    assert payload["sources"] == ["ERP", "Produccion"]
+    assert service.requests == [
+        QueryRequest(
+            question="Que pedidos tiene ALFKI?",
+            conversation_id="deep-tools",
+        )
+    ]
+
+
 def test_deepagents_endpoint_returns_503_when_package_is_missing(
     monkeypatch,
 ) -> None:
     get_settings.cache_clear()
     _cached_deepagents_query_service.cache_clear()
+    _cached_deepagents_tools_query_service.cache_clear()
     monkeypatch.setenv("ENABLE_DEEPAGENTS_EXPERIMENT", "true")
     monkeypatch.setattr(routes_deepagents, "deepagents_is_available", lambda: False)
     app = create_app()
@@ -100,6 +137,7 @@ def test_deepagents_endpoint_returns_503_when_package_is_missing(
     assert "deepagents no esta instalado" in response.json()["detail"]
     get_settings.cache_clear()
     _cached_deepagents_query_service.cache_clear()
+    _cached_deepagents_tools_query_service.cache_clear()
 
 
 def test_deepagents_endpoint_returns_503_when_dependency_is_missing() -> None:

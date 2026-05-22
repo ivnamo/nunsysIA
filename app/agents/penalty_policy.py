@@ -46,15 +46,27 @@ class PenaltyPolicyResult:
     def answer(self) -> str:
         if not self.has_document_evidence:
             return (
-                "No hay contexto documental suficiente para estimar "
-                "penalizaciones sin inventar."
+                "No he encontrado documentacion suficiente para estimar "
+                "penalizaciones con fiabilidad."
             )
         if not self.assessments:
             return "No se encontraron pedidos ERP para estimar penalizaciones."
         return (
-            "Penalizaciones estimadas por pedido: "
-            + "; ".join(assessment.render() for assessment in self.assessments)
-            + "."
+            "Con los datos disponibles, esta es la evaluacion de penalizaciones "
+            "por pedido:\n\n"
+            + _markdown_table(
+                ["Pedido", "Cliente", "Estado", "Penalizacion"],
+                [
+                    [
+                        str(assessment.order_id),
+                        assessment.customer,
+                        assessment.status_detail,
+                        assessment.decision,
+                    ]
+                    for assessment in self.assessments
+                ],
+            )
+            + _attention_summary(self.assessments)
         )
 
 
@@ -124,32 +136,31 @@ def _penalty_decision(
     production: dict[str, Any] | None,
 ) -> str:
     if production is None:
-        return "no calculable porque falta estado de produccion"
+        return "No calculable: falta estado de produccion"
 
     status = str(production.get("production_status") or "")
     reason = str(production.get("blocked_reason") or production.get("delay_reason") or "")
 
     if status == "blocked" or _is_penalty_exclusion_reason(reason):
-        return "sin penalizacion aplicable segun la evidencia actual por exclusion documental"
+        return "No aplicable segun la documentacion consultada"
 
     required_date = _parse_date(order.get("required_date"))
     shipped_date = _parse_date(order.get("shipped_date"))
 
     if shipped_date and required_date:
         if shipped_date <= required_date:
-            return "sin penalizacion aplicable porque consta enviado antes del plazo requerido"
+            return "No aplicable; consta enviado antes del plazo requerido"
         return (
-            "requiere calcular dias laborables de retraso e imputabilidad logistica "
+            "Pendiente de calcular dias laborables de retraso e imputabilidad logistica "
             "antes de aplicar 2%, 5% o 3% si era urgente"
         )
 
     if status == "delayed":
         return (
-            "pendiente de fecha real de entrega e imputabilidad; no se puede aplicar "
-            "penalizacion todavia"
+            "Pendiente de fecha real de entrega e imputabilidad; no aplicable por ahora"
         )
 
-    return "sin penalizacion aplicable con la evidencia actual"
+    return "No aplicable con los datos disponibles"
 
 
 def _has_penalty_document_evidence(rag_evidence: dict[str, Any] | None) -> bool:
@@ -203,3 +214,28 @@ def _as_list(value: Any) -> list[Any]:
 
 def _as_dict(value: Any) -> dict[Any, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def _markdown_table(headers: list[str], rows: list[list[str]]) -> str:
+    header = "| " + " | ".join(headers) + " |"
+    separator = "| " + " | ".join("---" for _ in headers) + " |"
+    body = ["| " + " | ".join(str(value) for value in row) + " |" for row in rows]
+    return "\n".join([header, separator, *body])
+
+
+def _attention_summary(assessments: list[PenaltyAssessment]) -> str:
+    blocked_or_delayed = [
+        assessment
+        for assessment in assessments
+        if "bloqueado" in assessment.status_detail
+        or "retrasado" in assessment.status_detail
+        or "Pendiente" in assessment.decision
+        or "No calculable" in assessment.decision
+    ]
+    if not blocked_or_delayed:
+        return ""
+    return (
+        "\n\nEl principal punto de atencion es el seguimiento operativo de los "
+        "pedidos bloqueados, retrasados o pendientes de datos antes de comunicar "
+        "una penalizacion."
+    )

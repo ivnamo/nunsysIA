@@ -57,6 +57,8 @@ def unsupported_critical_facts(answer: str, evidence_text: str) -> list[str]:
     for status in sorted(actual["statuses"] - allowed["statuses"]):
         unsupported.append(f"estado no soportado: {status}")
     for proper_name in sorted(actual["proper_names"] - allowed["proper_names"]):
+        if _proper_name_supported_by_text(proper_name, allowed_text):
+            continue
         unsupported.append(f"nombre no soportado: {proper_name}")
 
     return unsupported
@@ -210,6 +212,14 @@ def _proper_name_facts(text: str) -> set[str]:
         text,
     )
     return {phrase.lower() for phrase in phrases}
+
+
+def _proper_name_supported_by_text(proper_name: str, allowed_text: str) -> bool:
+    normalized_allowed = allowed_text.lower()
+    if proper_name in normalized_allowed:
+        return True
+    trimmed = re.sub(r"^(?:el|la|los|las|un|una)\s+", "", proper_name)
+    return trimmed != proper_name and trimmed in normalized_allowed
 
 
 def _status_facts(text: str) -> set[str]:

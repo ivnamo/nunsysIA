@@ -68,7 +68,12 @@ class FinalResponseBuilder:
             fallbacks=fallbacks,
             confidence=confidence_for_status(status),
             status=status,
-            data=build_public_data_summary(public_data),
+            data=build_public_data_summary(
+                public_data,
+                include_rag_text_preview=bool(
+                    state.get("include_citation_previews")
+                ),
+            ),
             failure_reason=sanitize_failure_reason(state.get("failure_reason")),
         )
         return {
@@ -138,12 +143,7 @@ class FinalResponseBuilder:
                 _final_response_fallback("LLM final fallo", sanitize_exception(exc)),
             )
 
-        candidate = " ".join(payload.answer.split())
-        if len(candidate) > constraints["max_chars"]:
-            return (
-                deterministic_answer,
-                _final_response_fallback("LLM final excedio la longitud permitida"),
-            )
+        candidate = _normalize_final_answer(payload.answer)
         unsupported_facts = unsupported_critical_facts(candidate, evidence_text)
         if unsupported_facts:
             return (
@@ -208,6 +208,25 @@ def _final_response_fallback(reason: str, detail: str | None = None) -> str:
         "FALLBACK_FINAL_RESPONSE_DETERMINISTIC: "
         f"{reason}; respuesta construida por reglas."
     )
+
+
+def _normalize_final_answer(answer: str) -> str:
+    text = answer.replace("\r\n", "\n").replace("\r", "\n").strip()
+    lines = [" ".join(line.split()) if line.strip() else "" for line in text.split("\n")]
+
+    normalized_lines = []
+    previous_blank = False
+    for line in lines:
+        if not line:
+            if previous_blank:
+                continue
+            previous_blank = True
+            normalized_lines.append("")
+            continue
+        previous_blank = False
+        normalized_lines.append(line)
+
+    return "\n".join(normalized_lines).strip()
 
 
 def _sources(values: list[str]) -> list[SourceName]:

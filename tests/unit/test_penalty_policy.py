@@ -32,9 +32,12 @@ def test_penalty_policy_excludes_blocked_and_production_caused_delays() -> None:
     answer = result.answer()
 
     assert result.has_document_evidence is True
-    assert "10252 (ALFKI): bloqueado (Falta de material)" in answer
-    assert "10301 (Ana Trujillo Emparedados): retrasado" in answer
-    assert answer.count("exclusion documental") == 2
+    assert "| Pedido | Cliente | Estado | Penalizacion |" in answer
+    assert "| 10252 | ALFKI | bloqueado (Falta de material) |" in answer
+    assert "| 10301 | Ana Trujillo Emparedados | retrasado" in answer
+    assert "No aplicable segun la documentacion consultada" in answer
+    assert "exclusion documental" not in answer
+    assert "evidencia actual" not in answer
 
 
 def test_penalty_policy_keeps_finished_order_without_delay_as_not_applicable() -> None:
@@ -58,7 +61,7 @@ def test_penalty_policy_keeps_finished_order_without_delay_as_not_applicable() -
         }
     )
 
-    assert "10255 (ALFKI): finalizado" in answer
+    assert "| 10255 | ALFKI | finalizado |" in answer
     assert "consta enviado antes del plazo requerido" in answer
 
 
@@ -83,7 +86,8 @@ def test_penalty_policy_requires_document_evidence_before_assessing() -> None:
     )
 
     assert answer == (
-        "No hay contexto documental suficiente para estimar penalizaciones sin inventar."
+        "No he encontrado documentacion suficiente para estimar penalizaciones "
+        "con fiabilidad."
     )
     assert "10252" not in answer
 

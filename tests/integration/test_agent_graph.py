@@ -225,7 +225,7 @@ def test_agent_graph_answers_delayed_orders_with_erp_customer_context(
 
     assert response.status == "completed"
     assert response.sources == ["Produccion", "ERP"]
-    assert "Clientes afectados" in response.answer
+    assert "clientes afectados" in response.answer
     assert "retrasado" in response.answer
     assert "10301" in response.answer
     assert "Ana Trujillo Emparedados" in response.answer
@@ -292,7 +292,7 @@ def test_agent_graph_executes_safe_query_dsl_for_cross_blocked_customers(
     assert response.tool_calls[1].args["filters"] == [
         {"field": "order_id", "operator": "in", "value": [10252, 10312]}
     ]
-    assert response.answer.startswith("Clientes afectados por bloqueos")
+    assert response.answer.startswith("Hay clientes afectados por bloqueos")
     assert "10252" in response.answer
     assert "10312" in response.answer
     assert "Alfreds Futterkiste" in response.answer
@@ -353,7 +353,7 @@ def test_agent_graph_returns_insufficient_context_when_rag_tool_is_not_configure
     assert response.sources == []
     assert response.tool_calls[0].status == "skipped"
     assert response.tool_calls[0].action == "query"
-    assert "contexto documental suficiente" in response.answer
+    assert "documentos disponibles" in response.answer
 
 
 def test_agent_graph_answers_rag_query_when_document_tool_is_configured(
@@ -414,12 +414,12 @@ def test_agent_graph_answers_order_penalties_with_erp_production_and_documents(
 
     assert response.status == "completed"
     assert response.sources == ["ERP", "Produccion", "Documentos"]
-    assert "Penalizaciones estimadas por pedido" in response.answer
+    assert "evaluacion de penalizaciones por pedido" in response.answer
     assert "10252" in response.answer
     assert "Falta de material" in response.answer
     assert "10301" in response.answer
     assert "Averia en linea de produccion" in response.answer
-    assert "sin penalizacion aplicable" in response.answer
+    assert "No aplicable" in response.answer
     assert [call.tool for call in response.tool_calls] == [
         "ERPTool",
         "ProductionAPITool",
@@ -458,10 +458,10 @@ def test_agent_graph_answers_potential_penalty_orders_with_enriched_rag_query(
 
     assert response.status == "completed"
     assert response.sources == ["ERP", "Produccion", "Documentos"]
-    assert "Penalizaciones estimadas por pedido" in response.answer
+    assert "evaluacion de penalizaciones por pedido" in response.answer
     assert "10252" in response.answer
     assert "10301" in response.answer
-    assert "sin penalizacion aplicable" in response.answer
+    assert "No aplicable" in response.answer
     assert response.tool_calls[-1].tool == "DocumentRAGTool"
     assert response.tool_calls[-1].args["query"] == (
         "penalizaciones por retrasos no aplicacion bloqueo produccion falta "
@@ -486,8 +486,8 @@ def test_agent_graph_blocks_order_penalties_when_document_context_is_insufficien
 
     assert response.status == "insufficient_context"
     assert response.sources == ["ERP", "Produccion", "Documentos"]
-    assert "contexto documental suficiente" in response.answer
-    assert "Penalizaciones estimadas por pedido" not in response.answer
+    assert "documentos disponibles" in response.answer
+    assert "evaluacion de penalizaciones por pedido" not in response.answer
     assert response.data["rag"]["status"] == "insufficient_context"
 
 
@@ -508,7 +508,7 @@ def test_agent_graph_returns_tool_error_when_rag_embedding_fails(
     assert response.status == "tool_error"
     assert response.sources == ["Documentos"]
     assert response.tool_calls[0].status == "error"
-    assert "fiable" in response.answer
+    assert "fiabilidad" in response.answer
 
 
 def test_agent_graph_exposes_replan_trace_without_raw_attempt_data(

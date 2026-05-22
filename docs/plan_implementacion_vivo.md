@@ -10,7 +10,7 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R16 cerrada** y queda lista para demo/revision tecnica. El guion
+La POC tiene **R17 cerrada** y queda lista para demo/revision tecnica. El guion
 final esta en `docs/DEMO_SCRIPT.md`.
 
 Estado declarado y versionado:
@@ -23,7 +23,7 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `188 passed, 2 warnings`.
+- Suite automatizada declarada: `191 passed, 2 warnings`.
 - Query DSL segura modelada, validada, ejecutable desde tools internas e
   integrada en planner/reasoner para cruces controlados por `order_id`.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
@@ -168,7 +168,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R14 | cerrado | Modelos y validadores de Query DSL | LLM demasiado cerca de SQL/HTTP libre | `feat(tools): add safe query dsl models` |
 | R15 | cerrado | ERPQueryTool y ProductionQueryTool | Consultas abiertas sin schema cerrado | `feat(tools): add safe ERP and production query dsl` |
 | R16 | cerrado | Reasoner para joins controlados | Cruces de datos ad hoc o duplicados | `feat(reasoner): execute flexible queries and business joins` |
-| R17 | pendiente | Respuesta conversacional grounded | Respuestas utiles pero demasiado rigidas | `feat(response): improve grounded conversational answers` |
+| R17 | cerrado | Respuesta conversacional grounded | Respuestas utiles pero demasiado rigidas | `feat(response): improve grounded conversational answers` |
 | R18 | pendiente | Stress tests reales opt-in | Validacion LLM real no automatizada | `test(llm): add opt-in real LLM stress validation` |
 
 ## Fase R1 - Guardrail documental en planes mixtos
@@ -1243,6 +1243,25 @@ Criterio de aceptacion:
   clientes ni clausulas no presentes en evidencias.
 - Prompt injection como `Ignora las fuentes...` no altera facts.
 
+Estado 2026-05-22:
+
+- Cerrado.
+- Las respuestas de clientes afectados por incidencias de produccion se
+  redactan por cliente y pedido, con prefijo especifico para bloqueos o
+  retrasos.
+- Las respuestas parciales resumen evidencias disponibles y declaran fuentes
+  faltantes sin inventar.
+- El prompt final explicita que peticiones de ignorar fuentes, ocultar
+  trazabilidad o inventar hechos son inseguras.
+- El checker de grounding detecta sinonimos de estado `terminado/terminada`
+  como `finished` y los bloquea si la evidencia no lo soporta.
+- Tests focales `tests/unit/test_final_response.py` +
+  `tests/integration/test_agent_graph.py`: `33 passed`.
+- Suite completa: `191 passed, 2 warnings`.
+- `BT-parcial` Docker/Gemini real: PASS (`R17-DSL-CROSS`,
+  delayed customers, prompt-injection de estado/penalizacion, clarification,
+  mixto y guardrail RAG).
+
 ## Fase R18 - Stress tests reales opt-in
 
 Prioridad: **cierre de la extension**.
@@ -1370,3 +1389,4 @@ Criterio de aceptacion:
 | 2026-05-22 | R14 | cerrado | Query DSL segura modelada y validada sin ejecucion generica; `tests/unit/test_query_dsl.py`: 19 passed; `pytest`: 175 passed | este bloque |
 | 2026-05-22 | R15 | cerrado | ERPQueryTool y ProductionQueryTool ejecutan specs DSL validadas sin integracion agentic; focales 36 passed; `pytest`: 184 passed | este bloque |
 | 2026-05-22 | R16 | cerrado | Query DSL integrada en planner/reasoner con joins controlados por `order_id`; focales 57 passed; `pytest`: 188 passed; BT-smoke Docker/Gemini PASS | este bloque |
+| 2026-05-22 | R17 | cerrado | Respuesta conversacional grounded mejorada; focales 33 passed; `pytest`: 191 passed; BT-parcial Docker/Gemini PASS | este bloque |

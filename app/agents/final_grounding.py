@@ -241,6 +241,10 @@ def _status_facts(text: str) -> set[str]:
             "finalizada",
             "finalizados",
             "finalizadas",
+            "terminado",
+            "terminada",
+            "terminados",
+            "terminadas",
         ),
     }
     return {

@@ -29,8 +29,8 @@ Pendiente antes del cierre final:
 
 Extension opcional post-cierre:
 
-- R17-R18 en `docs/plan_implementacion_vivo.md`: respuesta conversacional
-  grounded y tests reales opt-in con LLM. No bloquea la revision
+- R18 en `docs/plan_implementacion_vivo.md`: tests reales opt-in con LLM.
+  No bloquea la revision
   actual.
 
 ## Fase 0: Setup y estructura
@@ -316,7 +316,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`188 passed, 2 warnings`).
+- Mantener suite automatizada versionada actual (`191 passed, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.
@@ -351,7 +351,7 @@ Riesgos:
 
 ## Fase P13: Flexibilidad conversacional + Query DSL segura
 
-Estado: en curso como extension opcional. R12, R13, R14, R15 y R16 quedan
+Estado: en curso como extension opcional. R12, R13, R14, R15, R16 y R17 quedan
 cerradas.
 
 Objetivo: ampliar la POC sin cambiar el stack ni el flujo agentic aprobado,
@@ -369,7 +369,8 @@ Tareas:
   completado en R15.
 - Ejecutar cruces ERP-Produccion solo en el reasoner y por `order_id`. Estado:
   completado en R16.
-- Mejorar respuesta final manteniendo grounding estricto.
+- Mejorar respuesta final manteniendo grounding estricto. Estado: completado
+  en R17.
 - Anadir tests `real_llm` opt-in con `RUN_REAL_LLM_TESTS=1`.
 
 Criterio de aceptacion:

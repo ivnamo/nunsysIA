@@ -42,6 +42,9 @@ def build_deterministic_answer(
         return "No se pudo completar la consulta de forma fiable."
 
     data = state.get("data", {})
+    if status == "partial_answer":
+        return _partial_answer(plan, state, data)
+
     if _is_order_penalty_plan(plan, state) and data.get("erp_orders") and data.get(
         "production_by_order"
     ):
@@ -49,6 +52,9 @@ def build_deterministic_answer(
 
     if data.get("rag"):
         return data["rag"]["answer"]
+
+    if data.get("production_orders") and _is_affected_customer_query(plan, state):
+        return _answer_affected_customers(data)
 
     if data.get("production_orders"):
         return _answer_production_orders(data)
@@ -70,9 +76,6 @@ def build_deterministic_answer(
 
     if data.get("memory"):
         return _answer_memory(data)
-
-    if status == "partial_answer":
-        return "La consulta produjo una respuesta parcial; revisa la traza para ver fuentes faltantes."
 
     return "La consulta se completo, pero no se encontraron datos relevantes."
 
@@ -114,9 +117,8 @@ def _clarification_answer(plan: ExecutionPlan) -> str:
     requirements_text = " ".join(plan.answer_requirements).lower()
     if "cliente concreto" in requirements_text:
         return (
-            "Para consultar pedidos pendientes necesito un cliente concreto "
-            "o contexto conversacional previo. "
-            "Indica el cliente o los pedidos concretos."
+            "Necesito un cliente concreto o pedidos concretos para consultar "
+            "pedidos pendientes sin inventar. Indica el cliente o los pedidos."
         )
     if "contexto conversacional previo" in requirements_text:
         return (
@@ -196,6 +198,45 @@ def _answer_production_orders(data: dict[str, Any]) -> str:
         prefix = "Pedidos retrasados en produccion"
     else:
         prefix = "Pedidos de produccion"
+    return prefix + ": " + "; ".join(lines) + "."
+
+
+def _answer_affected_customers(data: dict[str, Any]) -> str:
+    production_orders = data.get("production_orders", [])
+    customers_by_order = data.get("customers_by_order", {})
+    if not production_orders:
+        return "No se encontraron pedidos de produccion con los criterios solicitados."
+
+    grouped: dict[str, list[str]] = {}
+    unresolved = []
+    for production_order in production_orders:
+        order_id = production_order["order_id"]
+        customer = customers_by_order.get(order_id)
+        if customer is None:
+            customer = customers_by_order.get(str(order_id))
+        status = production_status_label(production_order["production_status"])
+        reason = (
+            production_order.get("blocked_reason")
+            or production_order.get("delay_reason")
+            or "sin motivo informado"
+        )
+        detail = f"pedido {order_id} {status} por {reason}"
+        if customer:
+            customer_label = f"{customer['customer_id']} - {_customer_name(customer)}"
+            grouped.setdefault(customer_label, []).append(detail)
+        else:
+            unresolved.append(detail)
+
+    lines = [
+        f"{customer}: {', '.join(details)}"
+        for customer, details in sorted(grouped.items())
+    ]
+    if unresolved:
+        lines.append("cliente ERP no resuelto: " + ", ".join(unresolved))
+
+    if not lines:
+        return "No se pudieron resolver clientes afectados con la evidencia disponible."
+    prefix = _affected_customers_prefix(production_orders)
     return prefix + ": " + "; ".join(lines) + "."
 
 
@@ -303,6 +344,98 @@ def _is_order_penalty_plan(plan: ExecutionPlan, state: AgentState) -> bool:
         return False
     question = str(state.get("question") or "").lower()
     return "penaliz" in question and ("pedido" in question or "order" in question)
+
+
+def _is_affected_customer_query(plan: ExecutionPlan, state: AgentState) -> bool:
+    text = " ".join(
+        [
+            str(state.get("question") or ""),
+            " ".join(plan.answer_requirements),
+        ]
+    ).lower()
+    if "cliente" not in text and "clientes" not in text:
+        return False
+    return any(
+        marker in text
+        for marker in (
+            "afectad",
+            "cruza",
+            "cruzar",
+            "bloqueo",
+            "bloqueos",
+        )
+    )
+
+
+def _partial_answer(
+    plan: ExecutionPlan,
+    state: AgentState,
+    data: dict[str, Any],
+) -> str:
+    missing_sources = _missing_sources(plan, state)
+    available_parts = []
+
+    erp_orders = data.get("erp_orders") or data.get("erp_query_orders") or []
+    if erp_orders:
+        available_parts.append(
+            f"ERP devolvio {len(erp_orders)} pedido(s): {_join_order_ids(erp_orders)}"
+        )
+
+    production_orders = data.get("production_orders") or []
+    if production_orders:
+        available_parts.append(
+            "Produccion devolvio "
+            f"{len(production_orders)} pedido(s): {_join_order_ids(production_orders)}"
+        )
+
+    rag = data.get("rag") or {}
+    if rag.get("status") == "completed":
+        chunks_count = len(rag.get("chunks") or [])
+        available_parts.append(
+            f"Documentos devolvio {chunks_count} chunk(s) relevante(s)"
+        )
+
+    if not available_parts:
+        available_text = "hay trazabilidad de ejecucion, pero no hay datos suficientes"
+    else:
+        available_text = "; ".join(available_parts)
+
+    if missing_sources:
+        missing_text = ", ".join(missing_sources)
+        return (
+            "Respuesta parcial: "
+            f"{available_text}. Falta {missing_text} para completar la respuesta "
+            "sin inventar."
+        )
+    failure_reason = str(state.get("failure_reason") or "faltan datos verificables")
+    return f"Respuesta parcial: {available_text}. {failure_reason}"
+
+
+def _affected_customers_prefix(production_orders: list[dict[str, Any]]) -> str:
+    statuses = {
+        order.get("production_status")
+        for order in production_orders
+        if isinstance(order, dict)
+    }
+    if statuses == {"blocked"}:
+        return "Clientes afectados por bloqueos de produccion"
+    if statuses == {"delayed"}:
+        return "Clientes afectados por pedidos retrasados de produccion"
+    return "Clientes afectados por incidencias de produccion"
+
+
+def _missing_sources(plan: ExecutionPlan, state: AgentState) -> list[str]:
+    sources = set(state.get("sources", []))
+    return [source for source in plan.expected_sources if source not in sources]
+
+
+def _join_order_ids(rows: list[dict[str, Any]]) -> str:
+    order_ids = [
+        str(row["order_id"])
+        for row in rows
+        if isinstance(row, dict) and row.get("order_id") is not None
+    ]
+    return ", ".join(order_ids) if order_ids else "sin IDs de pedido"
 
 
 def _money(value: Any) -> Decimal | None:

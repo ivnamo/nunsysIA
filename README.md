@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R16 cerrada: Query DSL integrada en el flujo agentic con joins controlados**.
-Siguiente bloque: **R17 Respuesta conversacional grounded**, si se decide ampliar la demo.
+Estado actual: **R17 cerrada: respuesta conversacional grounded**.
+Siguiente bloque: **R18 Stress tests reales opt-in**, si se decide cerrar la extension con tests LLM reales automatizables.
 
 Este repositorio contiene:
 
@@ -79,7 +79,9 @@ Este repositorio contiene:
 - Reasoner ejecuta Query DSL segura desde planes validados y cruza
   ERP-Produccion solo por `order_id`, deduplicando pedidos y conservando
   tool calls visibles.
-- suite automatizada versionada actual: `188 passed, 2 warnings`.
+- Respuesta final mas natural para cruces, respuestas parciales y
+  clarificaciones, manteniendo validacion de hechos criticos contra evidencias.
+- suite automatizada versionada actual: `191 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -447,4 +449,9 @@ R16 queda cerrada con integracion agentic de la Query DSL: el planner admite las
 tools DSL bajo schema cerrado, el reasoner ejecuta specs validadas y el cruce
 ERP-Produccion se hace solo por `order_id`. Las rutas demo criticas siguen
 usando tools especificas cuando encajan.
-Suite actual: `188 passed, 2 warnings`.
+
+R17 queda cerrada con respuestas conversacionales mas utiles sin relajar
+grounding: clientes afectados por incidencias se redactan por cliente, las
+respuestas parciales explican que fuente falta y el checker bloquea estados no
+soportados como `terminado` ante prompt injection.
+Suite actual: `191 passed, 2 warnings`.

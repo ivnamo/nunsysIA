@@ -182,8 +182,7 @@ Implementado en el repositorio y cubierto por tests/checklist manual:
 
 Extension opcional post-cierre:
 
-- R17-R18 del plan vivo: respuesta conversacional grounded y tests reales
-  opt-in.
+- R18 del plan vivo: tests reales opt-in.
 
 ## Justificacion de Arquitectura
 

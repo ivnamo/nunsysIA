@@ -225,7 +225,8 @@ def test_agent_graph_answers_delayed_orders_with_erp_customer_context(
 
     assert response.status == "completed"
     assert response.sources == ["Produccion", "ERP"]
-    assert "Pedidos retrasados" in response.answer
+    assert "Clientes afectados" in response.answer
+    assert "retrasado" in response.answer
     assert "10301" in response.answer
     assert "Ana Trujillo Emparedados" in response.answer
     assert "Averia en linea de produccion" in response.answer
@@ -291,6 +292,7 @@ def test_agent_graph_executes_safe_query_dsl_for_cross_blocked_customers(
     assert response.tool_calls[1].args["filters"] == [
         {"field": "order_id", "operator": "in", "value": [10252, 10312]}
     ]
+    assert response.answer.startswith("Clientes afectados por bloqueos")
     assert "10252" in response.answer
     assert "10312" in response.answer
     assert "Alfreds Futterkiste" in response.answer

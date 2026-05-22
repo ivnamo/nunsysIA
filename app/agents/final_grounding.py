@@ -71,6 +71,12 @@ def _normalized_evidence(data: dict[str, Any]) -> dict[str, Any]:
             for order in _as_list(data.get("erp_orders"))
         ]
 
+    if data.get("erp_query_orders") is not None:
+        evidence["erp_query_orders"] = [
+            _normalize_erp_order(order)
+            for order in _as_list(data.get("erp_query_orders"))
+        ]
+
     if data.get("production_orders") is not None:
         evidence["production_orders"] = [
             _normalize_production_order(order)

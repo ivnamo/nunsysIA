@@ -42,10 +42,10 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R15 queda cerrada. La POC queda lista para demo/revision tecnica con guion
+R16 queda cerrada. La POC queda lista para demo/revision tecnica con guion
 final en `docs/DEMO_SCRIPT.md`, clarificaciones controladas para preguntas
-de dominio ambiguas, planner flexible sobre tools existentes y Query DSL segura
-modelada y ejecutable en tools internas aisladas.
+de dominio ambiguas, planner flexible y Query DSL segura integrada en el flujo
+agentic para cruces ERP-Produccion controlados por `order_id`.
 
 Componentes implementados:
 
@@ -75,12 +75,12 @@ Componentes implementados:
 - Planner flexible para cliente en minusculas, pedidos explicitos y sinonimos
   operativos como `parados`, `atascados`, `con problemas` o `riesgo`.
 - Query DSL segura para ERP/Produccion con modelos Pydantic, validadores
-  allowlist y tools internas `ERPQueryTool` / `ProductionQueryTool`. Todavia
-  no esta conectada al planner ni al reasoner.
+  allowlist y tools internas `ERPQueryTool` / `ProductionQueryTool`, conectada
+  al planner/reasoner para cruces controlados por `order_id`.
 
 Suite versionada actual:
 
-- `184 passed, 2 warnings`
+- `188 passed, 2 warnings`
 - Smoke final Docker con Gemini real y ChromaDB HTTP: PASS sin fallbacks en
   casos ERP+produccion, RAG, mixto, memoria y guardrail.
 

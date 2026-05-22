@@ -8,7 +8,9 @@ from app.production.client import ProductionAPIClient
 from app.rag.embeddings import DeterministicEmbeddingModel
 from app.rag.ingestion import DocumentIngestionService
 from app.rag.vector_store import InMemoryDocumentVectorStore
+from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import ERPTool
+from app.tools.production_query_tool import ProductionQueryTool
 from app.tools.production_tool import ProductionAPITool
 from app.tools.rag_tool import DocumentRAGTool
 
@@ -45,12 +47,28 @@ def erp_tool() -> ERPTool:
 
 
 @pytest.fixture()
+def erp_query_tool() -> ERPQueryTool:
+    connection = create_sqlite_connection()
+    load_seed_sql(connection)
+    return ERPQueryTool(NorthwindRepository(connection))
+
+
+@pytest.fixture()
 def production_tool() -> ProductionAPITool:
     client = ProductionAPIClient(
         base_url="http://production-api.test",
         transport=_production_transport(),
     )
     return ProductionAPITool(client)
+
+
+@pytest.fixture()
+def production_query_tool() -> ProductionQueryTool:
+    client = ProductionAPIClient(
+        base_url="http://production-api.test",
+        transport=_production_transport(),
+    )
+    return ProductionQueryTool(client)
 
 
 def test_agent_graph_answers_pending_orders_with_production_status(
@@ -237,6 +255,51 @@ def test_agent_graph_answers_problematic_production_orders(
         "get_customers_for_production_orders",
     ]
     assert response.data["production_order_ids"] == [10252, 10312, 10301]
+
+
+def test_agent_graph_executes_safe_query_dsl_for_cross_blocked_customers(
+    erp_tool: ERPTool,
+    production_tool: ProductionAPITool,
+    erp_query_tool: ERPQueryTool,
+    production_query_tool: ProductionQueryTool,
+) -> None:
+    response = run_agent_graph(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        erp_query_tool=erp_query_tool,
+        production_query_tool=production_query_tool,
+        question="Cruza produccion con ERP y dime clientes afectados por bloqueos.",
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Produccion", "ERP"]
+    assert [call.tool for call in response.tool_calls] == [
+        "ProductionQueryTool",
+        "ERPQueryTool",
+    ]
+    assert [call.action for call in response.tool_calls] == [
+        "query_orders",
+        "query_orders",
+    ]
+    assert response.tool_calls[0].args["filters"] == [
+        {
+            "field": "production_status",
+            "operator": "eq",
+            "value": "blocked",
+        }
+    ]
+    assert response.tool_calls[1].args["filters"] == [
+        {"field": "order_id", "operator": "in", "value": [10252, 10312]}
+    ]
+    assert "10252" in response.answer
+    assert "10312" in response.answer
+    assert "Alfreds Futterkiste" in response.answer
+    assert "BONAP - Bon app" in response.answer
+    assert "10301" not in response.answer
+    assert response.data["production_order_ids"] == [10252, 10312]
+    assert response.data["erp_query_order_ids"] == [10252, 10312]
+    assert response.data["customers_resolved_count"] == 2
+    assert "product_id" not in str(response.data)
 
 
 def test_agent_graph_answers_lowercase_customer_operational_risk(

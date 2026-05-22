@@ -66,6 +66,11 @@ def build_public_data_summary(data: dict[str, Any]) -> dict[str, Any] | None:
         summary["erp_orders_count"] = len(erp_orders)
         summary["erp_order_ids"] = _order_ids(erp_orders)
 
+    if data.get("erp_query_orders") is not None:
+        erp_query_orders = _as_list(data.get("erp_query_orders"))
+        summary["erp_query_orders_count"] = len(erp_query_orders)
+        summary["erp_query_order_ids"] = _order_ids(erp_query_orders)
+
     if data.get("production_orders") is not None:
         production_orders = _as_list(data.get("production_orders"))
         summary["production_orders_count"] = len(production_orders)

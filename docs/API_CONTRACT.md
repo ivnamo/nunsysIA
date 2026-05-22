@@ -272,8 +272,9 @@ Errores posibles:
 
 La Query DSL segura no es un endpoint publico. Existe como contrato interno
 validado en `app/tools/query_dsl.py` y como ejecucion aislada en
-`ERPQueryTool` / `ProductionQueryTool`, sin integracion todavia con
-`POST /api/query`.
+`ERPQueryTool` / `ProductionQueryTool`. Desde R16 puede ejecutarse dentro de
+`POST /api/query` solo cuando el planner produce un plan validado y el reasoner
+controla el cruce por `order_id`.
 
 Restricciones actuales:
 
@@ -288,7 +289,11 @@ Restricciones actuales:
 - `order_by` solo puede usar campos allowlist.
 - Se rechazan claves extra como `joins`, campos internos, entidades no
   permitidas, operadores desconocidos y valores enumerados invalidos.
-- En R15 las consultas DSL solo se ejecutan desde tools internas con specs
-  Pydantic ya validadas. No se modifica el contrato de `POST /api/query`.
+- En R16 las consultas DSL se pueden ejecutar desde el flujo agentic con specs
+  Pydantic ya validadas. No se anade ningun endpoint publico nuevo ni se
+  permite SQL/HTTP libre.
 - Las tools DSL devuelven proyecciones de campos publicos seleccionados y tool
   calls trazables; no devuelven filas raw internas.
+- Los joins no forman parte de la DSL: el reasoner puede aplicar `join_from`
+  como metadato controlado del plan y filtrar la segunda consulta por los
+  `order_id` obtenidos de la primera fuente.

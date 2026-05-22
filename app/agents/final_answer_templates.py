@@ -53,6 +53,9 @@ def build_deterministic_answer(
     if data.get("production_orders"):
         return _answer_production_orders(data)
 
+    if data.get("erp_query_orders"):
+        return _answer_erp_query_orders(data)
+
     if data.get("period"):
         return _answer_monthly_summary(data)
 
@@ -174,7 +177,7 @@ def _answer_production_orders(data: dict[str, Any]) -> str:
         if customer is None:
             customer = customers_by_order.get(str(order_id))
         customer_label = (
-            f"{customer['customer_id']} - {customer['company_name']}"
+            f"{customer['customer_id']} - {_customer_name(customer)}"
             if customer
             else "cliente no encontrado en ERP"
         )
@@ -194,6 +197,34 @@ def _answer_production_orders(data: dict[str, Any]) -> str:
     else:
         prefix = "Pedidos de produccion"
     return prefix + ": " + "; ".join(lines) + "."
+
+
+def _answer_erp_query_orders(data: dict[str, Any]) -> str:
+    orders = data.get("erp_query_orders", [])
+    if not orders:
+        return "No se encontraron pedidos ERP con los criterios solicitados."
+
+    lines = []
+    for order in orders:
+        details = [str(order["order_id"])]
+        customer_id = order.get("customer_id")
+        customer_name = order.get("customer_name")
+        if customer_id and customer_name:
+            details.append(f"{customer_id} - {customer_name}")
+        elif customer_id:
+            details.append(str(customer_id))
+        if order.get("erp_status"):
+            details.append(f"ERP {erp_status_label(order['erp_status'])}")
+        if order.get("amount") is not None:
+            amount = _money(order.get("amount"))
+            if amount is not None:
+                details.append(f"{amount:.2f}")
+        if len(details) > 1:
+            lines.append(f"{details[0]} ({', '.join(details[1:])})")
+        else:
+            lines.append(details[0])
+
+    return "Pedidos ERP encontrados: " + "; ".join(lines) + "."
 
 
 def _answer_monthly_summary(data: dict[str, Any]) -> str:
@@ -279,3 +310,12 @@ def _money(value: Any) -> Decimal | None:
         return Decimal(str(value)).quantize(Decimal("0.01"))
     except (InvalidOperation, TypeError, ValueError):
         return None
+
+
+def _customer_name(customer: dict[str, Any]) -> str:
+    return str(
+        customer.get("company_name")
+        or customer.get("customer_name")
+        or customer.get("customer_id")
+        or "cliente no informado"
+    )

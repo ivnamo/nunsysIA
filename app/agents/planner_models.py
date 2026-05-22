@@ -5,7 +5,14 @@ from pydantic import BaseModel, Field
 from app.agents.state import AgentIntent
 
 
-PlanTool = Literal["ERPTool", "ProductionAPITool", "DocumentRAGTool", "MemoryTool"]
+PlanTool = Literal[
+    "ERPTool",
+    "ProductionAPITool",
+    "ERPQueryTool",
+    "ProductionQueryTool",
+    "DocumentRAGTool",
+    "MemoryTool",
+]
 
 
 class PlanStep(BaseModel):

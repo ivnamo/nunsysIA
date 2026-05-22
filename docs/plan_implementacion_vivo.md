@@ -10,7 +10,7 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R15 cerrada** y queda lista para demo/revision tecnica. El guion
+La POC tiene **R16 cerrada** y queda lista para demo/revision tecnica. El guion
 final esta en `docs/DEMO_SCRIPT.md`.
 
 Estado declarado y versionado:
@@ -23,9 +23,9 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `184 passed, 2 warnings`.
-- Query DSL segura modelada, validada y ejecutable desde tools internas
-  aisladas, aun sin integracion en planner/reasoner.
+- Suite automatizada declarada: `188 passed, 2 warnings`.
+- Query DSL segura modelada, validada, ejecutable desde tools internas e
+  integrada en planner/reasoner para cruces controlados por `order_id`.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
   beta con LLM/embeddings reales.
 
@@ -167,7 +167,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R13 | cerrado | Planner flexible con tools existentes | Routing rigido ante sinonimos de negocio | `feat(planner): broaden flexible business routing` |
 | R14 | cerrado | Modelos y validadores de Query DSL | LLM demasiado cerca de SQL/HTTP libre | `feat(tools): add safe query dsl models` |
 | R15 | cerrado | ERPQueryTool y ProductionQueryTool | Consultas abiertas sin schema cerrado | `feat(tools): add safe ERP and production query dsl` |
-| R16 | pendiente | Reasoner para joins controlados | Cruces de datos ad hoc o duplicados | `feat(reasoner): execute flexible queries and business joins` |
+| R16 | cerrado | Reasoner para joins controlados | Cruces de datos ad hoc o duplicados | `feat(reasoner): execute flexible queries and business joins` |
 | R17 | pendiente | Respuesta conversacional grounded | Respuestas utiles pero demasiado rigidas | `feat(response): improve grounded conversational answers` |
 | R18 | pendiente | Stress tests reales opt-in | Validacion LLM real no automatizada | `test(llm): add opt-in real LLM stress validation` |
 
@@ -1184,6 +1184,24 @@ Criterio de aceptacion:
   con fuentes ERP y Produccion, sin duplicados y sin datos inventados.
 - Si falta un dato de cruce, la respuesta dice que falta.
 
+Estado 2026-05-22:
+
+- Cerrado.
+- `PlanTool` admite `ERPQueryTool` y `ProductionQueryTool`.
+- `planner_normalization` valida specs DSL y acepta `join_from` solo como
+  metadato controlado (`production_orders` o `erp_orders`).
+- `ReasonerExecutorAgent` ejecuta ambas tools DSL, deduplica por `order_id` y
+  aplica el cruce ERP-Produccion inyectando filtros `order_id in [...]` en la
+  segunda spec validada.
+- `QueryWorkflowService` crea las tools especificas y DSL compartiendo
+  repositorio ERP/cliente Produccion.
+- `data` publico resume `erp_query_orders_count` y `erp_query_order_ids` sin
+  exponer filas raw.
+- Tests focales: `57 passed`.
+- Suite completa: `188 passed, 2 warnings`.
+- `BT-smoke` Docker/Gemini real: PASS (`R16-QUERY-DSL-CROSS`,
+  ERP-Produccion, RAG, mixto y guardrail).
+
 ## Fase R17 - Respuesta conversacional grounded
 
 Prioridad: **despues de R16**.
@@ -1351,3 +1369,4 @@ Criterio de aceptacion:
 | 2026-05-22 | R13 | cerrado | Planner flexible con sinonimos, cliente minusculas y pedido explicito; Docker smoke Gemini PASS; `pytest`: 156 passed | este bloque |
 | 2026-05-22 | R14 | cerrado | Query DSL segura modelada y validada sin ejecucion generica; `tests/unit/test_query_dsl.py`: 19 passed; `pytest`: 175 passed | este bloque |
 | 2026-05-22 | R15 | cerrado | ERPQueryTool y ProductionQueryTool ejecutan specs DSL validadas sin integracion agentic; focales 36 passed; `pytest`: 184 passed | este bloque |
+| 2026-05-22 | R16 | cerrado | Query DSL integrada en planner/reasoner con joins controlados por `order_id`; focales 57 passed; `pytest`: 188 passed; BT-smoke Docker/Gemini PASS | este bloque |

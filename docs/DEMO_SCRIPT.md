@@ -32,7 +32,7 @@ Desde la raiz del repo:
 Resultado esperado versionado:
 
 ```text
-184 passed, 2 warnings
+188 passed, 2 warnings
 ```
 
 Para demo Docker con Gemini real:
@@ -110,7 +110,31 @@ Defensa:
 - El Reasoner ejecuta tools deterministas.
 - El FinalResponseBuilder no inventa estados: solo sintetiza evidencias.
 
-### 4. RAG documental
+### 4. Query DSL segura con cruce controlado
+
+Pregunta:
+
+```text
+Cruza produccion con ERP y dime clientes afectados por bloqueos.
+```
+
+Esperado:
+
+- `status`: `completed`
+- `sources`: `Produccion`, `ERP`
+- `tool_calls`: `ProductionQueryTool.query_orders` y
+  `ERPQueryTool.query_orders`
+- el segundo tool call filtra ERP por los `order_id` recuperados de produccion
+- `data`: `production_order_ids`, `erp_query_order_ids` y
+  `customers_resolved_count`, sin filas raw.
+
+Defensa:
+
+- El LLM no genera SQL ni endpoints HTTP.
+- La DSL solo acepta entidades, filtros, selects, orden y limite allowlist.
+- El cruce no vive en la DSL: lo hace el reasoner por `order_id`.
+
+### 5. RAG documental
 
 Pregunta:
 
@@ -132,7 +156,7 @@ Defensa:
 - La respuesta final se construye solo desde chunks recuperados.
 - Si no hay evidencia, el sistema debe devolver `insufficient_context`.
 
-### 5. Caso mixto ERP + produccion + RAG
+### 6. Caso mixto ERP + produccion + RAG
 
 Pregunta:
 
@@ -154,7 +178,7 @@ Defensa:
 - El Validator bloquea respuestas de penalizaciones si falta evidencia
   documental.
 
-### 6. Memoria conversacional acotada
+### 7. Memoria conversacional acotada
 
 Primero:
 
@@ -179,7 +203,7 @@ Defensa:
 - La memoria conversacional no es fuente de verdad de negocio.
 - Es contexto acotado de 5 turnos y queda visible como `Memoria`.
 
-### 7. Guardrail insufficient_context
+### 8. Guardrail insufficient_context
 
 Pregunta:
 
@@ -199,7 +223,7 @@ Defensa:
 - El caso demuestra que el sistema sabe no responder.
 - Este guardrail es mas importante que una respuesta fluida.
 
-### 8. Trazabilidad de replanning
+### 9. Trazabilidad de replanning
 
 No es obligatorio forzar este caso en demo en vivo, pero si aparece un replan,
 mostrar:
@@ -234,7 +258,7 @@ Defensa:
 - `fallbacks` son visibles; no se ocultan rutas alternativas.
 - La memoria no decide hechos de negocio; solo resuelve referencias.
 - Docker Compose valida backend, mock de produccion, Chainlit y ChromaDB HTTP.
-- La suite cubre contratos y regresiones criticas: `184 passed`.
+- La suite cubre contratos y regresiones criticas: `188 passed`.
 
 ## Deuda consciente que conviene admitir
 

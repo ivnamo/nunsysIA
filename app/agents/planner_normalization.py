@@ -7,6 +7,7 @@ from app.agents.planner_utils import (
     extract_customer_id,
     normalize_order_ids,
 )
+from app.tools.query_dsl import ERPQuerySpec, ProductionQuerySpec
 
 
 _ALLOWED_TOOL_ACTIONS: dict[str, set[str]] = {
@@ -21,11 +22,14 @@ _ALLOWED_TOOL_ACTIONS: dict[str, set[str]] = {
         "get_status_for_erp_orders",
         "get_status_for_order_ids",
     },
+    "ERPQueryTool": {"query_orders"},
+    "ProductionQueryTool": {"query_orders"},
     "DocumentRAGTool": {"query"},
     "MemoryTool": {"recall"},
 }
 _ALLOWED_SOURCES = {"ERP", "Produccion", "Documentos", "Memoria"}
 _PRODUCTION_STATUSES = {"in_progress", "blocked", "delayed", "finished"}
+_ALLOWED_JOIN_FROM = {"erp_orders", "production_orders"}
 
 
 def normalize_plan(plan: ExecutionPlan, question: str) -> ExecutionPlan | None:
@@ -131,6 +135,18 @@ def _normalize_step_args(step: PlanStep, question: str) -> dict[str, Any] | None
             "status": status if status in _PRODUCTION_STATUSES else None,
         }
 
+    if step.tool == "ERPQueryTool" and step.action == "query_orders":
+        return _normalize_query_step_args(
+            step.args,
+            spec_model=ERPQuerySpec,
+        )
+
+    if step.tool == "ProductionQueryTool" and step.action == "query_orders":
+        return _normalize_query_step_args(
+            step.args,
+            spec_model=ProductionQuerySpec,
+        )
+
     if step.tool == "DocumentRAGTool" and step.action == "query":
         args: dict[str, Any] = {
             "query": str(step.args.get("query") or question),
@@ -177,6 +193,8 @@ def _source_for_tool(tool: str) -> str | None:
     return {
         "ERPTool": "ERP",
         "ProductionAPITool": "Produccion",
+        "ERPQueryTool": "ERP",
+        "ProductionQueryTool": "Produccion",
         "DocumentRAGTool": "Documentos",
         "MemoryTool": "Memoria",
     }.get(tool)
@@ -194,3 +212,22 @@ def _default_clarification_requirement(question: str) -> str:
             "pedidos sin inventar."
         )
     return "Pedir el dato concreto que falta para continuar."
+
+
+def _normalize_query_step_args(
+    args: dict[str, Any],
+    spec_model: type[ERPQuerySpec] | type[ProductionQuerySpec],
+) -> dict[str, Any] | None:
+    raw_spec = args.get("spec") if isinstance(args.get("spec"), dict) else args
+    try:
+        spec = spec_model.model_validate(raw_spec)
+    except Exception:
+        return None
+
+    normalized_args: dict[str, Any] = {"spec": spec.model_dump(mode="json")}
+    join_from = args.get("join_from")
+    if join_from is not None:
+        if join_from not in _ALLOWED_JOIN_FROM:
+            return None
+        normalized_args["join_from"] = join_from
+    return normalized_args

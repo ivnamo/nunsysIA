@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R15 cerrada: Query DSL segura ejecutable en tools aisladas**.
-Siguiente bloque: **R16 Reasoner para queries flexibles y joins controlados**, si se decide ampliar la demo.
+Estado actual: **R16 cerrada: Query DSL integrada en el flujo agentic con joins controlados**.
+Siguiente bloque: **R17 Respuesta conversacional grounded**, si se decide ampliar la demo.
 
 Este repositorio contiene:
 
@@ -76,7 +76,10 @@ Este repositorio contiene:
   genericas.
 - `ERPQueryTool` y `ProductionQueryTool` ejecutan specs DSL ya validadas y
   devuelven solo campos publicos seleccionados con tool calls trazables.
-- suite automatizada versionada actual: `184 passed, 2 warnings`.
+- Reasoner ejecuta Query DSL segura desde planes validados y cruza
+  ERP-Produccion solo por `order_id`, deduplicando pedidos y conservando
+  tool calls visibles.
+- suite automatizada versionada actual: `188 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -98,8 +101,8 @@ Disponible para ejecutar actualmente:
 - clarificaciones controladas cuando falta cliente, pedido o contexto conversacional previo.
 - preguntas flexibles como `que tiene pendiente alfki y que riesgo operativo tiene?`
   o `pedido 10252`.
-- Query DSL ejecutable desde tools internas, aun no conectada al planner ni al
-  reasoner agentic.
+- Query DSL ejecutable desde el flujo `/api/query` para cruces controlados como
+  `Cruza produccion con ERP y dime clientes afectados por bloqueos`.
 
 Cierre:
 
@@ -439,4 +442,9 @@ ese cableado se cierra en R15 con tools internas aisladas.
 R15 queda cerrada con `ERPQueryTool` y `ProductionQueryTool` ejecutando specs
 DSL ya validadas, con proyeccion de campos publicos y trazabilidad. Aun no se
 conectan al planner ni al reasoner del flujo `/api/query`.
-Suite actual: `184 passed, 2 warnings`.
+
+R16 queda cerrada con integracion agentic de la Query DSL: el planner admite las
+tools DSL bajo schema cerrado, el reasoner ejecuta specs validadas y el cruce
+ERP-Produccion se hace solo por `order_id`. Las rutas demo criticas siguen
+usando tools especificas cuando encajan.
+Suite actual: `188 passed, 2 warnings`.

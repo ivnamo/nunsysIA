@@ -16,7 +16,9 @@ from app.rag.embeddings import DeterministicEmbeddingModel
 from app.rag.ingestion import DocumentIngestionService
 from app.rag.vector_store import InMemoryDocumentVectorStore
 from app.schemas.query import QueryRequest
+from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import ERPTool
+from app.tools.production_query_tool import ProductionQueryTool
 from app.tools.production_tool import ProductionAPITool
 from app.tools.rag_tool import DocumentRAGTool
 
@@ -29,6 +31,8 @@ def client() -> TestClient:
     query_service = QueryWorkflowService(
         erp_tool=_erp_tool(),
         production_tool=_production_tool(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
         rag_tool=DocumentRAGTool(
             vector_store=vector_store,
             embedding_model=DeterministicEmbeddingModel(),
@@ -110,6 +114,33 @@ def test_query_endpoint_answers_lowercase_customer_operational_risk(
     assert "10252" in payload["answer"]
     assert "Falta de material" in payload["answer"]
     assert payload["data"]["erp_order_ids"] == [10248, 10252]
+
+
+def test_query_endpoint_executes_safe_query_dsl_cross_blocked_customers(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/query",
+        json={
+            "question": (
+                "Cruza produccion con ERP y dime clientes afectados por bloqueos."
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
+    assert payload["sources"] == ["Produccion", "ERP"]
+    assert [call["tool"] for call in payload["tool_calls"]] == [
+        "ProductionQueryTool",
+        "ERPQueryTool",
+    ]
+    assert "10252" in payload["answer"]
+    assert "Alfreds Futterkiste" in payload["answer"]
+    assert payload["data"]["production_order_ids"] == [10252]
+    assert payload["data"]["erp_query_order_ids"] == [10252]
+    assert "product_id" not in str(payload["data"])
 
 
 def test_query_endpoint_keeps_conversation_memory_by_id(client: TestClient) -> None:
@@ -280,12 +311,26 @@ def _erp_tool() -> ERPTool:
     return ERPTool(NorthwindRepository(connection))
 
 
+def _erp_query_tool() -> ERPQueryTool:
+    connection = create_sqlite_connection(check_same_thread=False)
+    load_seed_sql(connection)
+    return ERPQueryTool(NorthwindRepository(connection))
+
+
 def _production_tool() -> ProductionAPITool:
     client = ProductionAPIClient(
         base_url="http://production-api.test",
         transport=_production_transport(),
     )
     return ProductionAPITool(client)
+
+
+def _production_query_tool() -> ProductionQueryTool:
+    client = ProductionAPIClient(
+        base_url="http://production-api.test",
+        transport=_production_transport(),
+    )
+    return ProductionQueryTool(client)
 
 
 def _production_transport() -> httpx.MockTransport:
@@ -307,6 +352,17 @@ def _production_transport() -> httpx.MockTransport:
     }
 
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/production/orders":
+            status = request.url.params.get("status")
+            filtered_orders = list(orders.values())
+            if status:
+                filtered_orders = [
+                    order
+                    for order in filtered_orders
+                    if order["production_status"] == status
+                ]
+            return httpx.Response(200, json={"orders": filtered_orders})
+
         if request.url.path.startswith("/production/orders/"):
             order_id = int(request.url.path.rsplit("/", 1)[1])
             order = orders.get(order_id)

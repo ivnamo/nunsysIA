@@ -2411,3 +2411,119 @@ Decision: R13 queda cerrada. La flexibilidad conversacional se amplia sin DSL,
 sin SQL/HTTP libre y sin degradar trazabilidad. Los casos con pedido explicito,
 produccion problematica abierta y riesgo operativo se priorizan por reglas
 deterministas antes del planner LLM para evitar aclaraciones innecesarias.
+
+## Iteracion R16 - Query DSL integrada con Docker y Gemini real
+
+Fecha: 2026-05-22.
+
+Objetivo:
+
+- Validar que la Query DSL ya conectada al flujo `/api/query` mantiene el
+  esquema seguro.
+- Confirmar que los cruces ERP-Produccion los ejecuta el reasoner solo por
+  `order_id`.
+- Asegurar que los casos ERP, RAG, mixto y guardrail no se degradan.
+
+Runtime:
+
+- Docker Compose con `docker-compose.secrets.yml`.
+- `LLM_PROVIDER=gemini`.
+- `EMBEDDING_PROVIDER=deterministic`.
+- ChromaDB HTTP activo.
+- Coleccion: `beta_r16_query_dsl_20260522`.
+- Backend y production mock: `healthy`.
+- ChromaDB: `healthy`.
+- Chainlit: `up`.
+
+Documento subido:
+
+- `data/sample_docs/v2_anexo_penalizaciones_sla.pdf`
+- `chunks_indexed`: `8`
+- Fallback esperado: `FALLBACK_EMBEDDINGS_DETERMINISTIC`.
+
+Casos ejecutados:
+
+### R16-QUERY-DSL-CROSS - PASS
+
+Pregunta: `Cruza produccion con ERP y dime clientes afectados por bloqueos.`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["Produccion", "ERP"]`
+- `tool_calls`: `ProductionQueryTool.query_orders` y
+  `ERPQueryTool.query_orders`
+- `data.production_order_ids`: `[10252, 10312]`
+- `data.erp_query_order_ids`: `[10252, 10312]`
+- `data.customers_resolved_count`: `2`
+- `fallbacks_count`: `0`
+- Respuesta: pedidos bloqueados `10252` y `10312`, con clientes ERP
+  `ALFKI - Alfreds Futterkiste` y `BONAP - Bon app`.
+
+### R16-ERP-PROD - PASS
+
+Pregunta: `Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion"]`
+- `tool_calls`: `ERPTool.get_pending_orders_by_customer` y
+  `ProductionAPITool.get_status_for_erp_orders`
+- `data.erp_order_ids`: `[10248, 10252]`
+- `fallbacks_count`: `0`
+
+### R16-RAG - PASS
+
+Pregunta: `Segun el PDF, hay alguna penalizacion por retrasos?`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["Documentos"]`
+- `tool_calls`: `DocumentRAGTool.query`
+- `data.rag.documents`: `["v2_anexo_penalizaciones_sla.pdf"]`
+- `data.rag.chunks_count`: `2`
+- Fallback esperado: embeddings deterministas locales.
+
+### R16-MIXED - PASS
+
+Pregunta: `en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno`
+
+Resultado:
+
+- `status`: `completed`
+- `sources`: `["ERP", "Produccion", "Documentos"]`
+- `tool_calls`: ERP mensual, estado de produccion por pedido y RAG documental.
+- `data.erp_order_ids`: `[10248, 10252, 10255, 10301, 10312]`
+- `data.rag.documents`: `["v2_anexo_penalizaciones_sla.pdf"]`
+- Fallback esperado: embeddings deterministas locales.
+
+### R16-GUARDRAIL - PASS
+
+Pregunta: `Segun el PDF, que receta de cocina vegana recomienda?`
+
+Resultado:
+
+- `status`: `insufficient_context`
+- `sources`: `["Documentos"]`
+- `tool_calls`: `DocumentRAGTool.query`
+- `data.rag.chunks_count`: `0`
+- Respuesta: no hay contexto documental suficiente para responder sin inventar.
+
+Validacion automatizada local posterior:
+
+- Focales planner/grafo/endpoint/trazabilidad: `57 passed`.
+- Suite completa: `188 passed, 2 warnings`.
+
+Validacion operativa:
+
+- `docker compose ps`: backend y production-api `healthy`, ChromaDB `healthy`,
+  Chainlit `up`.
+- Secret scan sin claves reales fuera de `.env`/`.secrets`: solo placeholders
+  de `.env.example`/README y regex de redaccion en `app/core/traceability.py`.
+
+Decision: R16 queda cerrada. La DSL queda integrada en el grafo sin abrir
+SQL/HTTP libre; las specs siguen validadas por Pydantic, los joins no forman
+parte de la DSL y el reasoner cruza ERP-Produccion inyectando filtros
+`order_id in [...]` en la segunda consulta trazable.

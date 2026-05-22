@@ -3,6 +3,7 @@ from typing import Any
 from app.agents.planner import ExecutionPlan, PlanStep
 from app.agents.state import AgentState
 from app.core.tracing import SourceName, ToolCallTrace, ToolResult
+from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import (
     CustomerByOrderInput,
     ERPTool,
@@ -11,12 +12,14 @@ from app.tools.erp_tool import (
     PendingOrdersByCustomerInput,
 )
 from app.tools.memory_tool import MemoryRecallInput, MemoryTool
+from app.tools.production_query_tool import ProductionQueryTool
 from app.tools.production_tool import (
     ProductionAPITool,
     ProductionOrderInput,
     ProductionOrdersByIdsInput,
     ProductionOrdersInput,
 )
+from app.tools.query_dsl import ERPQuerySpec, MAX_QUERY_LIMIT, ProductionQuerySpec
 from app.tools.rag_tool import DocumentRAGInput, DocumentRAGTool
 
 
@@ -25,11 +28,15 @@ class ReasonerExecutorAgent:
         self,
         erp_tool: ERPTool,
         production_tool: ProductionAPITool,
+        erp_query_tool: ERPQueryTool | None = None,
+        production_query_tool: ProductionQueryTool | None = None,
         rag_tool: DocumentRAGTool | None = None,
         memory_tool: MemoryTool | None = None,
     ) -> None:
         self._erp_tool = erp_tool
         self._production_tool = production_tool
+        self._erp_query_tool = erp_query_tool
+        self._production_query_tool = production_query_tool
         self._rag_tool = rag_tool
         self._memory_tool = memory_tool or MemoryTool()
 
@@ -70,6 +77,14 @@ class ReasonerExecutorAgent:
 
         if step.tool == "ProductionAPITool":
             self._execute_production_step(step, execution)
+            return
+
+        if step.tool == "ERPQueryTool":
+            self._execute_erp_query_step(step, execution)
+            return
+
+        if step.tool == "ProductionQueryTool":
+            self._execute_production_query_step(step, execution)
             return
 
         if step.tool == "DocumentRAGTool":
@@ -269,6 +284,90 @@ class ReasonerExecutorAgent:
             summary=f"Accion de produccion no soportada: {step.action}",
         )
 
+    def _execute_erp_query_step(
+        self,
+        step: PlanStep,
+        execution: "_ExecutionContext",
+    ) -> None:
+        if self._erp_query_tool is None:
+            execution.add_skipped(
+                tool="ERPQueryTool",
+                action=step.action,
+                source="ERP",
+                args=step.args,
+                summary="ERPQueryTool no esta configurada en este grafo",
+            )
+            return
+
+        spec = _erp_query_spec_from_step(step.args, execution)
+        if spec is None:
+            execution.add_skipped(
+                tool="ERPQueryTool",
+                action=step.action,
+                source="ERP",
+                args=step.args,
+                summary="No hay pedidos previos para cruzar la consulta ERP por order_id",
+            )
+            return
+
+        result = self._erp_query_tool.query_orders(spec)
+        if isinstance(result.data, list):
+            execution.data["erp_query_orders"] = _merge_order_rows(
+                execution.data.get("erp_query_orders"),
+                result.data,
+            )
+            _merge_customers_by_order_from_erp_rows(execution.data, result.data)
+        execution.add_result(
+            result,
+            _query_reasoning("Consulta ERP mediante Query DSL segura", step.args),
+            action=step.action,
+        )
+
+    def _execute_production_query_step(
+        self,
+        step: PlanStep,
+        execution: "_ExecutionContext",
+    ) -> None:
+        if self._production_query_tool is None:
+            execution.add_skipped(
+                tool="ProductionQueryTool",
+                action=step.action,
+                source="Produccion",
+                args=step.args,
+                summary="ProductionQueryTool no esta configurada en este grafo",
+            )
+            return
+
+        spec = _production_query_spec_from_step(step.args, execution)
+        if spec is None:
+            execution.add_skipped(
+                tool="ProductionQueryTool",
+                action=step.action,
+                source="Produccion",
+                args=step.args,
+                summary=(
+                    "No hay pedidos ERP previos para cruzar la consulta de "
+                    "produccion por order_id"
+                ),
+            )
+            return
+
+        result = self._production_query_tool.query_orders(spec)
+        if isinstance(result.data, list):
+            execution.data["production_orders"] = _merge_order_rows(
+                execution.data.get("production_orders"),
+                result.data,
+            )
+            _merge_production_by_order_from_rows(execution.data, result.data)
+        execution.add_result(
+            result,
+            _query_reasoning(
+                "Consulta Produccion mediante Query DSL segura",
+                step.args,
+            ),
+            action=step.action,
+        )
+
     def _execute_rag_step(self, step: PlanStep, execution: "_ExecutionContext") -> None:
         if self._rag_tool is None:
             execution.data["rag"] = {
@@ -413,3 +512,121 @@ def _merge_order_rows(
             seen_order_ids.add(order_id)
             rows.append(row)
     return rows
+
+
+def _erp_query_spec_from_step(
+    args: dict[str, Any],
+    execution: "_ExecutionContext",
+) -> ERPQuerySpec | None:
+    spec = ERPQuerySpec.model_validate(args.get("spec") or args)
+    if args.get("join_from") != "production_orders":
+        return spec
+
+    order_ids = _order_ids_from_rows(execution.data.get("production_orders"))
+    if not order_ids:
+        return None
+    return _spec_with_order_ids(spec, order_ids)
+
+
+def _production_query_spec_from_step(
+    args: dict[str, Any],
+    execution: "_ExecutionContext",
+) -> ProductionQuerySpec | None:
+    spec = ProductionQuerySpec.model_validate(args.get("spec") or args)
+    if args.get("join_from") != "erp_orders":
+        return spec
+
+    order_ids = _order_ids_from_rows(execution.data.get("erp_orders"))
+    if not order_ids:
+        order_ids = _order_ids_from_rows(execution.data.get("erp_query_orders"))
+    if not order_ids:
+        return None
+    return _spec_with_order_ids(spec, order_ids)
+
+
+def _spec_with_order_ids(
+    spec: ERPQuerySpec | ProductionQuerySpec,
+    order_ids: list[int],
+) -> ERPQuerySpec | ProductionQuerySpec:
+    bounded_order_ids = order_ids[:MAX_QUERY_LIMIT]
+    spec_data = spec.model_dump(mode="json")
+    spec_data["filters"] = [
+        query_filter
+        for query_filter in spec_data.get("filters", [])
+        if query_filter.get("field") != "order_id"
+    ]
+    spec_data["filters"].append(
+        {
+            "field": "order_id",
+            "operator": "in",
+            "value": bounded_order_ids,
+        }
+    )
+    spec_data["limit"] = min(
+        MAX_QUERY_LIMIT,
+        max(int(spec_data.get("limit") or 1), len(bounded_order_ids)),
+    )
+    return type(spec).model_validate(spec_data)
+
+
+def _order_ids_from_rows(rows: Any) -> list[int]:
+    order_ids: list[int] = []
+    if not isinstance(rows, list):
+        return order_ids
+    for row in rows:
+        if not isinstance(row, dict) or row.get("order_id") is None:
+            continue
+        try:
+            order_id = int(row["order_id"])
+        except (TypeError, ValueError):
+            continue
+        if order_id not in order_ids:
+            order_ids.append(order_id)
+    return order_ids
+
+
+def _merge_customers_by_order_from_erp_rows(
+    data: dict[str, Any],
+    rows: list[dict[str, Any]],
+) -> None:
+    customers_by_order = dict(data.get("customers_by_order") or {})
+    for row in rows:
+        order_id = _coerce_positive_int(row.get("order_id"))
+        customer_id = row.get("customer_id")
+        customer_name = row.get("customer_name") or row.get("company_name")
+        if order_id is None or not customer_id:
+            continue
+        customers_by_order[order_id] = {
+            "customer_id": customer_id,
+            "company_name": customer_name or customer_id,
+        }
+    if customers_by_order:
+        data["customers_by_order"] = customers_by_order
+
+
+def _merge_production_by_order_from_rows(
+    data: dict[str, Any],
+    rows: list[dict[str, Any]],
+) -> None:
+    production_by_order = dict(data.get("production_by_order") or {})
+    for row in rows:
+        order_id = _coerce_positive_int(row.get("order_id"))
+        if order_id is None:
+            continue
+        production_by_order[order_id] = row
+    if production_by_order:
+        data["production_by_order"] = production_by_order
+
+
+def _coerce_positive_int(value: Any) -> int | None:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
+def _query_reasoning(summary: str, args: dict[str, Any]) -> str:
+    if args.get("join_from"):
+        return f"{summary} cruzada por order_id"
+    return summary

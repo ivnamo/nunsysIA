@@ -18,9 +18,9 @@ evaluables de demo:
 - Clarificaciones controladas con `needs_clarification` cuando una pregunta de
   dominio necesita cliente, pedido o contexto previo.
 - Planner flexible para sinonimos operativos, cliente en minusculas y pedidos
-  explicitos sin introducir Query DSL.
-- Query DSL segura modelada, validada y ejecutable desde tools internas
-  aisladas.
+  explicitos.
+- Query DSL segura modelada, validada, ejecutable desde tools internas e
+  integrada en el flujo agentic para cruces controlados por `order_id`.
 
 Pendiente antes del cierre final:
 
@@ -29,8 +29,8 @@ Pendiente antes del cierre final:
 
 Extension opcional post-cierre:
 
-- R16-R18 en `docs/plan_implementacion_vivo.md`: integracion DSL en reasoner,
-  joins controlados y tests reales opt-in con LLM. No bloquea la revision
+- R17-R18 en `docs/plan_implementacion_vivo.md`: respuesta conversacional
+  grounded y tests reales opt-in con LLM. No bloquea la revision
   actual.
 
 ## Fase 0: Setup y estructura
@@ -316,7 +316,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`184 passed, 2 warnings`).
+- Mantener suite automatizada versionada actual (`188 passed, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.
@@ -351,8 +351,8 @@ Riesgos:
 
 ## Fase P13: Flexibilidad conversacional + Query DSL segura
 
-Estado: en curso como extension opcional. R12, R13, R14 y R15 quedan cerradas;
-R16 queda pendiente.
+Estado: en curso como extension opcional. R12, R13, R14, R15 y R16 quedan
+cerradas.
 
 Objetivo: ampliar la POC sin cambiar el stack ni el flujo agentic aprobado,
 permitiendo preguntas mas abiertas, aclaraciones utiles y consultas flexibles a
@@ -367,7 +367,8 @@ Tareas:
   completado en R14.
 - Crear `ERPQueryTool` y `ProductionQueryTool` con allowlists. Estado:
   completado en R15.
-- Ejecutar cruces ERP-Produccion solo en el reasoner y por `order_id`.
+- Ejecutar cruces ERP-Produccion solo en el reasoner y por `order_id`. Estado:
+  completado en R16.
 - Mejorar respuesta final manteniendo grounding estricto.
 - Anadir tests `real_llm` opt-in con `RUN_REAL_LLM_TESTS=1`.
 

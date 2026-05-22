@@ -139,6 +139,37 @@ def test_planner_routes_problematic_production_orders_to_blocked_and_delayed() -
     assert state["plan"]["steps"][1]["args"] == {"status": "delayed"}
 
 
+def test_planner_routes_cross_blocked_customers_to_safe_query_dsl() -> None:
+    planner = PlannerAgent()
+
+    state = planner(
+        {
+            "question": "Cruza produccion con ERP y dime clientes afectados por bloqueos.",
+            "attempts": 0,
+        }
+    )
+
+    assert state["intent"] == "erp_production"
+    assert state["plan"]["expected_sources"] == ["Produccion", "ERP"]
+    assert [step["tool"] for step in state["plan"]["steps"]] == [
+        "ProductionQueryTool",
+        "ERPQueryTool",
+    ]
+    assert state["plan"]["steps"][0]["args"]["spec"]["filters"] == [
+        {
+            "field": "production_status",
+            "operator": "eq",
+            "value": "blocked",
+        }
+    ]
+    assert state["plan"]["steps"][1]["args"]["join_from"] == "production_orders"
+    assert state["plan"]["steps"][1]["args"]["spec"]["select"] == [
+        "order_id",
+        "customer_id",
+        "customer_name",
+    ]
+
+
 def test_planner_routes_lowercase_customer_with_operational_risk() -> None:
     planner = PlannerAgent()
 
@@ -467,6 +498,67 @@ def test_planner_uses_llm_plan_when_it_matches_allowed_contract() -> None:
     assert [step["step_id"] for step in state["plan"]["steps"]] == [1, 2]
     assert state["plan"]["steps"][0]["args"] == {"status": "delayed"}
     assert state["plan"]["steps"][1]["args"] == {}
+
+
+def test_planner_normalizes_allowed_llm_query_dsl_plan() -> None:
+    chat_model = _FakeChatModel(
+        """
+        {
+          "intent": "erp_production",
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "ProductionQueryTool",
+              "action": "query_orders",
+              "args": {
+                "spec": {
+                  "entity": "production_orders",
+                  "filters": [
+                    {
+                      "field": "production_status",
+                      "operator": "eq",
+                      "value": "BLOCKED"
+                    }
+                  ],
+                  "select": ["order_id", "production_status", "blocked_reason"],
+                  "limit": 50
+                }
+              },
+              "required": true
+            },
+            {
+              "step_id": 2,
+              "tool": "ERPQueryTool",
+              "action": "query_orders",
+              "args": {
+                "spec": {
+                  "entity": "orders",
+                  "select": ["order_id", "customer_id", "customer_name"],
+                  "limit": 50
+                },
+                "join_from": "production_orders"
+              },
+              "required": true
+            }
+          ],
+          "expected_sources": ["Produccion", "ERP"],
+          "answer_requirements": ["Cruzar por order_id."]
+        }
+        """
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner(
+        {
+            "question": "Haz una consulta operativa segura.",
+            "attempts": 0,
+        }
+    )
+
+    assert state.get("fallbacks") == []
+    assert state["plan"]["steps"][0]["args"]["spec"]["filters"][0]["value"] == "blocked"
+    assert state["plan"]["steps"][0]["args"]["spec"]["limit"] == 50
+    assert state["plan"]["steps"][1]["args"]["join_from"] == "production_orders"
 
 
 def test_planner_accepts_markdown_wrapped_llm_json() -> None:

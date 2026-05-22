@@ -58,6 +58,9 @@ def test_build_public_data_summary_does_not_return_raw_rows() -> None:
                 {"order_id": 10248, "customer_id": "ALFKI", "amount": "440.00"},
                 {"order_id": 10252, "customer_id": "ALFKI", "amount": "1863.00"},
             ],
+            "erp_query_orders": [
+                {"order_id": 10312, "customer_id": "CENTC", "customer_name": "Centro"},
+            ],
             "production_by_order": {
                 10248: {"order_id": 10248, "production_status": "in_progress"},
                 10252: {"order_id": 10252, "production_status": "blocked"},
@@ -82,6 +85,8 @@ def test_build_public_data_summary_does_not_return_raw_rows() -> None:
     assert summary == {
         "erp_orders_count": 2,
         "erp_order_ids": [10248, 10252],
+        "erp_query_orders_count": 1,
+        "erp_query_order_ids": [10312],
         "production_statuses_count": 2,
         "rag": {
             "status": "completed",

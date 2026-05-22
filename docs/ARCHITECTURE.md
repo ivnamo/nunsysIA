@@ -84,7 +84,8 @@ Las tools son deterministas y devuelven datos estructurados:
 `app/tools/query_dsl.py` define una DSL estructurada para consultas flexibles a
 ERP y Produccion. `ERPQueryTool` y `ProductionQueryTool` ejecutan specs ya
 validadas, proyectan solo campos publicos y registran tool calls trazables. En
-R15 estas tools siguen aisladas: no estan conectadas al planner ni al reasoner.
+R16 estas tools ya pueden ser invocadas por el planner bajo schema cerrado y el
+reasoner las ejecuta dentro del flujo LangGraph.
 
 Reglas actuales:
 
@@ -92,8 +93,9 @@ Reglas actuales:
 - Produccion solo admite `entity="production_orders"`.
 - Los filtros, selects y `order_by` usan allowlists explicitas por fuente.
 - `limit` queda acotado a `50`.
-- No hay joins en la DSL. El cruce futuro ERP-Produccion debera hacerlo el
-  reasoner por `order_id`.
+- No hay joins en la DSL. El cruce ERP-Produccion lo hace el reasoner por
+  `order_id`, usando `join_from` como metadato controlado del plan y no como
+  parte de la spec DSL.
 - No se permite SQL, endpoints HTTP, campos internos ni claves extra.
 - La ejecucion solo recibe specs Pydantic ya validadas; el LLM no construye SQL
   ni rutas HTTP.
@@ -174,14 +176,14 @@ Implementado en el repositorio y cubierto por tests/checklist manual:
 - Planner flexible para sinonimos operativos, cliente en minusculas y pedidos
   explicitos sin SQL ni HTTP libre.
 - Query DSL segura modelada, testeada y ejecutable mediante tools internas
-  aisladas.
+  y conectada al flujo agentic para cruces controlados.
 - `ERPQueryTool` y `ProductionQueryTool` para ejecutar specs DSL ya validadas,
-  todavia sin integracion agentic.
+  con joins ERP-Produccion gestionados por el reasoner solo por `order_id`.
 
 Extension opcional post-cierre:
 
-- R16-R18 del plan vivo: integracion en reasoner, joins controlados y tests
-  reales opt-in.
+- R17-R18 del plan vivo: respuesta conversacional grounded y tests reales
+  opt-in.
 
 ## Justificacion de Arquitectura
 

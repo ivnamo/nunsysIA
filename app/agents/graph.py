@@ -9,7 +9,9 @@ from app.agents.state import AgentState
 from app.core.llm import ChatModel
 from app.agents.validator import ValidatorNode
 from app.schemas.query import QueryResponse
+from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import ERPTool
+from app.tools.production_query_tool import ProductionQueryTool
 from app.tools.production_tool import ProductionAPITool
 from app.tools.rag_tool import DocumentRAGTool
 
@@ -17,6 +19,8 @@ from app.tools.rag_tool import DocumentRAGTool
 def build_agent_graph(
     erp_tool: ERPTool,
     production_tool: ProductionAPITool,
+    erp_query_tool: ERPQueryTool | None = None,
+    production_query_tool: ProductionQueryTool | None = None,
     rag_tool: DocumentRAGTool | None = None,
     chat_model: ChatModel | None = None,
     llm_timeout_seconds: float = 8.0,
@@ -28,6 +32,8 @@ def build_agent_graph(
     reasoner = ReasonerExecutorAgent(
         erp_tool=erp_tool,
         production_tool=production_tool,
+        erp_query_tool=erp_query_tool,
+        production_query_tool=production_query_tool,
         rag_tool=rag_tool,
     )
     validator = ValidatorNode()
@@ -64,6 +70,8 @@ def run_agent_graph(
     question: str,
     conversation_id: str | None = None,
     conversation_history: list[dict[str, Any]] | None = None,
+    erp_query_tool: ERPQueryTool | None = None,
+    production_query_tool: ProductionQueryTool | None = None,
     rag_tool: DocumentRAGTool | None = None,
     chat_model: ChatModel | None = None,
     llm_timeout_seconds: float = 8.0,
@@ -71,6 +79,8 @@ def run_agent_graph(
     graph = build_agent_graph(
         erp_tool=erp_tool,
         production_tool=production_tool,
+        erp_query_tool=erp_query_tool,
+        production_query_tool=production_query_tool,
         rag_tool=rag_tool,
         chat_model=chat_model,
         llm_timeout_seconds=llm_timeout_seconds,

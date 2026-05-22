@@ -6,8 +6,10 @@ from app.erp.repositories import NorthwindRepository
 from app.production.client import ProductionAPIClient
 from app.rag.ingestion import DocumentIngestionService
 from app.schemas.query import QueryRequest, QueryResponse
+from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import ERPTool
 from app.tools.memory_tool import ConversationMemoryStore
+from app.tools.production_query_tool import ProductionQueryTool
 from app.tools.production_tool import ProductionAPITool
 from app.tools.rag_tool import DocumentRAGTool
 
@@ -17,6 +19,8 @@ class QueryWorkflowService:
         self,
         erp_tool: ERPTool,
         production_tool: ProductionAPITool,
+        erp_query_tool: ERPQueryTool | None = None,
+        production_query_tool: ProductionQueryTool | None = None,
         rag_tool: DocumentRAGTool | None = None,
         chat_model: ChatModel | None = None,
         llm_timeout_seconds: float = 8.0,
@@ -24,6 +28,8 @@ class QueryWorkflowService:
     ) -> None:
         self._erp_tool = erp_tool
         self._production_tool = production_tool
+        self._erp_query_tool = erp_query_tool
+        self._production_query_tool = production_query_tool
         self._rag_tool = rag_tool
         self._chat_model = chat_model
         self._llm_timeout_seconds = llm_timeout_seconds
@@ -34,6 +40,8 @@ class QueryWorkflowService:
         response = run_agent_graph(
             erp_tool=self._erp_tool,
             production_tool=self._production_tool,
+            erp_query_tool=self._erp_query_tool,
+            production_query_tool=self._production_query_tool,
             rag_tool=self._rag_tool,
             chat_model=self._chat_model,
             llm_timeout_seconds=self._llm_timeout_seconds,
@@ -58,9 +66,14 @@ def create_query_workflow_service(
     except LLMProviderError:
         chat_model = None
 
+    erp_tool, erp_query_tool = _create_erp_tools()
+    production_tool, production_query_tool = _create_production_tools(settings)
+
     return QueryWorkflowService(
-        erp_tool=_create_erp_tool(),
-        production_tool=_create_production_tool(settings),
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        erp_query_tool=erp_query_tool,
+        production_query_tool=production_query_tool,
         rag_tool=DocumentRAGTool(
             vector_store=document_service.vector_store,
             embedding_model=document_service.embedding_model,
@@ -70,15 +83,18 @@ def create_query_workflow_service(
     )
 
 
-def _create_erp_tool() -> ERPTool:
+def _create_erp_tools() -> tuple[ERPTool, ERPQueryTool]:
     connection = create_sqlite_connection(check_same_thread=False)
     load_seed_sql(connection)
-    return ERPTool(NorthwindRepository(connection))
+    repository = NorthwindRepository(connection)
+    return ERPTool(repository), ERPQueryTool(repository)
 
 
-def _create_production_tool(settings: Settings) -> ProductionAPITool:
+def _create_production_tools(
+    settings: Settings,
+) -> tuple[ProductionAPITool, ProductionQueryTool]:
     client = ProductionAPIClient(
         base_url=settings.production_api_base_url,
         timeout=settings.production_api_timeout_seconds,
     )
-    return ProductionAPITool(client)
+    return ProductionAPITool(client), ProductionQueryTool(client)

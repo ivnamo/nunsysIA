@@ -92,6 +92,56 @@ def build_rule_based_plan(
             ],
         )
 
+    if _is_cross_blocked_customer_query(normalized):
+        return ExecutionPlan(
+            intent="erp_production",
+            steps=[
+                PlanStep(
+                    step_id=1,
+                    tool="ProductionQueryTool",
+                    action="query_orders",
+                    args={
+                        "spec": {
+                            "entity": "production_orders",
+                            "filters": [
+                                {
+                                    "field": "production_status",
+                                    "operator": "eq",
+                                    "value": "blocked",
+                                }
+                            ],
+                            "select": [
+                                "order_id",
+                                "production_status",
+                                "blocked_reason",
+                                "estimated_finish_date",
+                            ],
+                            "limit": 50,
+                            "order_by": {"field": "order_id", "direction": "asc"},
+                        }
+                    },
+                ),
+                PlanStep(
+                    step_id=2,
+                    tool="ERPQueryTool",
+                    action="query_orders",
+                    args={
+                        "spec": {
+                            "entity": "orders",
+                            "select": ["order_id", "customer_id", "customer_name"],
+                            "limit": 50,
+                            "order_by": {"field": "order_id", "direction": "asc"},
+                        },
+                        "join_from": "production_orders",
+                    },
+                ),
+            ],
+            expected_sources=["Produccion", "ERP"],
+            answer_requirements=[
+                "Cruzar bloqueos de produccion con clientes ERP solo por order_id.",
+            ],
+        )
+
     if "bloquead" in normalized:
         return ExecutionPlan(
             intent="erp_production",
@@ -248,6 +298,9 @@ def should_prefer_rule_based_plan(question: str, normalized: str) -> bool:
     if order_ids and _is_order_status_query(normalized):
         return True
 
+    if _is_cross_blocked_customer_query(normalized):
+        return True
+
     if _is_problematic_production_query(normalized):
         return True
 
@@ -294,6 +347,31 @@ def _is_problematic_production_query(normalized: str) -> bool:
             "riesgo",
             "incidencia",
             "incidencias",
+        )
+    )
+
+
+def _is_cross_blocked_customer_query(normalized: str) -> bool:
+    if "cliente" not in normalized and "clientes" not in normalized:
+        return False
+    if "producci" not in normalized and "erp" not in normalized:
+        return False
+    return any(
+        marker in normalized
+        for marker in (
+            "bloquead",
+            "bloqueo",
+            "bloqueos",
+        )
+    ) and any(
+        marker in normalized
+        for marker in (
+            "cruza",
+            "cruzar",
+            "afectado",
+            "afectados",
+            "afectada",
+            "afectadas",
         )
     )
 

@@ -72,6 +72,8 @@ Allowed tool actions:
 - ProductionAPITool.list_orders(args: {{"status": "blocked|delayed|in_progress|finished"}})
 - ProductionAPITool.get_status_for_erp_orders(args: {{}})
 - ProductionAPITool.get_status_for_order_ids(args: {{"order_ids": [10248, 10252], "status": "blocked|delayed|in_progress|finished|null"}})
+- ERPQueryTool.query_orders(args: {{"spec": {{"entity": "orders", "filters": [], "select": ["order_id", "customer_id", "customer_name"], "limit": 50}}, "join_from": "production_orders"}})
+- ProductionQueryTool.query_orders(args: {{"spec": {{"entity": "production_orders", "filters": [{{"field": "production_status", "operator": "eq", "value": "blocked"}}], "select": ["order_id", "production_status", "blocked_reason", "estimated_finish_date"], "limit": 50}}}})
 - DocumentRAGTool.query(args: {{"query": "<question>", "top_k": 5}})
 - MemoryTool.recall(args: {{"query": "<question>", "max_turns": 5}})
 
@@ -92,6 +94,7 @@ Business examples:
 - Blocked orders and reason: ProductionAPITool.list_orders(status=blocked), then ERPTool.get_customers_for_production_orders.
 - Delayed orders and affected customers: ProductionAPITool.list_orders(status=delayed), then ERPTool.get_customers_for_production_orders.
 - Stopped, stuck or problematic production orders: ProductionAPITool.list_orders(status=blocked), ProductionAPITool.list_orders(status=delayed), then ERPTool.get_customers_for_production_orders.
+- Flexible cross queries about customers affected by blocked production: ProductionQueryTool.query_orders(production_status=blocked), then ERPQueryTool.query_orders(join_from=production_orders). The executor joins only by order_id.
 - Explicit order IDs with status or risk: ProductionAPITool.get_status_for_order_ids, then ERPTool.get_customers_for_production_orders.
 - This month summary: ERPTool.get_orders_by_month(year=2026, month=5), then ProductionAPITool.get_status_for_erp_orders.
 - Penalties by order based on current order state: ERPTool.get_orders_by_month(year=2026, month=5), then ProductionAPITool.get_status_for_erp_orders, then DocumentRAGTool.query.
@@ -105,7 +108,7 @@ Output schema:
   "steps": [
     {{
       "step_id": 1,
-      "tool": "ERPTool|ProductionAPITool|DocumentRAGTool|MemoryTool",
+      "tool": "ERPTool|ProductionAPITool|ERPQueryTool|ProductionQueryTool|DocumentRAGTool|MemoryTool",
       "action": "allowed_action",
       "args": {{}},
       "required": true

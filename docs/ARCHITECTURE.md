@@ -27,6 +27,21 @@ Usuario
 
 LangGraph decide el recorrido. LangChain ejecuta capacidades concretas.
 
+### Compatibilidad opcional con Deep Agents
+
+El requisito "deepAgentes de LangChain" se cubre en el runtime principal como
+workflow agentic explicito sobre LangGraph + LangChain. Para una interpretacion
+literal de la libreria `deepagents`, el repositorio incluye
+`app.agents.deepagents_adapter`: un sidecar opcional que crea un Deep Agent y le
+expone el workflow aprobado como tool `consultar_flujo_agentic`.
+
+Este adapter no se activa por defecto ni sustituye el grafo. Su funcion es dar un
+punto de integracion claro si el evaluador exige la libreria concreta, evitando
+duplicar la arquitectura o relajar los guardrails de trazabilidad. Las
+dependencias opcionales viven en `requirements-deepagents.txt` porque las
+versiones actuales de `deepagents` requieren LangChain/LangGraph 1.x y el runtime
+estable de la POC esta fijado en LangChain 0.3 y LangGraph 0.2.
+
 ## Componentes
 
 ### FastAPI
@@ -165,6 +180,7 @@ Implementado en el repositorio y cubierto por tests/checklist manual:
 - Mock API de produccion.
 - ERP Northwind reducido con SQLite en memoria y seed controlado.
 - LangGraph con Planner, Reasoner/Executor, Validator y FinalResponseBuilder.
+- Adapter opcional Deep Agents como sidecar sobre el workflow existente.
 - RAG PDF con documentos mock de demo.
 - Chainlit con subida de PDFs.
 - Trazabilidad estructurada y sanitizada.

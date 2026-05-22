@@ -96,6 +96,8 @@ Disponible para ejecutar actualmente:
 - tests `real_llm` opt-in para validar planner/final response/DSL con un
   proveedor LLM real sin afectar a la suite rapida;
 - grafo LangGraph invocable desde API, tests y codigo Python;
+- adapter opcional `app.agents.deepagents_adapter` para envolver el workflow
+  actual como sidecar Deep Agents sin cambiar el runtime principal;
 - RAG documental invocable como tool y desde endpoints documentales.
 - trazabilidad normalizada y sanitizada en `/api/query`.
 - soporte configurable para Gemini u OpenAI sin cambiar grafo, agents ni tools.
@@ -137,6 +139,30 @@ Usuario
 -> Validator Node
 -> FinalResponseBuilder
 ```
+
+## Compatibilidad Deep Agents
+
+El enunciado menciona "deepAgentes de LangChain". La POC implementa el flujo
+agentic principal con LangGraph y LangChain porque necesita control explicito de
+estado, validacion, replanning, trazabilidad y tools deterministas. Este es el
+runtime estable de la entrega.
+
+Para cubrir una interpretacion literal de la libreria `deepagents`, existe un
+adapter opcional en `app.agents.deepagents_adapter`: crea un Deep Agent sidecar
+que usa el workflow actual como tool `consultar_flujo_agentic`. Asi el Deep
+Agent puede aportar planificacion/contexto de alto nivel sin sustituir el grafo
+auditado ni abrir una arquitectura paralela.
+
+No se instala por defecto porque las versiones actuales de `deepagents` requieren
+LangChain/LangGraph 1.x, mientras esta POC estable esta fijada en LangChain 0.3
+y LangGraph 0.2. Si se necesita probar el sidecar en un entorno separado:
+
+```powershell
+pip install -r requirements-deepagents.txt
+```
+
+El endpoint `/api/query`, Chainlit, Docker Compose y la suite principal siguen
+usando el workflow LangGraph documentado.
 
 ## Estructura base
 

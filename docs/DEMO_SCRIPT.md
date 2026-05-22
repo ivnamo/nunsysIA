@@ -80,6 +80,10 @@ Mensaje:
 - Esta POC no busca sustituir ERP ni MES; orquesta fuentes existentes.
 - El stack esta acotado: FastAPI, LangGraph, LangChain, Chainlit, ChromaDB,
   Pydantic y pytest.
+- Si preguntan por "deepAgentes de LangChain": el runtime principal usa
+  LangGraph + LangChain para control fino, y existe un adapter opcional
+  `app.agents.deepagents_adapter` que envuelve este workflow como sidecar
+  Deep Agents sin sustituir la arquitectura auditada.
 - Las respuestas deben traer `sources`, `tool_calls`, `fallbacks`, `status`,
   `reasoning` y `data`.
 
@@ -261,6 +265,9 @@ Defensa:
 
 - El flujo LangGraph es explicito: Planner -> Reasoner/Executor -> Validator ->
   FinalResponseBuilder.
+- Deep Agents queda cubierto como integracion opcional de bajo riesgo:
+  `requirements-deepagents.txt` + `app.agents.deepagents_adapter`, manteniendo
+  `/api/query` sobre el grafo validado.
 - Las rutas FastAPI son finas y delegan en servicios, graph o tools.
 - ERP, produccion, memoria y RAG entran como tools controladas.
 - El planner LLM esta acotado por schema Pydantic, lista cerrada de actions y

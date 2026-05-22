@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import httpx
@@ -59,6 +61,18 @@ def main() -> int:
         action="store_true",
         help="Anade el informe al final de --output en vez de reemplazarlo.",
     )
+    parser.add_argument(
+        "--flow",
+        choices=("workflow", "deepagents-sidecar", "deepagents-tools"),
+        default="workflow",
+        help="Flujo a validar contra la beta obligatoria.",
+    )
+    parser.add_argument(
+        "--case-id",
+        action="append",
+        default=[],
+        help="Ejecuta solo el case_id indicado. Puede repetirse.",
+    )
     args = parser.parse_args()
 
     if os.getenv("RUN_REAL_LLM_TESTS") != "1":
@@ -70,26 +84,53 @@ def main() -> int:
         return 2
 
     try:
-        service = _build_workflow_service()
+        service, runtime_lines = _build_service(args.flow)
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         return 2
 
-    report, exit_code = _run_cases(service, OBLIGATORY_BETA_CASES)
+    try:
+        cases = _selected_cases(OBLIGATORY_BETA_CASES, tuple(args.case_id))
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
+    checkpoint = None
+    if args.output and not args.append:
+        checkpoint = lambda partial_report: _write_report(args.output, partial_report)
+
+    report, exit_code = _run_cases(
+        service,
+        cases,
+        runtime_lines,
+        on_progress=checkpoint,
+    )
     if args.output:
-        mode = "a" if args.append else "w"
-        with args.output.open(mode, encoding="utf-8", newline="\n") as file:
-            if args.append:
-                file.write("\n\n")
-            file.write(report)
+        _write_report(args.output, report, append=args.append)
     else:
         print(report)
     return exit_code
 
 
-def _run_cases(
-    service: QueryWorkflowService,
+def _selected_cases(
     cases: tuple[BetaCase, ...],
+    selected_case_ids: tuple[str, ...],
+) -> tuple[BetaCase, ...]:
+    if not selected_case_ids:
+        return cases
+    selected = {case_id.upper() for case_id in selected_case_ids}
+    filtered = tuple(case for case in cases if case.case_id.upper() in selected)
+    missing = sorted(selected - {case.case_id.upper() for case in filtered})
+    if missing:
+        raise RuntimeError("case_id no encontrado: " + ", ".join(missing))
+    return filtered
+
+
+def _run_cases(
+    service: Any,
+    cases: tuple[BetaCase, ...],
+    runtime_lines: tuple[str, ...] | None = None,
+    on_progress: Callable[[str], None] | None = None,
 ) -> tuple[str, int]:
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sections = [
@@ -99,24 +140,28 @@ def _run_cases(
         "",
         "Runtime:",
         "",
-        "- Flujo en proceso con `QueryWorkflowService`.",
-        "- LLM real configurado via `.env`.",
-        "- Embeddings reales del proveedor configurado via `.env`.",
-        "- ChromaDB persistente local obligatorio para el espacio documental.",
-        "- ERP SQLite seed en memoria.",
-        "- Production API mockeada en proceso.",
-        "- PDFs v2 generados desde `scripts/generate_sample_pdfs.py`.",
+        *(runtime_lines or _workflow_runtime_lines()),
         "",
     ]
     totals = {"PASS": 0, "PARTIAL": 0, "FAIL": 0, "BLOCKER": 0}
 
     for beta_case in cases:
+        print(f"[beta] Ejecutando {beta_case.case_id} - {beta_case.title}", file=sys.stderr)
         responses = _execute_case(service, beta_case)
         verdict = evaluate_beta_case(beta_case, responses)
+        print(f"[beta] {beta_case.case_id}: {verdict.status}", file=sys.stderr)
         totals[verdict.status] = totals.get(verdict.status, 0) + 1
         sections.append(render_beta_case_report(beta_case, responses, verdict))
+        if on_progress is not None:
+            on_progress(_render_report(sections, totals))
 
-    sections.insert(
+    exit_code = 0 if totals["FAIL"] == 0 and totals["BLOCKER"] == 0 else 1
+    return _render_report(sections, totals), exit_code
+
+
+def _render_report(sections: list[str], totals: dict[str, int]) -> str:
+    rendered_sections = [*sections]
+    rendered_sections.insert(
         4,
         (
             "- Resultado global: "
@@ -124,12 +169,24 @@ def _run_cases(
             f"FAIL={totals['FAIL']}, BLOCKER={totals['BLOCKER']}."
         ),
     )
-    exit_code = 0 if totals["FAIL"] == 0 and totals["BLOCKER"] == 0 else 1
-    return "\n".join(sections), exit_code
+    return "\n".join(rendered_sections)
+
+
+def _write_report(
+    path: Path,
+    report: str,
+    *,
+    append: bool = False,
+) -> None:
+    mode = "a" if append else "w"
+    with path.open(mode, encoding="utf-8", newline="\n") as file:
+        if append:
+            file.write("\n\n")
+        file.write(report)
 
 
 def _execute_case(
-    service: QueryWorkflowService,
+    service: Any,
     beta_case: BetaCase,
 ) -> list[QueryResponse]:
     responses: list[QueryResponse] = []
@@ -146,9 +203,21 @@ def _execute_case(
     return responses
 
 
-def _build_workflow_service() -> QueryWorkflowService:
+def _build_service(flow: str) -> tuple[Any, tuple[str, ...]]:
+    if flow == "workflow":
+        return _build_workflow_service(), _workflow_runtime_lines()
+    if flow == "deepagents-sidecar":
+        return _build_deepagents_sidecar_service(), _deepagents_sidecar_runtime_lines()
+    if flow == "deepagents-tools":
+        return _build_deepagents_tools_service(), _deepagents_tools_runtime_lines()
+    raise RuntimeError(f"Flujo beta no soportado: {flow}")
+
+
+def _build_workflow_service(
+    check_same_thread: bool = True,
+) -> QueryWorkflowService:
     chat_model = _create_real_chat_model()
-    connection = create_sqlite_connection()
+    connection = create_sqlite_connection(check_same_thread=check_same_thread)
     load_seed_sql(connection)
     repository = NorthwindRepository(connection)
 
@@ -171,6 +240,93 @@ def _build_workflow_service() -> QueryWorkflowService:
         ),
         chat_model=chat_model,
         llm_timeout_seconds=_real_llm_timeout_seconds(),
+    )
+
+
+def _build_deepagents_sidecar_service() -> Any:
+    _ensure_deepagents_available()
+    from app.agents.deepagents_service import create_deepagents_query_service
+
+    workflow = _build_workflow_service(check_same_thread=False)
+    return create_deepagents_query_service(
+        settings=get_settings(),
+        workflow=workflow,
+    )
+
+
+def _build_deepagents_tools_service() -> Any:
+    _ensure_deepagents_available()
+    from app.agents.deepagents_tools_service import create_deepagents_tools_query_service
+
+    connection = create_sqlite_connection(check_same_thread=False)
+    load_seed_sql(connection)
+    repository = NorthwindRepository(connection)
+    production_client = ProductionAPIClient(
+        base_url="http://production-api.test",
+        transport=_production_transport(),
+    )
+    document_service = _create_real_document_service(V2_DOCUMENTS)
+    return create_deepagents_tools_query_service(
+        settings=get_settings(),
+        erp_tool=ERPTool(repository),
+        production_tool=ProductionAPITool(production_client),
+        erp_query_tool=ERPQueryTool(repository),
+        production_query_tool=ProductionQueryTool(production_client),
+        rag_tool=DocumentRAGTool(
+            vector_store=document_service.vector_store,
+            embedding_model=document_service.embedding_model,
+        ),
+    )
+
+
+def _ensure_deepagents_available() -> None:
+    try:
+        from app.agents.deepagents_adapter import deepagents_is_available
+    except ImportError as exc:
+        raise RuntimeError("No se pudo importar el adapter Deep Agents.") from exc
+    if not deepagents_is_available():
+        raise RuntimeError(
+            "deepagents no esta instalado en este entorno. "
+            "Usa requirements-deepagents.txt o el venv temporal compatible."
+        )
+
+
+def _workflow_runtime_lines() -> tuple[str, ...]:
+    return (
+        "- Flujo en proceso con `QueryWorkflowService`.",
+        "- LLM real configurado via `.env`.",
+        "- Embeddings reales del proveedor configurado via `.env`.",
+        "- ChromaDB persistente local obligatorio para el espacio documental.",
+        "- ERP SQLite seed en memoria.",
+        "- Production API mockeada en proceso.",
+        "- PDFs v2 generados desde `scripts/generate_sample_pdfs.py`.",
+    )
+
+
+def _deepagents_sidecar_runtime_lines() -> tuple[str, ...]:
+    return (
+        "- Flujo experimental Deep Agents sidecar con `DeepAgentsQueryService`.",
+        "- Deep Agents invoca el workflow estable como tool unica auditable.",
+        "- LLM real configurado via `.env` y modelo Deep Agents via `DEEPAGENTS_MODEL`.",
+        "- Embeddings reales del proveedor configurado via `.env`.",
+        "- ChromaDB persistente local obligatorio para el espacio documental.",
+        "- ERP SQLite seed en memoria con `check_same_thread=False`.",
+        "- Production API mockeada en proceso.",
+        "- PDFs v2 generados desde `scripts/generate_sample_pdfs.py`.",
+    )
+
+
+def _deepagents_tools_runtime_lines() -> tuple[str, ...]:
+    return (
+        "- Flujo experimental Deep Agents direct-tools con `DeepAgentsToolsQueryService`.",
+        "- Deep Agents recibe tools individuales y compuestas de ERP, Produccion, RAG y Memoria.",
+        "- `write_todos` queda disponible; filesystem, shell y subagentes quedan excluidos.",
+        "- LLM real configurado via `.env` y modelo Deep Agents via `DEEPAGENTS_MODEL`.",
+        "- Embeddings reales del proveedor configurado via `.env`.",
+        "- ChromaDB persistente local obligatorio para el espacio documental.",
+        "- ERP SQLite seed en memoria con `check_same_thread=False`.",
+        "- Production API mockeada en proceso.",
+        "- PDFs v2 generados desde `scripts/generate_sample_pdfs.py`.",
     )
 
 

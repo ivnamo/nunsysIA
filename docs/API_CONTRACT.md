@@ -160,7 +160,9 @@ Descripcion: endpoint experimental R22.4 donde Deep Agents recibe tools
 individuales de ERP, Produccion, RAG y Memoria. A diferencia del sidecar, este
 flujo no llama al workflow LangGraph como tool unica; deja que Deep Agents
 decida que tools deterministas usar y reconstruye una `QueryResponse` con la
-traza publica registrada durante la ejecucion.
+traza publica registrada durante la ejecucion. Desde R22.5 aplica seleccion de
+tools por intencion, tools compuestas de negocio, cache de consultas repetidas y
+presupuesto de una consulta RAG por turno documental.
 
 Activacion:
 

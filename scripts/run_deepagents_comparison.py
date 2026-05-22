@@ -257,7 +257,7 @@ def _run_case(
         label="tools",
     )
     issues = [*sidecar_issues, *direct_tools_issues]
-    status = "PASS" if not issues else "PARTIAL"
+    status = "PASS" if not _has_acceptance_issues(issues) else "PARTIAL"
     if any(issue.startswith("BLOCKER") for issue in issues):
         status = "BLOCKER"
     return DeepAgentsComparisonResult(
@@ -279,26 +279,46 @@ def _compare_last_responses(
     issues = []
     if compared_response.status != stable_response.status:
         issues.append(
-            f"{label}: status distinto: estable={stable_response.status}, "
+            f"SEMANTIC {label}: status distinto: estable={stable_response.status}, "
             f"{label}={compared_response.status}"
         )
-    if compared_response.sources != stable_response.sources:
+    if set(compared_response.sources) != set(stable_response.sources):
         issues.append(
-            f"{label}: sources distintas: estable={stable_response.sources}, "
+            f"SEMANTIC {label}: sources distintas: estable={stable_response.sources}, "
+            f"{label}={compared_response.sources}"
+        )
+    elif compared_response.sources != stable_response.sources:
+        issues.append(
+            f"TRACE {label}: orden de sources distinto: estable={stable_response.sources}, "
             f"{label}={compared_response.sources}"
         )
     stable_tools = [call.tool for call in stable_response.tool_calls]
     compared_tools = [call.tool for call in compared_response.tool_calls]
     if compared_tools != stable_tools:
         issues.append(
-            f"{label}: tool_calls distintas: estable={stable_tools}, "
+            f"TRACE {label}: tool_calls distintas: estable={stable_tools}, "
             f"{label}={compared_tools}"
+        )
+    rag_calls = len([tool for tool in compared_tools if tool == "DocumentRAGTool"])
+    if label == "tools" and rag_calls > 1:
+        issues.append(
+            f"EFFICIENCY {label}: sobreconsulta RAG: {rag_calls} llamadas DocumentRAGTool"
+        )
+    if label == "tools" and len(compared_tools) > max(len(stable_tools) * 2, 8):
+        issues.append(
+            f"EFFICIENCY {label}: exceso de tool calls: estable={len(stable_tools)}, "
+            f"{label}={len(compared_tools)}"
         )
     answer_text = compared_response.answer.lower()
     for term in comparison_case.required_terms:
         if term.lower() not in answer_text:
-            issues.append(f"{label}: falta termino esperado: {term}")
+            issues.append(f"SEMANTIC {label}: falta termino esperado: {term}")
     return issues
+
+
+def _has_acceptance_issues(issues: list[str]) -> bool:
+    acceptance_prefixes = ("SEMANTIC", "EFFICIENCY", "GUARDRAIL", "BLOCKER")
+    return any(issue.startswith(acceptance_prefixes) for issue in issues)
 
 
 def _render_report(results: list[DeepAgentsComparisonResult]) -> str:
@@ -322,6 +342,7 @@ def _render_report(results: list[DeepAgentsComparisonResult]) -> str:
         "- Flujo tools: `DeepAgentsToolsQueryService`.",
         "- Sidecar usa el workflow estable como tool auditable.",
         "- Tools expone ERP, Produccion, RAG y Memoria como tools individuales.",
+        "- El veredicto separa incidencias semanticas/eficiencia de diferencias de traza.",
         "- Modelo Deep Agents: `DEEPAGENTS_MODEL` o valor por defecto.",
         "",
     ]

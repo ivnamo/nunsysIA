@@ -51,11 +51,12 @@ el comportamiento de Deep Agents frente a `/api/query`, no promocionarlo como
 ruta productiva.
 
 R22.4 anade `POST /api/experimental/deepagents/tools/query`, que expone tools
-individuales de ERP, Produccion, RAG y Memoria a Deep Agents. Este flujo registra
-`ToolCallTrace` y reconstruye `QueryResponse`, pero queda marcado como
-experimental: la comparacion real mostro respuestas correctas, aunque con
-estrategias de tool calls diferentes y sobreconsulta documental en preguntas sin
-evidencia.
+individuales de ERP, Produccion, RAG y Memoria a Deep Agents. R22.5 endurece ese
+flujo con seleccion de tools por intencion, tools compuestas de negocio,
+presupuesto/cache para RAG y comparacion que separa diferencias semanticas de
+diferencias de traza. La comparacion real queda en `PASS=5, PARTIAL=0`, con
+trazas no identicas al grafo estable pero sin divergencias semanticas ni de
+eficiencia.
 
 ## Componentes
 

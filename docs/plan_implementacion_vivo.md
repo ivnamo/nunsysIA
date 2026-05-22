@@ -1423,7 +1423,7 @@ Criterio de aceptacion:
 Estado:
 
 - Validado el 2026-05-22 con suite determinista y beta real obligatoria.
-- Suite determinista: `221 passed, 23 skipped, 2 warnings`.
+- Suite determinista: `224 passed, 23 skipped, 2 warnings`.
 - Beta real opt-in: `18 passed, 1 warning`.
 - Informe comparativo anexado en `docs/BETA_VALIDATION_REPORT.md` con
   `PASS=18, PARTIAL=0, FAIL=0, BLOCKER=0`.
@@ -1641,13 +1641,69 @@ Estado 2026-05-22:
   `PASS=0, PARTIAL=5, FAIL=0, BLOCKER=0`.
 - Tests focales Deep Agents:
   `tests/unit/test_deepagents_adapter.py tests/unit/test_deepagents_service.py tests/unit/test_deepagents_tools_service.py tests/integration/test_deepagents_endpoint.py` -> `10 passed, 1 warning`.
-- Suite completa local: `221 passed, 23 skipped, 2 warnings`.
+- Suite completa local antes de R22.5: `221 passed, 23 skipped, 2 warnings`.
 - Lectura tecnica: el contenido y las fuentes son utiles, pero la estrategia de
   tools individuales diverge del grafo estable. En particular, puede agrupar
   llamadas donde el grafo registra llamadas unitarias y puede sobreconsultar RAG
   en preguntas documentales sin evidencia.
 
-### R22.5 - Decision tecnica
+### R22.5 - Hardening del flujo Deep Agents con tools individuales
+
+Objetivo:
+
+- Reducir sobreconsulta y variabilidad del flujo `DeepAgentsToolsQueryService`
+  sin convertirlo en otro LangGraph.
+- Mantener libertad de Deep Agents, pero con barandillas de seleccion,
+  composicion y presupuesto.
+
+Cambios esperados:
+
+- Seleccionar tools por intencion antes de crear el Deep Agent.
+- No exponer RAG si la pregunta no es documental, contractual o de
+  penalizaciones.
+- Anadir tools compuestas de negocio:
+  - pedidos pendientes de cliente con produccion por `order_id`;
+  - bloqueos de produccion cruzados con ERP;
+  - riesgo de penalizacion con ERP, produccion y documento contractual;
+  - follow-ups de pedidos resueltos con memoria, ERP y produccion.
+- Cachear consultas repetidas para no registrar tool calls duplicadas.
+- Limitar RAG a una consulta por turno documental.
+- Ajustar el comparador para distinguir:
+  - divergencias semanticas;
+  - problemas de eficiencia;
+  - diferencias de traza aceptables.
+
+Criterio de aceptacion:
+
+- El endpoint sigue siendo experimental y separado de `/api/query`.
+- No aparecen divergencias semanticas frente al workflow estable.
+- No hay sobreconsulta RAG.
+- Las diferencias de tool calls quedan como `TRACE`, no como fallo funcional.
+
+Estado 2026-05-22:
+
+- Implementada seleccion de tools por intencion en `DeepAgentsToolsQueryService`.
+- Implementadas tools compuestas y cache/presupuesto RAG.
+- Comparador actualizado con categorias `SEMANTIC`, `EFFICIENCY` y `TRACE`.
+- Comparacion real actualizada en `docs/DEEPAGENTS_COMPARISON_REPORT.md`:
+  `PASS=5, PARTIAL=0, FAIL=0, BLOCKER=0`.
+- Persisten diferencias de traza no bloqueantes:
+  - batch de produccion frente a llamadas unitarias;
+  - Query DSL frente a tools especificas en algun follow-up.
+- Tests focales Deep Agents:
+  `tests/unit/test_deepagents_adapter.py tests/unit/test_deepagents_service.py tests/unit/test_deepagents_tools_service.py tests/integration/test_deepagents_endpoint.py` -> `13 passed, 1 warning`.
+- Suite completa local: `224 passed, 23 skipped, 2 warnings`.
+
+Lectura tecnica:
+
+- La integracion directa con tools ya es defendible como experimento real de
+  Deep Agents.
+- No sustituye la ruta estable porque la trazabilidad es compatible pero no
+  identica al grafo LangGraph.
+- Para entrega, la postura recomendada sigue siendo: `/api/query` estable,
+  sidecar como cobertura literal segura, direct-tools como evidencia avanzada.
+
+### R22.6 - Decision tecnica
 
 Opciones de cierre:
 
@@ -1752,4 +1808,4 @@ Criterio de aceptacion:
 | 2026-05-22 | R18 | cerrado | Tests `real_llm` opt-in implementados; suite rapida 191 passed + 5 skipped; `pytest -m real_llm`: 5 passed contra proveedor real | este bloque |
 | 2026-05-22 | R19 | cerrado | Hotfix ensayo manual: `Dame los pedidos que puedan generar penalizacion...` entra por plan mixto determinista; planner 26 passed; graph 17 passed; `pytest`: 193 passed + 5 skipped | este bloque |
 | 2026-05-22 | R21 | cerrado | Sidecar opcional Deep Agents estable; adapter versionado; focal `tests/unit/test_deepagents_adapter.py`: 2 passed; marca prevista `stable-deepagents-sidecar` | `97ba10f` |
-| 2026-05-22 | R22 | activo | Sidecar comparativo PASS=5; tools individuales R22.4 implementado con contenido correcto pero veredicto PARTIAL=5 por estrategia de tool calls/sobreconsulta; pendiente decision R22.5 | pendiente |
+| 2026-05-22 | R22 | activo | Direct-tools endurecido con seleccion por intencion, tools compuestas y presupuesto RAG; comparacion real PASS=5/PARTIAL=0; pendiente decision R22.6 | pendiente |

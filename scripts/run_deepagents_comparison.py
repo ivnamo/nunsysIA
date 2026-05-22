@@ -16,6 +16,7 @@ from app.agents.deepagents_adapter import deepagents_is_available
 from app.agents.deepagents_service import (
     create_deepagents_query_service,
 )
+from app.agents.deepagents_tools_service import create_deepagents_tools_query_service
 from app.agents.service import QueryWorkflowService
 from app.core.config import get_settings
 from app.erp.database import create_sqlite_connection, load_seed_sql
@@ -48,7 +49,8 @@ class DeepAgentsComparisonCase:
 class DeepAgentsComparisonResult:
     case: DeepAgentsComparisonCase
     stable_responses: tuple[QueryResponse, ...]
-    deepagents_responses: tuple[QueryResponse, ...]
+    sidecar_responses: tuple[QueryResponse, ...]
+    direct_tools_responses: tuple[QueryResponse, ...]
     status: str
     issues: tuple[str, ...]
 
@@ -121,11 +123,7 @@ def main() -> int:
         return 2
 
     try:
-        workflow = _build_comparison_workflow_service()
-        deepagents_service = create_deepagents_query_service(
-            settings=get_settings(),
-            workflow=workflow,
-        )
+        workflow, sidecar_service, direct_tools_service = _build_comparison_services()
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         return 2
@@ -137,7 +135,8 @@ def main() -> int:
                 _run_case(
                     comparison_case=comparison_case,
                     workflow=workflow,
-                    deepagents_service=deepagents_service,
+                    sidecar_service=sidecar_service,
+                    direct_tools_service=direct_tools_service,
                 )
             )
         except Exception as exc:
@@ -145,7 +144,8 @@ def main() -> int:
                 DeepAgentsComparisonResult(
                     case=comparison_case,
                     stable_responses=(),
-                    deepagents_responses=(),
+                    sidecar_responses=(),
+                    direct_tools_responses=(),
                     status="BLOCKER",
                     issues=(str(exc),),
                 )
@@ -158,41 +158,65 @@ def main() -> int:
     return 0 if totals["FAIL"] == 0 and totals["BLOCKER"] == 0 else 1
 
 
-def _build_comparison_workflow_service() -> QueryWorkflowService:
+def _build_comparison_services() -> tuple[QueryWorkflowService, object, object]:
     chat_model = _create_real_chat_model()
     connection = create_sqlite_connection(check_same_thread=False)
     load_seed_sql(connection)
     repository = NorthwindRepository(connection)
+    settings = get_settings()
 
     production_client = ProductionAPIClient(
         base_url="http://production-api.test",
         transport=_production_transport(),
     )
     document_service = _create_real_document_service(V2_DOCUMENTS)
+    erp_tool = ERPTool(repository)
+    production_tool = ProductionAPITool(production_client)
+    erp_query_tool = ERPQueryTool(repository)
+    production_query_tool = ProductionQueryTool(production_client)
+    rag_tool = DocumentRAGTool(
+        vector_store=document_service.vector_store,
+        embedding_model=document_service.embedding_model,
+    )
 
-    return QueryWorkflowService(
-        erp_tool=ERPTool(repository),
-        production_tool=ProductionAPITool(production_client),
-        erp_query_tool=ERPQueryTool(repository),
-        production_query_tool=ProductionQueryTool(production_client),
-        rag_tool=DocumentRAGTool(
-            vector_store=document_service.vector_store,
-            embedding_model=document_service.embedding_model,
-        ),
+    workflow = QueryWorkflowService(
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        erp_query_tool=erp_query_tool,
+        production_query_tool=production_query_tool,
+        rag_tool=rag_tool,
         chat_model=chat_model,
         llm_timeout_seconds=_real_llm_timeout_seconds(),
     )
+    sidecar_service = create_deepagents_query_service(
+        settings=settings,
+        workflow=workflow,
+    )
+    direct_tools_service = create_deepagents_tools_query_service(
+        settings=settings,
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        erp_query_tool=erp_query_tool,
+        production_query_tool=production_query_tool,
+        rag_tool=rag_tool,
+    )
+    return workflow, sidecar_service, direct_tools_service
 
 
 def _run_case(
     comparison_case: DeepAgentsComparisonCase,
     workflow,
-    deepagents_service,
+    sidecar_service,
+    direct_tools_service,
 ) -> DeepAgentsComparisonResult:
     stable_responses = []
-    deepagents_responses = []
+    sidecar_responses = []
+    direct_tools_responses = []
     stable_conversation_id = f"deepcompare-stable-{comparison_case.case_id.lower()}"
-    deepagents_conversation_id = f"deepcompare-deep-{comparison_case.case_id.lower()}"
+    sidecar_conversation_id = f"deepcompare-sidecar-{comparison_case.case_id.lower()}"
+    direct_tools_conversation_id = (
+        f"deepcompare-tools-{comparison_case.case_id.lower()}"
+    )
 
     for question in comparison_case.turns:
         stable_responses.append(
@@ -203,27 +227,44 @@ def _run_case(
                 )
             )
         )
-        deepagents_responses.append(
-            deepagents_service.run(
+        sidecar_responses.append(
+            sidecar_service.run(
                 QueryRequest(
                     question=question,
-                    conversation_id=deepagents_conversation_id,
+                    conversation_id=sidecar_conversation_id,
+                )
+            )
+        )
+        direct_tools_responses.append(
+            direct_tools_service.run(
+                QueryRequest(
+                    question=question,
+                    conversation_id=direct_tools_conversation_id,
                 )
             )
         )
 
-    issues = _compare_last_responses(
+    sidecar_issues = _compare_last_responses(
         comparison_case,
         stable_responses[-1],
-        deepagents_responses[-1],
+        sidecar_responses[-1],
+        label="sidecar",
     )
+    direct_tools_issues = _compare_last_responses(
+        comparison_case,
+        stable_responses[-1],
+        direct_tools_responses[-1],
+        label="tools",
+    )
+    issues = [*sidecar_issues, *direct_tools_issues]
     status = "PASS" if not issues else "PARTIAL"
     if any(issue.startswith("BLOCKER") for issue in issues):
         status = "BLOCKER"
     return DeepAgentsComparisonResult(
         case=comparison_case,
         stable_responses=tuple(stable_responses),
-        deepagents_responses=tuple(deepagents_responses),
+        sidecar_responses=tuple(sidecar_responses),
+        direct_tools_responses=tuple(direct_tools_responses),
         status=status,
         issues=tuple(issues),
     )
@@ -232,30 +273,31 @@ def _run_case(
 def _compare_last_responses(
     comparison_case: DeepAgentsComparisonCase,
     stable_response: QueryResponse,
-    deepagents_response: QueryResponse,
+    compared_response: QueryResponse,
+    label: str,
 ) -> list[str]:
     issues = []
-    if deepagents_response.status != stable_response.status:
+    if compared_response.status != stable_response.status:
         issues.append(
-            f"status distinto: estable={stable_response.status}, "
-            f"deepagents={deepagents_response.status}"
+            f"{label}: status distinto: estable={stable_response.status}, "
+            f"{label}={compared_response.status}"
         )
-    if deepagents_response.sources != stable_response.sources:
+    if compared_response.sources != stable_response.sources:
         issues.append(
-            f"sources distintas: estable={stable_response.sources}, "
-            f"deepagents={deepagents_response.sources}"
+            f"{label}: sources distintas: estable={stable_response.sources}, "
+            f"{label}={compared_response.sources}"
         )
     stable_tools = [call.tool for call in stable_response.tool_calls]
-    deepagents_tools = [call.tool for call in deepagents_response.tool_calls]
-    if deepagents_tools != stable_tools:
+    compared_tools = [call.tool for call in compared_response.tool_calls]
+    if compared_tools != stable_tools:
         issues.append(
-            f"tool_calls distintas: estable={stable_tools}, "
-            f"deepagents={deepagents_tools}"
+            f"{label}: tool_calls distintas: estable={stable_tools}, "
+            f"{label}={compared_tools}"
         )
-    answer_text = deepagents_response.answer.lower()
+    answer_text = compared_response.answer.lower()
     for term in comparison_case.required_terms:
         if term.lower() not in answer_text:
-            issues.append(f"falta termino esperado en Deep Agents: {term}")
+            issues.append(f"{label}: falta termino esperado: {term}")
     return issues
 
 
@@ -276,8 +318,10 @@ def _render_report(results: list[DeepAgentsComparisonResult]) -> str:
         "Runtime:",
         "",
         "- Workflow estable: `QueryWorkflowService`.",
-        "- Flujo experimental: `DeepAgentsQueryService`.",
-        "- Deep Agents usa el workflow estable como tool auditable.",
+        "- Flujo sidecar: `DeepAgentsQueryService`.",
+        "- Flujo tools: `DeepAgentsToolsQueryService`.",
+        "- Sidecar usa el workflow estable como tool auditable.",
+        "- Tools expone ERP, Produccion, RAG y Memoria como tools individuales.",
         "- Modelo Deep Agents: `DEEPAGENTS_MODEL` o valor por defecto.",
         "",
     ]
@@ -288,8 +332,9 @@ def _render_report(results: list[DeepAgentsComparisonResult]) -> str:
 
 def _render_case(result: DeepAgentsComparisonResult) -> list[str]:
     stable_response = result.stable_responses[-1] if result.stable_responses else None
-    deepagents_response = (
-        result.deepagents_responses[-1] if result.deepagents_responses else None
+    sidecar_response = result.sidecar_responses[-1] if result.sidecar_responses else None
+    direct_tools_response = (
+        result.direct_tools_responses[-1] if result.direct_tools_responses else None
     )
     lines = [
         f"## {result.case.case_id} - {result.case.title}",
@@ -307,8 +352,10 @@ def _render_case(result: DeepAgentsComparisonResult) -> list[str]:
         lines.append("- Sin divergencias criticas.")
     lines.extend(["", "Respuesta estable:", ""])
     lines.append(_response_summary(stable_response))
-    lines.extend(["", "Respuesta Deep Agents:", ""])
-    lines.append(_response_summary(deepagents_response))
+    lines.extend(["", "Respuesta Deep Agents sidecar:", ""])
+    lines.append(_response_summary(sidecar_response))
+    lines.extend(["", "Respuesta Deep Agents tools:", ""])
+    lines.append(_response_summary(direct_tools_response))
     lines.append("")
     return lines
 
@@ -317,13 +364,14 @@ def _response_summary(response: QueryResponse | None) -> str:
     if response is None:
         return "- No disponible."
     tools = [call.tool for call in response.tool_calls]
+    answer = "\n".join(line.rstrip() for line in response.answer.splitlines()).strip()
     return "\n".join(
         [
             f"- status: `{response.status}`",
             f"- sources: `{list(response.sources)}`",
             f"- tools: `{tools}`",
             f"- fallbacks: `{response.fallbacks}`",
-            f"- answer: {response.answer}",
+            f"- answer: {answer}",
         ]
     )
 

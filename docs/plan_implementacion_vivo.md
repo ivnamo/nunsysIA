@@ -1423,7 +1423,7 @@ Criterio de aceptacion:
 Estado:
 
 - Validado el 2026-05-22 con suite determinista y beta real obligatoria.
-- Suite determinista: `219 passed, 23 skipped, 2 warnings`.
+- Suite determinista: `221 passed, 23 skipped, 2 warnings`.
 - Beta real opt-in: `18 passed, 1 warning`.
 - Informe comparativo anexado en `docs/BETA_VALIDATION_REPORT.md` con
   `PASS=18, PARTIAL=0, FAIL=0, BLOCKER=0`.
@@ -1628,6 +1628,25 @@ Criterio de aceptacion:
 - El resultado sigue siendo `QueryResponse` y pasa comparacion contra casos
   beta criticos.
 
+Estado 2026-05-22:
+
+- Implementado `DeepAgentsToolsQueryService`.
+- Implementado endpoint experimental
+  `POST /api/experimental/deepagents/tools/query`.
+- Tools expuestas: memoria conversacional, ERP por cliente/mes/importe,
+  Produccion por estado/ids, Query DSL segura ERP/Produccion y RAG documental.
+- La respuesta reconstruye `QueryResponse` con `ToolCallTrace`, `sources`,
+  `reasoning`, `fallbacks`, `status` y `data` publico.
+- Comparacion real actualizada en `docs/DEEPAGENTS_COMPARISON_REPORT.md`:
+  `PASS=0, PARTIAL=5, FAIL=0, BLOCKER=0`.
+- Tests focales Deep Agents:
+  `tests/unit/test_deepagents_adapter.py tests/unit/test_deepagents_service.py tests/unit/test_deepagents_tools_service.py tests/integration/test_deepagents_endpoint.py` -> `10 passed, 1 warning`.
+- Suite completa local: `221 passed, 23 skipped, 2 warnings`.
+- Lectura tecnica: el contenido y las fuentes son utiles, pero la estrategia de
+  tools individuales diverge del grafo estable. En particular, puede agrupar
+  llamadas donde el grafo registra llamadas unitarias y puede sobreconsultar RAG
+  en preguntas documentales sin evidencia.
+
 ### R22.5 - Decision tecnica
 
 Opciones de cierre:
@@ -1662,6 +1681,7 @@ Criterio de aceptacion:
 | Trazabilidad | `tests/unit/test_traceability.py`, `tests/integration/test_query_endpoint.py` |
 | Beta obligatoria | `tests/unit/test_beta_validation_support.py`, `tests/integration/test_real_llm_beta_obligatory.py` |
 | Deep Agents sidecar | `tests/unit/test_deepagents_adapter.py` |
+| Deep Agents tools | `tests/unit/test_deepagents_tools_service.py`, `tests/integration/test_deepagents_endpoint.py` |
 | Deep Agents comparativo | `scripts/run_deepagents_comparison.py`, `docs/DEEPAGENTS_COMPARISON_REPORT.md` |
 | Runtime Docker | `pytest` completo + checklist manual |
 
@@ -1732,4 +1752,4 @@ Criterio de aceptacion:
 | 2026-05-22 | R18 | cerrado | Tests `real_llm` opt-in implementados; suite rapida 191 passed + 5 skipped; `pytest -m real_llm`: 5 passed contra proveedor real | este bloque |
 | 2026-05-22 | R19 | cerrado | Hotfix ensayo manual: `Dame los pedidos que puedan generar penalizacion...` entra por plan mixto determinista; planner 26 passed; graph 17 passed; `pytest`: 193 passed + 5 skipped | este bloque |
 | 2026-05-22 | R21 | cerrado | Sidecar opcional Deep Agents estable; adapter versionado; focal `tests/unit/test_deepagents_adapter.py`: 2 passed; marca prevista `stable-deepagents-sidecar` | `97ba10f` |
-| 2026-05-22 | R22 | activo | Endpoint experimental y comparador implementados; real Deep Agents comparison PASS=5; `pytest`: 219 passed + 23 skipped; pendiente decidir si avanzar a tools individuales R22.4 | pendiente |
+| 2026-05-22 | R22 | activo | Sidecar comparativo PASS=5; tools individuales R22.4 implementado con contenido correcto pero veredicto PARTIAL=5 por estrategia de tool calls/sobreconsulta; pendiente decision R22.5 | pendiente |

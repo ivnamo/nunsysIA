@@ -81,8 +81,8 @@ Este repositorio contiene:
   tool calls visibles.
 - Respuesta final mas natural para cruces, respuestas parciales y
   clarificaciones, manteniendo validacion de hechos criticos contra evidencias.
-- suite automatizada versionada actual: `219 passed, 23 skipped, 2 warnings`.
-- suite opt-in con LLM real: `23 passed, 219 deselected, 2 warnings` usando
+- suite automatizada versionada actual: `221 passed, 23 skipped, 2 warnings`.
+- suite opt-in con LLM real: `23 passed, 221 deselected, 2 warnings` usando
   `RUN_REAL_LLM_TESTS=1`.
 
 Disponible para ejecutar actualmente:
@@ -163,6 +163,19 @@ pip install -r requirements-deepagents.txt
 
 El endpoint `/api/query`, Chainlit, Docker Compose y la suite principal siguen
 usando el workflow LangGraph documentado.
+
+En la rama experimental `experiment/deepagents-flow` tambien hay dos endpoints
+opt-in protegidos por `ENABLE_DEEPAGENTS_EXPERIMENT=true`:
+
+- `/api/experimental/deepagents/query`: Deep Agents sidecar sobre el workflow
+  auditado.
+- `/api/experimental/deepagents/tools/query`: Deep Agents con tools
+  individuales de ERP, Produccion, RAG y Memoria.
+
+La comparacion se genera con `scripts/run_deepagents_comparison.py`. El sidecar
+queda alineado con el workflow estable; el flujo de tools individuales responde
+con contenido correcto, pero queda como experimento porque planifica tools de
+forma menos controlada y puede sobreconsultar documentos.
 
 ## Estructura base
 
@@ -493,4 +506,4 @@ soportados como `terminado` ante prompt injection.
 R18 queda cerrada con tests `real_llm` opt-in. Por defecto la suite rapida los
 salta; al activar `RUN_REAL_LLM_TESTS=1`, validan planner real, final real,
 Query DSL segura, memoria como referencia y guardrails de prompt injection.
-Suite actual: `219 passed, 23 skipped, 2 warnings`.
+Suite actual: `221 passed, 23 skipped, 2 warnings`.

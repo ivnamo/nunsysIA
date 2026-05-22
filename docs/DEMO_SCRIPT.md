@@ -32,7 +32,7 @@ Desde la raiz del repo:
 Resultado esperado versionado:
 
 ```text
-219 passed, 23 skipped, 2 warnings
+221 passed, 23 skipped, 2 warnings
 ```
 
 Validacion opt-in con LLM real antes de la demo:
@@ -45,7 +45,7 @@ $env:RUN_REAL_LLM_TESTS="1"
 Resultado esperado:
 
 ```text
-23 passed, 219 deselected, 2 warnings
+23 passed, 221 deselected, 2 warnings
 ```
 
 Para demo Docker con Gemini real:
@@ -88,6 +88,10 @@ Mensaje:
   `/api/experimental/deepagents/query`, protegido por
   `ENABLE_DEEPAGENTS_EXPERIMENT=true`, y el script
   `scripts/run_deepagents_comparison.py`.
+- Tambien existe `/api/experimental/deepagents/tools/query` para R22.4: Deep
+  Agents con tools individuales. En la comparacion real respondio con contenido
+  correcto, pero uso estrategias de tool calls menos controladas; por eso queda
+  como experimento, no como ruta recomendada.
 - Las respuestas deben traer `sources`, `tool_calls`, `fallbacks`, `status`,
   `reasoning` y `data`.
 
@@ -282,7 +286,7 @@ Defensa:
 - `fallbacks` son visibles; no se ocultan rutas alternativas.
 - La memoria no decide hechos de negocio; solo resuelve referencias.
 - Docker Compose valida backend, mock de produccion, Chainlit y ChromaDB HTTP.
-- La suite cubre contratos y regresiones criticas: `219 passed` y deja los 23
+- La suite cubre contratos y regresiones criticas: `221 passed` y deja los 23
   tests `real_llm` como validacion opt-in con ChromaDB persistente local y
   embeddings reales.
 

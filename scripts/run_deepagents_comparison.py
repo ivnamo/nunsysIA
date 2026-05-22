@@ -342,6 +342,7 @@ def _render_report(results: list[DeepAgentsComparisonResult]) -> str:
         "- Flujo tools: `DeepAgentsToolsQueryService`.",
         "- Sidecar usa el workflow estable como tool auditable.",
         "- Tools expone ERP, Produccion, RAG y Memoria como tools individuales.",
+        "- Tools conserva `write_todos` y excluye filesystem, shell y subagentes.",
         "- El veredicto separa incidencias semanticas/eficiencia de diferencias de traza.",
         "- Modelo Deep Agents: `DEEPAGENTS_MODEL` o valor por defecto.",
         "",
@@ -386,15 +387,17 @@ def _response_summary(response: QueryResponse | None) -> str:
         return "- No disponible."
     tools = [call.tool for call in response.tool_calls]
     answer = "\n".join(line.rstrip() for line in response.answer.splitlines()).strip()
-    return "\n".join(
-        [
-            f"- status: `{response.status}`",
-            f"- sources: `{list(response.sources)}`",
-            f"- tools: `{tools}`",
-            f"- fallbacks: `{response.fallbacks}`",
-            f"- answer: {answer}",
-        ]
-    )
+    lines = [
+        f"- status: `{response.status}`",
+        f"- sources: `{list(response.sources)}`",
+        f"- tools: `{tools}`",
+        f"- fallbacks: `{response.fallbacks}`",
+    ]
+    planning = (response.data or {}).get("deepagents_planning")
+    if isinstance(planning, dict):
+        lines.append(f"- deepagents_planning: `{planning}`")
+    lines.append(f"- answer: {answer}")
+    return "\n".join(lines)
 
 
 def _totals(results: list[DeepAgentsComparisonResult]) -> dict[str, int]:

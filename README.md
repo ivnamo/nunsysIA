@@ -81,8 +81,8 @@ Este repositorio contiene:
   tool calls visibles.
 - Respuesta final mas natural para cruces, respuestas parciales y
   clarificaciones, manteniendo validacion de hechos criticos contra evidencias.
-- suite automatizada versionada actual: `224 passed, 23 skipped, 2 warnings`.
-- suite opt-in con LLM real: `23 passed, 224 deselected, 2 warnings` usando
+- suite automatizada versionada actual: `226 passed, 23 skipped, 2 warnings`.
+- suite opt-in con LLM real: `23 passed, 226 deselected, 2 warnings` usando
   `RUN_REAL_LLM_TESTS=1`.
 
 Disponible para ejecutar actualmente:
@@ -177,7 +177,10 @@ queda alineado con el workflow estable; el flujo de tools individuales responde
 con contenido correcto y, tras R22.5, usa seleccion de tools por intencion,
 tools compuestas de negocio y presupuesto RAG. En la comparacion real queda en
 `PASS=5, PARTIAL=0, FAIL=0, BLOCKER=0`, aunque sigue como experimento porque
-su estrategia de traza no es identica al grafo estable.
+su estrategia de traza no es identica al grafo estable. R22.6 conserva la
+planificacion nativa `write_todos` de Deep Agents, excluye filesystem/shell/
+subagentes del endpoint de negocio y expone solo una senal publica sanitizada en
+`data.deepagents_planning`.
 
 ## Estructura base
 
@@ -508,4 +511,4 @@ soportados como `terminado` ante prompt injection.
 R18 queda cerrada con tests `real_llm` opt-in. Por defecto la suite rapida los
 salta; al activar `RUN_REAL_LLM_TESTS=1`, validan planner real, final real,
 Query DSL segura, memoria como referencia y guardrails de prompt injection.
-Suite actual: `224 passed, 23 skipped, 2 warnings`.
+Suite actual: `226 passed, 23 skipped, 2 warnings`.

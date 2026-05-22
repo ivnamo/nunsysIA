@@ -58,6 +58,12 @@ diferencias de traza. La comparacion real queda en `PASS=5, PARTIAL=0`, con
 trazas no identicas al grafo estable pero sin divergencias semanticas ni de
 eficiencia.
 
+R22.6 conserva la herramienta nativa `write_todos` de Deep Agents para
+planificacion interna en consultas multi-fuente, pero registra solo una senal
+publica sanitizada en `data.deepagents_planning`. El mismo harness excluye
+filesystem, shell (`execute`) y subagentes (`task`) porque el endpoint de negocio
+debe resolver por tools auditadas, no por acceso al sistema.
+
 ## Componentes
 
 ### FastAPI

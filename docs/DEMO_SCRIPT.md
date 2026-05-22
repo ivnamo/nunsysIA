@@ -32,7 +32,7 @@ Desde la raiz del repo:
 Resultado esperado versionado:
 
 ```text
-224 passed, 23 skipped, 2 warnings
+226 passed, 23 skipped, 2 warnings
 ```
 
 Validacion opt-in con LLM real antes de la demo:
@@ -45,7 +45,7 @@ $env:RUN_REAL_LLM_TESTS="1"
 Resultado esperado:
 
 ```text
-23 passed, 224 deselected, 2 warnings
+23 passed, 226 deselected, 2 warnings
 ```
 
 Para demo Docker con Gemini real:
@@ -93,6 +93,9 @@ Mensaje:
   tools compuestas y presupuesto RAG. La comparacion real queda en
   `PASS=5, PARTIAL=0`, aunque sigue como experimento por tener trazas distintas
   al grafo estable.
+- En R22.6 conserva `write_todos` para planificacion nativa de Deep Agents,
+  excluye filesystem/shell/subagentes y expone solo
+  `data.deepagents_planning` como senal sanitizada.
 - Las respuestas deben traer `sources`, `tool_calls`, `fallbacks`, `status`,
   `reasoning` y `data`.
 
@@ -287,7 +290,7 @@ Defensa:
 - `fallbacks` son visibles; no se ocultan rutas alternativas.
 - La memoria no decide hechos de negocio; solo resuelve referencias.
 - Docker Compose valida backend, mock de produccion, Chainlit y ChromaDB HTTP.
-- La suite cubre contratos y regresiones criticas: `224 passed` y deja los 23
+- La suite cubre contratos y regresiones criticas: `226 passed` y deja los 23
   tests `real_llm` como validacion opt-in con ChromaDB persistente local y
   embeddings reales.
 

@@ -162,7 +162,9 @@ flujo no llama al workflow LangGraph como tool unica; deja que Deep Agents
 decida que tools deterministas usar y reconstruye una `QueryResponse` con la
 traza publica registrada durante la ejecucion. Desde R22.5 aplica seleccion de
 tools por intencion, tools compuestas de negocio, cache de consultas repetidas y
-presupuesto de una consulta RAG por turno documental.
+presupuesto de una consulta RAG por turno documental. Desde R22.6 conserva
+`write_todos` como planificacion nativa de Deep Agents y excluye tools de
+filesystem, shell y subagentes en este endpoint de negocio.
 
 Activacion:
 
@@ -176,6 +178,13 @@ Uso previsto:
 - Evaluar si Deep Agents planifica bien con tools individuales.
 - Detectar divergencias de fuentes, tool calls, sobreconsulta o perdida de
   guardrails antes de cualquier promocion.
+
+Dato experimental adicional:
+
+- Si Deep Agents usa su tool nativa `write_todos`, la respuesta puede incluir
+  `data.deepagents_planning.todos_used` y
+  `data.deepagents_planning.todo_tool_calls_count`.
+- No se expone el contenido de los todos ni razonamiento interno.
 
 Errores posibles:
 

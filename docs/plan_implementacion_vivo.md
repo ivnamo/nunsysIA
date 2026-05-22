@@ -1423,7 +1423,7 @@ Criterio de aceptacion:
 Estado:
 
 - Validado el 2026-05-22 con suite determinista y beta real obligatoria.
-- Suite determinista: `224 passed, 23 skipped, 2 warnings`.
+- Suite determinista: `226 passed, 23 skipped, 2 warnings`.
 - Beta real opt-in: `18 passed, 1 warning`.
 - Informe comparativo anexado en `docs/BETA_VALIDATION_REPORT.md` con
   `PASS=18, PARTIAL=0, FAIL=0, BLOCKER=0`.
@@ -1692,7 +1692,7 @@ Estado 2026-05-22:
   - Query DSL frente a tools especificas en algun follow-up.
 - Tests focales Deep Agents:
   `tests/unit/test_deepagents_adapter.py tests/unit/test_deepagents_service.py tests/unit/test_deepagents_tools_service.py tests/integration/test_deepagents_endpoint.py` -> `13 passed, 1 warning`.
-- Suite completa local: `224 passed, 23 skipped, 2 warnings`.
+- Suite completa local antes de R22.6: `224 passed, 23 skipped, 2 warnings`.
 
 Lectura tecnica:
 
@@ -1703,7 +1703,58 @@ Lectura tecnica:
 - Para entrega, la postura recomendada sigue siendo: `/api/query` estable,
   sidecar como cobertura literal segura, direct-tools como evidencia avanzada.
 
-### R22.6 - Decision tecnica
+### R22.6 - Planificacion nativa Deep Agents y harness de negocio
+
+Objetivo:
+
+- Conservar la herramienta nativa `write_todos` de Deep Agents para consultas
+  multi-fuente o multi-paso.
+- Evitar que el endpoint experimental de negocio tenga acceso a filesystem,
+  shell o subagentes generalistas.
+- Exponer evidencia publica de uso de planificacion sin revelar contenido de
+  los todos ni razonamiento interno.
+
+Cambios esperados:
+
+- Registrar un `HarnessProfile` para el modelo Deep Agents del endpoint
+  direct-tools.
+- Excluir las tools built-in `ls`, `read_file`, `write_file`, `edit_file`,
+  `glob`, `grep`, `execute` y `task`.
+- Mantener `write_todos` disponible.
+- Reforzar el prompt para usar `write_todos` en consultas multi-fuente, no en
+  consultas simples.
+- Capturar solo:
+  - `data.deepagents_planning.todos_used`;
+  - `data.deepagents_planning.todo_tool_calls_count`.
+
+Criterio de aceptacion:
+
+- No se expone filesystem/shell/subagentes al endpoint de negocio.
+- `write_todos` queda disponible y puede aparecer en la ejecucion real.
+- No se expone contenido de todos ni chain-of-thought.
+- La comparacion real sigue sin divergencias semanticas ni de eficiencia.
+
+Estado 2026-05-22:
+
+- Implementado harness de negocio en `_create_deep_agent`.
+- Implementada traza publica sanitizada `data.deepagents_planning`.
+- Comparacion real actualizada en `docs/DEEPAGENTS_COMPARISON_REPORT.md`:
+  `PASS=5, PARTIAL=0, FAIL=0, BLOCKER=0`.
+- El informe muestra uso real de `write_todos` en varios casos direct-tools.
+- Tests focales Deep Agents:
+  `tests/unit/test_deepagents_adapter.py tests/unit/test_deepagents_service.py tests/unit/test_deepagents_tools_service.py tests/integration/test_deepagents_endpoint.py` -> `15 passed, 1 warning`.
+- Suite completa local: `226 passed, 23 skipped, 2 warnings`.
+
+Lectura tecnica:
+
+- Deep Agents queda mejor defendido: no solo envuelve tools, tambien usa su
+  mecanismo nativo de planificacion.
+- La exclusion de tools de sistema reduce superficie de riesgo y evita rutas no
+  auditadas.
+- La decision productiva sigue pendiente: promover o mantener este flujo como
+  evidencia experimental avanzada.
+
+### R22.7 - Decision tecnica
 
 Opciones de cierre:
 
@@ -1808,4 +1859,4 @@ Criterio de aceptacion:
 | 2026-05-22 | R18 | cerrado | Tests `real_llm` opt-in implementados; suite rapida 191 passed + 5 skipped; `pytest -m real_llm`: 5 passed contra proveedor real | este bloque |
 | 2026-05-22 | R19 | cerrado | Hotfix ensayo manual: `Dame los pedidos que puedan generar penalizacion...` entra por plan mixto determinista; planner 26 passed; graph 17 passed; `pytest`: 193 passed + 5 skipped | este bloque |
 | 2026-05-22 | R21 | cerrado | Sidecar opcional Deep Agents estable; adapter versionado; focal `tests/unit/test_deepagents_adapter.py`: 2 passed; marca prevista `stable-deepagents-sidecar` | `97ba10f` |
-| 2026-05-22 | R22 | activo | Direct-tools endurecido con seleccion por intencion, tools compuestas y presupuesto RAG; comparacion real PASS=5/PARTIAL=0; pendiente decision R22.6 | pendiente |
+| 2026-05-22 | R22 | activo | Direct-tools con seleccion por intencion, tools compuestas, presupuesto RAG y write_todos nativo; filesystem/shell/task excluidos; comparacion real PASS=5/PARTIAL=0; pendiente decision R22.7 | pendiente |

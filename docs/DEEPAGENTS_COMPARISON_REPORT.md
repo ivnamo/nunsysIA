@@ -1,6 +1,6 @@
 # Deep Agents Comparison Report
 
-Fecha de ejecucion: 2026-05-22 19:25:56
+Fecha de ejecucion: 2026-05-22 19:39:54
 
 Resultado global: PASS=5, PARTIAL=0, FAIL=0, BLOCKER=0.
 
@@ -11,6 +11,7 @@ Runtime:
 - Flujo tools: `DeepAgentsToolsQueryService`.
 - Sidecar usa el workflow estable como tool auditable.
 - Tools expone ERP, Produccion, RAG y Memoria como tools individuales.
+- Tools conserva `write_todos` y excluye filesystem, shell y subagentes.
 - El veredicto separa incidencias semanticas/eficiencia de diferencias de traza.
 - Modelo Deep Agents: `DEEPAGENTS_MODEL` o valor por defecto.
 
@@ -62,17 +63,18 @@ Respuesta Deep Agents tools:
 - sources: `['ERP', 'Produccion']`
 - tools: `['ERPTool', 'ProductionAPITool']`
 - fallbacks: `[]`
-- answer: El cliente **ALFKI** (Alfreds Futterkiste) tiene **2 pedidos pendientes**:
+- deepagents_planning: `{'todos_used': True, 'todo_tool_calls_count': 3}`
+- answer: El cliente **ALFKI** (Alfreds Futterkiste) tiene **2 pedidos pendientes** en el ERP, cuyos estados de producción son los siguientes:
 
-1. **Pedido ID: 10248**
-   - **Importe:** 440.00 €
-   - **Fecha de pedido:** 2026-05-02 (Fecha requerida: 2026-05-20)
-   - **Estado de producción:** `in_progress` (En progreso)
+1. **Pedido ID 10248**
+   - **Importe:** 440.00
+   - **Fecha de pedido:** 2026-05-02 (Requerido para el 2026-05-20)
+   - **Estado de producción:** `in_progress` (En proceso)
    - **Fecha estimada de finalización:** 2026-05-22
 
-2. **Pedido ID: 10252**
-   - **Importe:** 1,863.00 €
-   - **Fecha de pedido:** 2026-05-07 (Fecha requerida: 2026-05-25)
+2. **Pedido ID 10252**
+   - **Importe:** 1863.00
+   - **Fecha de pedido:** 2026-05-07 (Requerido para el 2026-05-25)
    - **Estado de producción:** `blocked` (Bloqueado)
    - **Motivo de bloqueo:** Falta de material
    - **Fecha estimada de finalización:** 2026-05-30
@@ -110,7 +112,7 @@ Respuesta Deep Agents sidecar:
 - sources: `['Produccion', 'ERP']`
 - tools: `['ProductionQueryTool', 'ERPQueryTool']`
 - fallbacks: `[]`
-- answer: Hay clientes afectados por bloqueos de produccion: 2.
+- answer: Hay 2 clientes afectados por bloqueos de produccion.
 
 | Cliente | Pedido | Motivo |
 | --- | --- | --- |
@@ -125,21 +127,20 @@ Respuesta Deep Agents tools:
 - sources: `['Produccion', 'ERP']`
 - tools: `['ProductionQueryTool', 'ERPQueryTool']`
 - fallbacks: `[]`
-- answer: Los clientes afectados por bloqueos en producción son:
+- deepagents_planning: `{'todos_used': True, 'todo_tool_calls_count': 3}`
+- answer: Los clientes afectados por bloqueos en producción, obtenidos tras cruzar las órdenes de producción bloqueadas con los datos de pedidos del ERP, son los siguientes:
 
-1. **Alfreds Futterkiste** (ID Cliente: `ALFKI`)
-   * **Pedido ID:** 10252
-   * **Importe:** 1.863,00 €
-   * **Estado ERP:** pending
-   * **Motivo del bloqueo:** Falta de material
-   * **Fecha estimada de finalización:** 2026-05-30
+### 1. **Alfreds Futterkiste** (ID: `ALFKI`)
+* **Pedido ERP:** ID `10252` (Importe: 1863.00, Estado ERP: `pending`, Fecha: 2026-05-07)
+* **Estado de producción:** Bloqueado (`blocked`)
+* **Motivo del bloqueo:** Falta de material
+* **Fecha estimada de finalización:** 2026-05-30
 
-2. **Bon app** (ID Cliente: `BONAP`)
-   * **Pedido ID:** 10312
-   * **Importe:** 1.210,00 €
-   * **Estado ERP:** pending
-   * **Motivo del bloqueo:** Falta de capacidad
-   * **Fecha estimada de finalización:** 2026-06-02
+### 2. **Bon app** (ID: `BONAP`)
+* **Pedido ERP:** ID `10312` (Importe: 1210.00, Estado ERP: `pending`, Fecha: 2026-05-18)
+* **Estado de producción:** Bloqueado (`blocked`)
+* **Motivo del bloqueo:** Falta de capacidad
+* **Fecha estimada de finalización:** 2026-06-02
 
 ## DA-03 - Penalizacion potencial con documento contractual
 
@@ -195,39 +196,34 @@ Respuesta Deep Agents tools:
 - sources: `['ERP', 'Produccion', 'Documentos']`
 - tools: `['ERPQueryTool', 'ProductionQueryTool', 'DocumentRAGTool']`
 - fallbacks: `[]`
-- answer: Basándome en los datos obtenidos del ERP, los estados de producción y el anexo de penalizaciones y SLA (documento `v2_anexo_penalizaciones_sla.pdf`), a continuación se detallan los pedidos y el análisis de su riesgo de penalización:
+- deepagents_planning: `{'todos_used': True, 'todo_tool_calls_count': 3}`
+- answer: Basándome en los datos obtenidos de la herramienta compuesta de ERP, producción y contratos, el análisis de los pedidos y su riesgo de penalización es el siguiente:
 
-### Pedido que **SÍ** puede generar penalización:
+### **Pedido con riesgo de generar penalización**
 
-* **Pedido 10248** (Cliente: **Alfreds Futterkiste** - ALFKI)
-  * **Importe:** 440.00 €
-  * **Fecha del pedido:** 2026-05-02
-  * **Estado de producción:** `in_progress` (Fecha estimada: 2026-05-22)
-  * **Razón del riesgo:** Ha acumulado un retraso significativo que supera con creces el plazo de SLA estándar de 5 días laborables (20 días naturales transcurridos). Al encontrarse en estado `in_progress` sin ningún motivo de bloqueo registrado (`blocked_reason` es null) ni retraso justificado (`delay_reason` es null), no aplica ninguna de las exclusiones del contrato. Al superar los 5 días laborables de retraso imputable, se expone a la penalización máxima del **5%** del importe del pedido.
+*   **Pedido 10248 (Cliente: Alfreds Futterkiste)**
+    *   **Importe:** 440.00 €
+    *   **Fecha de pedido (ERP):** 2026-05-02 (Estado ERP: *Pending*)
+    *   **Estado de producción:** *In Progress* (Fecha estimada de finalización: 2026-05-22)
+    *   **Motivo de penalización:** El pedido acumula un retraso significativo (20 días desde la fecha de pedido, superando con creces el límite contractual de 5 días laborables para pedidos estándar). Al revisar la producción, **no consta ningún motivo de bloqueo o retraso justificado** (`blocked_reason: null`, `delay_reason: null`). Por lo tanto, el retraso se considera imputable y generará la penalización correspondiente según la matriz de SLA (5% al superar los 5 días laborables de retraso).
 
 ---
 
-### Pedidos **EXCLUIDOS** de penalización (No generarán penalización):
+### **Pedidos excluidos de penalización (No generan riesgo)**
 
-* **Pedido 10252** (Cliente: **Alfreds Futterkiste** - ALFKI)
-  * **Importe:** 1,863.00 €
-  * **Estado de producción:** `blocked` (Fecha estimada: 2026-05-30)
-  * **Razón de exclusión:** El motivo del bloqueo registrado es **"Falta de material"**. El anexo de penalizaciones excluye explícitamente de sanción económica los retrasos procedentes de falta de material.
+De acuerdo con el **Anexo de penalizaciones y SLA (v2_anexo_penalizaciones_sla.pdf)**, no se aplican penalizaciones cuando el retraso procede de causas como falta de material, falta de capacidad o averías de línea. Los siguientes pedidos están exentos:
 
-* **Pedido 10255** (Cliente: **Alfreds Futterkiste** - ALFKI)
-  * **Importe:** 2,490.00 €
-  * **Estado de producción:** `finished` el 2026-05-14 (Estado ERP: `shipped`)
-  * **Razón de exclusión:** El pedido se ha finalizado y enviado correctamente dentro de los plazos establecidos.
-
-* **Pedido 10301** (Cliente: **Ana Trujillo Emparedados y helados** - ANATR)
-  * **Importe:** 920.00 €
-  * **Estado de producción:** `delayed` (Fecha estimada: 2026-06-03)
-  * **Razón de exclusión:** El motivo del retraso es una **"Averia en linea de produccion"**. El contrato marco y el anexo de SLA establecen que las averías de línea son causas no penalizables al no ser imputables de forma directa al operador logístico.
-
-* **Pedido 10312** (Cliente: **Bon app** - BONAP)
-  * **Importe:** 1,210.00 €
-  * **Estado de producción:** `blocked` (Fecha estimada: 2026-06-02)
-  * **Razón de exclusión:** El motivo del bloqueo es **"Falta de capacidad"**. Según la sección de exclusiones del anexo de SLA, la falta de capacidad es un motivo de exclusión y no aplica penalización económica.
+1.  **Pedido 10252 (Alfreds Futterkiste)**
+    *   **Estado:** Bloqueado (*Blocked*)
+    *   **Motivo de exclusión:** Registra bloqueo por **"Falta de material"**, causa excluida explícitamente en el contrato.
+2.  **Pedido 10301 (Ana Trujillo Emparedados y helados)**
+    *   **Estado:** Retrasado (*Delayed*)
+    *   **Motivo de exclusión:** El retraso se debe a una **"Avería en línea de producción"**, contemplada como caso no penalizable.
+3.  **Pedido 10312 (Bon app)**
+    *   **Estado:** Bloqueado (*Blocked*)
+    *   **Motivo de exclusión:** Registra bloqueo por **"Falta de capacidad"**, que también es una exclusión válida según los términos de SLA.
+4.  **Pedido 10255 (Alfreds Futterkiste)**
+    *   **Estado:** Finalizado y enviado (*Shipped* / *Finished*). No presenta demoras ni riesgos de penalización activos.
 
 ## DA-04 - Follow-up conversacional con conversation_id
 
@@ -240,7 +236,7 @@ Preguntas:
 
 Incidencias:
 
-- TRACE tools: tool_calls distintas: estable=['MemoryTool', 'ERPTool', 'ProductionAPITool', 'ProductionAPITool'], tools=['MemoryTool', 'ERPQueryTool', 'ProductionAPITool']
+- TRACE tools: tool_calls distintas: estable=['MemoryTool', 'ERPTool', 'ProductionAPITool', 'ProductionAPITool'], tools=['MemoryTool', 'MemoryTool', 'ERPQueryTool', 'ProductionAPITool']
 
 Respuesta estable:
 
@@ -276,19 +272,20 @@ Respuesta Deep Agents tools:
 
 - status: `completed`
 - sources: `['Memoria', 'ERP', 'Produccion']`
-- tools: `['MemoryTool', 'ERPQueryTool', 'ProductionAPITool']`
+- tools: `['MemoryTool', 'MemoryTool', 'ERPQueryTool', 'ProductionAPITool']`
 - fallbacks: `[]`
-- answer: Los pedidos del cliente **Alfreds Futterkiste (ALFKI)** se encuentran en los siguientes estados:
+- answer: Los pedidos pendientes del cliente **ALFKI** presentan el siguiente estado de producción:
 
-1. **Pedido ID: 10248**
-   - **Estado ERP:** pending
-   - **Estado de Producción:** in_progress
+1. **Pedido ID 10248**
+   - **Estado ERP:** Pendiente (`pending`)
+   - **Estado de Producción:** En progreso (`in_progress`)
    - **Fecha estimada de finalización:** 2026-05-22
+   - **Observaciones:** No presenta bloqueos ni retrasos.
 
-2. **Pedido ID: 10252**
-   - **Estado ERP:** pending
-   - **Estado de Producción:** blocked
-   - **Motivo de bloqueo:** Falta de material
+2. **Pedido ID 10252**
+   - **Estado ERP:** Pendiente (`pending`)
+   - **Estado de Producción:** Bloqueado (`blocked`)
+   - **Motivo del bloqueo:** Falta de material
    - **Fecha estimada de finalización:** 2026-05-30
 
 ## DA-05 - Pregunta documental sin evidencia
@@ -309,7 +306,7 @@ Respuesta estable:
 - sources: `['Documentos']`
 - tools: `['DocumentRAGTool']`
 - fallbacks: `[]`
-- answer: El contrato marco de logística 2026 y su anexo de penalizaciones no mencionan las criptomonedas en ninguno de los apartados disponibles.
+- answer: Con los datos disponibles, el contrato marco de logística 2026 y su anexo de penalizaciones no mencionan nada sobre criptomonedas.
 
 Respuesta Deep Agents sidecar:
 
@@ -325,11 +322,4 @@ Respuesta Deep Agents tools:
 - sources: `['Documentos']`
 - tools: `['DocumentRAGTool']`
 - fallbacks: `[]`
-- answer: En el documento consultado (**v2_contrato_marco_logistica_2026.pdf**, correspondiente al *"Contrato marco de logística 2026 - versión extendida"*), **no existe ninguna mención, cláusula ni referencia al término "criptomonedas"** ni a conceptos relacionados con activos digitales en las secciones indexadas (Páginas 1, 2 y 4).
-
-Los contenidos del documento se limitan a:
-* **Página 1 (Alcance, definiciones y reglas base):** Objeto del contrato (preparación, expedición, entrega y cierre de pedidos) y definiciones de pedidos (estándar, urgente, bloqueado, regla de inicio de plazo).
-* **Página 2 (Plazos, calendarios y excepciones operativas):** Plazos de entrega ordinarios, cálculo de días laborables, excepciones y exclusión de incumplimiento.
-* **Página 4 (Casos de decisión y resolución de conflictos):** Protocolos de actuación para pedidos liberados con retraso (Caso A), pedidos bloqueados por falta de material (Caso B) y solicitudes de adelanto de pedidos prioritarios por parte de comercial (Caso C).
-
-*Nota: La página 3 del documento no está registrada ni se recupera en las búsquedas del sistema RAG, pero en todo el contenido disponible no figura ninguna regulación sobre criptomonedas.*
+- answer: Tras realizar las consultas pertinentes en el sistema documental mediante las herramientas disponibles para términos como "criptomonedas", "criptomoneda", "contrato", "crypto", "blockchain" y "moneda", el sistema indica que no hay contexto documental suficiente para responder a la pregunta. Por lo tanto, no se dispone de información contractual sobre criptomonedas en los documentos registrados.

@@ -37,7 +37,7 @@ Ejecutar tests automatizados:
 Resultado esperado:
 
 ```text
-210 passed, 23 skipped, 2 warnings
+219 passed, 23 skipped, 2 warnings
 ```
 
 Las advertencias actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Los 23 tests saltados son `real_llm` y requieren activacion explicita. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
@@ -52,7 +52,7 @@ $env:RUN_REAL_LLM_TESTS="1"
 Resultado esperado con una clave real configurada:
 
 ```text
-23 passed, 210 deselected, 2 warnings
+23 passed, 219 deselected, 2 warnings
 ```
 
 Estos tests llaman al proveedor LLM configurado para validar planner real,

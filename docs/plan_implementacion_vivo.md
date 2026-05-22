@@ -1423,7 +1423,7 @@ Criterio de aceptacion:
 Estado:
 
 - Validado el 2026-05-22 con suite determinista y beta real obligatoria.
-- Suite determinista: `210 passed, 23 skipped, 2 warnings`.
+- Suite determinista: `219 passed, 23 skipped, 2 warnings`.
 - Beta real opt-in: `18 passed, 1 warning`.
 - Informe comparativo anexado en `docs/BETA_VALIDATION_REPORT.md` con
   `PASS=18, PARTIAL=0, FAIL=0, BLOCKER=0`.
@@ -1523,6 +1523,14 @@ Criterio de aceptacion:
 - Se puede activar/desactivar sin afectar Chainlit ni beta obligatoria.
 - La respuesta se normaliza a `QueryResponse`.
 
+Estado 2026-05-22:
+
+- Implementado `DeepAgentsQueryService`.
+- Implementado endpoint experimental
+  `POST /api/experimental/deepagents/query`.
+- El endpoint queda oculto por defecto y requiere
+  `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
+
 ### R22.2 - Primer experimento seguro: Deep Agent como entrada alternativa
 
 Cambio esperado:
@@ -1553,6 +1561,13 @@ Criterio de aceptacion:
 - Si `deepagents` no esta instalado, devuelve error controlado o queda omitida.
 - En entorno compatible, el Deep Agent llama la tool y devuelve una respuesta
   comparable.
+
+Estado 2026-05-22:
+
+- Implementado con el sidecar actual como tool unica
+  `consultar_flujo_agentic`.
+- El servicio devuelve la `QueryResponse` auditada del workflow estable.
+- Si falta `deepagents`, el endpoint devuelve `503` controlado.
 
 ### R22.3 - Comparador contra workflow estable
 
@@ -1585,6 +1600,15 @@ Criterio de aceptacion:
 - Las divergencias quedan registradas con causa probable.
 - No se acepta el flujo alternativo como estable si pierde trazabilidad,
   fuentes o guardrails.
+
+Estado 2026-05-22:
+
+- Implementado `scripts/run_deepagents_comparison.py`.
+- Informe generado en `docs/DEEPAGENTS_COMPARISON_REPORT.md`.
+- Ejecucion real con venv compatible:
+  `PASS=5, PARTIAL=0, FAIL=0, BLOCKER=0`.
+- Incidencia tecnica resuelta durante la prueba: Deep Agents ejecuta tools en
+  hilos; el runner comparativo usa SQLite con `check_same_thread=False`.
 
 ### R22.4 - Experimento avanzado con tools individuales
 
@@ -1708,4 +1732,4 @@ Criterio de aceptacion:
 | 2026-05-22 | R18 | cerrado | Tests `real_llm` opt-in implementados; suite rapida 191 passed + 5 skipped; `pytest -m real_llm`: 5 passed contra proveedor real | este bloque |
 | 2026-05-22 | R19 | cerrado | Hotfix ensayo manual: `Dame los pedidos que puedan generar penalizacion...` entra por plan mixto determinista; planner 26 passed; graph 17 passed; `pytest`: 193 passed + 5 skipped | este bloque |
 | 2026-05-22 | R21 | cerrado | Sidecar opcional Deep Agents estable; adapter versionado; focal `tests/unit/test_deepagents_adapter.py`: 2 passed; marca prevista `stable-deepagents-sidecar` | `97ba10f` |
-| 2026-05-22 | R22 | planificado | Flujo alternativo Deep Agents comparativo por endpoint/script opt-in; no toca `/api/query` hasta decidir con informe | pendiente |
+| 2026-05-22 | R22 | activo | Endpoint experimental y comparador implementados; real Deep Agents comparison PASS=5; `pytest`: 219 passed + 23 skipped; pendiente decidir si avanzar a tools individuales R22.4 | pendiente |

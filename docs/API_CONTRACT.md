@@ -128,6 +128,32 @@ Errores posibles:
 - `422`: validacion Pydantic.
 - `500`: error interno controlado.
 
+## `POST /api/experimental/deepagents/query`
+
+Descripcion: endpoint experimental para comparar un flujo Deep Agents contra el
+workflow estable. No sustituye `POST /api/query`: Deep Agents actua como entrada
+alternativa y debe llamar al workflow auditado mediante la tool
+`consultar_flujo_agentic`.
+
+Activacion:
+
+- Requiere `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
+- Requiere ejecutar en un entorno compatible con `requirements-deepagents.txt`.
+- Modelo por defecto: `DEEPAGENTS_MODEL=google_genai:gemini-3.5-flash`.
+
+Request: mismo schema que `POST /api/query`.
+
+Response `200`: mismo `QueryResponse` que `POST /api/query`, preservando la
+respuesta auditada devuelta por el workflow estable.
+
+Errores posibles:
+
+- `404`: experimento no habilitado.
+- `422`: request invalido.
+- `502`: Deep Agents no devolvio una `QueryResponse` auditable.
+- `503`: `deepagents` no esta instalado o el entorno no es compatible.
+- `500`: fallo no controlado del flujo experimental.
+
 En respuestas RAG completadas, `data.rag` debe incluir citas documentales por chunk sin exponer el texto completo del chunk:
 
 ```json

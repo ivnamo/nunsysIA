@@ -42,6 +42,14 @@ dependencias opcionales viven en `requirements-deepagents.txt` porque las
 versiones actuales de `deepagents` requieren LangChain/LangGraph 1.x y el runtime
 estable de la POC esta fijado en LangChain 0.3 y LangGraph 0.2.
 
+Como experimento comparativo, existe tambien
+`POST /api/experimental/deepagents/query`, protegido por
+`ENABLE_DEEPAGENTS_EXPERIMENT=true`. Este endpoint usa
+`DeepAgentsQueryService` para invocar Deep Agents, pero devuelve la
+`QueryResponse` auditada que produce el workflow estable. Su objetivo es medir
+el comportamiento de Deep Agents frente a `/api/query`, no promocionarlo como
+ruta productiva.
+
 ## Componentes
 
 ### FastAPI
@@ -50,6 +58,7 @@ Expone la API del sistema:
 
 - `GET /health`
 - `POST /api/query`
+- `POST /api/experimental/deepagents/query` si se habilita el experimento
 - `POST /api/documents/upload`
 - `GET /api/documents`
 

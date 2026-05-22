@@ -2814,3 +2814,2099 @@ Decision: hotfix aceptado antes de demo. Al repetir la pregunta en Chainlit tras
 reiniciar/reconstruir el backend, debe recuperar el anexo SLA y responder con
 pedidos/evidencia disponible, manteniendo `insufficient_context` solo si no hay
 documentos cargados.
+
+## Validacion beta obligatoria automatizada
+
+Fecha de ejecucion: 2026-05-22 14:57:57
+
+- Resultado global: PASS=18, PARTIAL=0, FAIL=0, BLOCKER=0.
+Runtime:
+
+- Flujo en proceso con `QueryWorkflowService`.
+- LLM real configurado via `.env`.
+- Embeddings deterministas para aislar variabilidad al LLM.
+- ERP SQLite seed en memoria.
+- Production API mockeada en proceso.
+- PDFs v2 generados desde `scripts/generate_sample_pdfs.py`.
+
+### BT-01 - PASS - ERP + produccion: pendientes ALFKI
+
+Pregunta ejecutada: `Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?`
+
+Resultado esperado desde el evaluador: Debe listar pedidos pendientes de ALFKI y sus estados de produccion.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+El cliente ALFKI tiene 2 pedidos pendientes:
+
+| Pedido | Estado ERP | Estado produccion | Observacion |
+| --- | --- | --- | --- |
+| 10248 | Pendiente | En curso | Sin bloqueo informado |
+| 10252 | Pendiente | Bloqueado | Falta de material |
+
+El punto de atencion es el pedido 10252, porque requiere seguimiento operativo desde produccion.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- ERP
+- Produccion
+
+**Pasos ejecutados**
+1. Consulta ERP de pedidos pendientes
+2. Consulta API de produccion para pedido 10248
+3. Consulta API de produccion para pedido 10252
+
+**Tool calls**
+- `ERPTool.get_pending_orders_by_customer` [success]: 2 pedidos pendientes encontrados
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion in_progress
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion blocked
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "ERP",
+    "Produccion"
+  ],
+  "tool_calls": [
+    {
+      "tool": "ERPTool",
+      "action": "get_pending_orders_by_customer",
+      "status": "success",
+      "source": "ERP",
+      "args": {
+        "customer_id": "ALFKI"
+      },
+      "output_summary": "2 pedidos pendientes encontrados",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10248
+      },
+      "output_summary": "Estado de produccion in_progress",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10252
+      },
+      "output_summary": "Estado de produccion blocked",
+      "error": null
+    }
+  ],
+  "fallbacks": [],
+  "data": {
+    "erp_orders_count": 2,
+    "erp_order_ids": [
+      10248,
+      10252
+    ],
+    "production_statuses_count": 2
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-02 - PASS - ERP + produccion: bloqueos
+
+Pregunta ejecutada: `Que pedidos estan bloqueados y cual es el motivo?`
+
+Resultado esperado desde el evaluador: Debe listar pedidos bloqueados y motivo, cruzando produccion con ERP.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Hay clientes afectados por bloqueos de produccion: 2.
+
+| Cliente | Pedido | Motivo |
+| --- | --- | --- |
+| ALFKI - Alfreds Futterkiste | 10252 | Falta de material |
+| BONAP - Bon app | 10312 | Falta de capacidad |
+
+El siguiente punto de atencion es resolver estos bloqueos desde produccion.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Produccion
+- ERP
+
+**Pasos ejecutados**
+1. Consulta API de produccion por estado
+2. Consulta ERP de cliente para pedido 10252
+3. Consulta ERP de cliente para pedido 10312
+
+**Tool calls**
+- `ProductionAPITool.list_orders` [success]: 2 pedidos de produccion encontrados con estado blocked
+- `ERPTool.get_customers_for_production_orders` [success]: Cliente ALFKI encontrado
+- `ERPTool.get_customers_for_production_orders` [success]: Cliente BONAP encontrado
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Produccion",
+    "ERP"
+  ],
+  "tool_calls": [
+    {
+      "tool": "ProductionAPITool",
+      "action": "list_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "status": "blocked"
+      },
+      "output_summary": "2 pedidos de produccion encontrados con estado blocked",
+      "error": null
+    },
+    {
+      "tool": "ERPTool",
+      "action": "get_customers_for_production_orders",
+      "status": "success",
+      "source": "ERP",
+      "args": {
+        "order_id": 10252
+      },
+      "output_summary": "Cliente ALFKI encontrado",
+      "error": null
+    },
+    {
+      "tool": "ERPTool",
+      "action": "get_customers_for_production_orders",
+      "status": "success",
+      "source": "ERP",
+      "args": {
+        "order_id": 10312
+      },
+      "output_summary": "Cliente BONAP encontrado",
+      "error": null
+    }
+  ],
+  "fallbacks": [],
+  "data": {
+    "production_orders_count": 2,
+    "production_order_ids": [
+      10252,
+      10312
+    ],
+    "customers_resolved_count": 2
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-03 - PASS - ERP + produccion: retrasos
+
+Pregunta ejecutada: `Que clientes tienen pedidos retrasados por problemas de produccion?`
+
+Resultado esperado desde el evaluador: Debe identificar pedidos delayed y cliente ERP asociado.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Hay pedidos retrasados en producción:
+
+| Pedido | Cliente | Estado producción | Motivo |
+| --- | --- | --- | --- |
+| 10301 | ANATR - Ana Trujillo Emparedados y helados | Retrasado | Avería en línea de producción |
+
+El siguiente punto de atención es el pedido 10301.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Produccion
+- ERP
+
+**Pasos ejecutados**
+1. Consulta API de produccion por estado
+2. Consulta ERP de cliente para pedido 10301
+
+**Tool calls**
+- `ProductionAPITool.list_orders` [success]: 1 pedidos de produccion encontrados con estado delayed
+- `ERPTool.get_customers_for_production_orders` [success]: Cliente ANATR encontrado
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Produccion",
+    "ERP"
+  ],
+  "tool_calls": [
+    {
+      "tool": "ProductionAPITool",
+      "action": "list_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "status": "delayed"
+      },
+      "output_summary": "1 pedidos de produccion encontrados con estado delayed",
+      "error": null
+    },
+    {
+      "tool": "ERPTool",
+      "action": "get_customers_for_production_orders",
+      "status": "success",
+      "source": "ERP",
+      "args": {
+        "order_id": 10301
+      },
+      "output_summary": "Cliente ANATR encontrado",
+      "error": null
+    }
+  ],
+  "fallbacks": [],
+  "data": {
+    "production_orders_count": 1,
+    "production_order_ids": [
+      10301
+    ],
+    "customers_resolved_count": 1
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-04 - PASS - ERP + produccion: resumen mensual
+
+Pregunta ejecutada: `Dame un resumen del estado de los pedidos de este mes`
+
+Resultado esperado desde el evaluador: Debe resumir pedidos de mayo de 2026 y su distribucion de estados.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+En 2026-05 hay 5 pedidos ERP. Distribucion por estado de produccion: bloqueado: 2, en curso: 1, finalizado: 1, retrasado: 1.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- ERP
+- Produccion
+
+**Pasos ejecutados**
+1. Consulta ERP de pedidos por mes
+2. Consulta API de produccion para pedido 10248
+3. Consulta API de produccion para pedido 10252
+4. Consulta API de produccion para pedido 10255
+5. Consulta API de produccion para pedido 10301
+6. Consulta API de produccion para pedido 10312
+
+**Tool calls**
+- `ERPTool.get_orders_by_month` [success]: 5 pedidos encontrados para el mes
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion in_progress
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion blocked
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion finished
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion delayed
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion blocked
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "ERP",
+    "Produccion"
+  ],
+  "tool_calls": [
+    {
+      "tool": "ERPTool",
+      "action": "get_orders_by_month",
+      "status": "success",
+      "source": "ERP",
+      "args": {
+        "year": 2026,
+        "month": 5
+      },
+      "output_summary": "5 pedidos encontrados para el mes",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10248
+      },
+      "output_summary": "Estado de produccion in_progress",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10252
+      },
+      "output_summary": "Estado de produccion blocked",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10255
+      },
+      "output_summary": "Estado de produccion finished",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10301
+      },
+      "output_summary": "Estado de produccion delayed",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10312
+      },
+      "output_summary": "Estado de produccion blocked",
+      "error": null
+    }
+  ],
+  "fallbacks": [],
+  "data": {
+    "erp_orders_count": 5,
+    "erp_order_ids": [
+      10248,
+      10252,
+      10255,
+      10301,
+      10312
+    ],
+    "production_statuses_count": 5,
+    "period": {
+      "year": 2026,
+      "month": 5
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-05 - PASS - RAG: plazos de entrega
+
+Pregunta ejecutada: `Que dice el documento sobre plazos de entrega standard?`
+
+Resultado esperado desde el evaluador: Debe recuperar reglas documentales de plazos de entrega.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Para un pedido estándar, el plazo de entrega es de 5 días laborables a partir de la liberación final por parte de producción. Este plazo comienza una vez que producción registra la liberación final y el ERP contiene la dirección de entrega, el contacto del cliente, las líneas preparables y la fecha requerida.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Documentos
+
+**Citas documentales**
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `3` - chunk `doc_7ba6fa7b269e_p3_c1` - score `0.4711`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `1` - chunk `doc_300d29872450_p1_c2` - score `0.4330`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `1` - chunk `doc_7ba6fa7b269e_p1_c1` - score `0.4162`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `1` - chunk `doc_300d29872450_p1_c1` - score `0.3900`
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: [FALLBACK] 4 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 4 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "plazos de entrega standard",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 4 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 4 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "completed",
+      "chunks_count": 4,
+      "documents": [
+        "v2_anexo_penalizaciones_sla.pdf",
+        "v2_contrato_marco_logistica_2026.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 3,
+          "chunk_id": "doc_7ba6fa7b269e_p3_c1",
+          "score": 0.4711
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 1,
+          "chunk_id": "doc_300d29872450_p1_c2",
+          "score": 0.433
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 1,
+          "chunk_id": "doc_7ba6fa7b269e_p1_c1",
+          "score": 0.4162
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 1,
+          "chunk_id": "doc_300d29872450_p1_c1",
+          "score": 0.39
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-06 - PASS - RAG: resumen del contrato
+
+Pregunta ejecutada: `Resume los puntos clave del contrato`
+
+Resultado esperado desde el evaluador: Debe resumir contrato con citas documentales.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+El contrato marco de logística 2026 establece que la responsabilidad por retrasos recae en logística una vez que el pedido está liberado, con dirección completa y el transportista confirma la recogida, a menos que haya fuerza mayor. Si un pedido está bloqueado por falta de material, logística no debe comprometer una fecha de entrega, y si se solicita adelantar un cliente prioritario, producción y calidad deben confirmar capacidad y lote liberado. El plazo logístico inicia con la liberación final de producción y la disponibilidad de todos los datos necesarios en el ERP. No se considera incumplimiento logístico si el retraso se debe a falta de material, avería, cambio de prioridad aprobado o datos incompletos en el ERP. Se definen plazos de entrega de 5 días laborables para pedidos estándar y 48 horas para urgentes, con un calendario que excluye fines de semana y festivos. Además, se exige la trazabilidad de cinco hitos clave por expedición y una evidencia mínima para auditorías.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Documentos
+
+**Citas documentales**
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `4` - chunk `doc_300d29872450_p4_c1` - score `0.3800`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `1` - chunk `doc_300d29872450_p1_c2` - score `0.3536`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `2` - chunk `doc_300d29872450_p2_c2` - score `0.3475`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `3` - chunk `doc_300d29872450_p3_c1` - score `0.3052`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `2` - chunk `doc_300d29872450_p2_c1` - score `0.2569`
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: [FALLBACK] 5 chunks recuperados de v2_contrato_marco_logistica_2026.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 5 chunks recuperados de v2_contrato_marco_logistica_2026.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "Resume los puntos clave del contrato",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 5 chunks recuperados de v2_contrato_marco_logistica_2026.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 5 chunks recuperados de v2_contrato_marco_logistica_2026.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "completed",
+      "chunks_count": 5,
+      "documents": [
+        "v2_contrato_marco_logistica_2026.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 4,
+          "chunk_id": "doc_300d29872450_p4_c1",
+          "score": 0.38
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 1,
+          "chunk_id": "doc_300d29872450_p1_c2",
+          "score": 0.3536
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 2,
+          "chunk_id": "doc_300d29872450_p2_c2",
+          "score": 0.3475
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 3,
+          "chunk_id": "doc_300d29872450_p3_c1",
+          "score": 0.3052
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 2,
+          "chunk_id": "doc_300d29872450_p2_c1",
+          "score": 0.2569
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-07 - PASS - RAG: penalizaciones
+
+Pregunta ejecutada: `Segun el PDF, hay alguna penalizacion por retrasos?`
+
+Resultado esperado desde el evaluador: Debe responder sobre penalizaciones usando anexo SLA o contrato.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Sí, según el PDF, existen penalizaciones por retrasos. Los pedidos urgentes tienen una penalización del 3% desde el primer día de retraso imputable. Para los pedidos estándar, la penalización es del 2% si el retraso imputable supera los 2 días laborables, y sube al 5% si el retraso excede los 5 días laborables.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Documentos
+
+**Citas documentales**
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `1` - chunk `doc_7ba6fa7b269e_p1_c2` - score `0.2782`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `4` - chunk `doc_300d29872450_p4_c1` - score `0.2559`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `1` - chunk `doc_7ba6fa7b269e_p1_c1` - score `0.2024`
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: [FALLBACK] 3 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 3 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "penalizacion por retrasos",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 3 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 3 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "completed",
+      "chunks_count": 3,
+      "documents": [
+        "v2_anexo_penalizaciones_sla.pdf",
+        "v2_contrato_marco_logistica_2026.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 1,
+          "chunk_id": "doc_7ba6fa7b269e_p1_c2",
+          "score": 0.2782
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 4,
+          "chunk_id": "doc_300d29872450_p4_c1",
+          "score": 0.2559
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 1,
+          "chunk_id": "doc_7ba6fa7b269e_p1_c1",
+          "score": 0.2024
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-08 - PASS - Mixta: penalizaciones por pedido
+
+Pregunta ejecutada: `en funcion de los pedidos y su estado dime que penalizaciones vamos a tener en cada uno`
+
+Resultado esperado desde el evaluador: Debe combinar pedidos ERP, estado de produccion y reglas documentales.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Con los datos disponibles, esta es la evaluacion de penalizaciones por pedido:
+
+| Pedido | Cliente | Estado | Penalizacion |
+| --- | --- | --- | --- |
+| 10248 | Alfreds Futterkiste | en curso | No aplicable con los datos disponibles |
+| 10252 | Alfreds Futterkiste | bloqueado (Falta de material) | No aplicable segun la documentacion consultada |
+| 10255 | Alfreds Futterkiste | finalizado | No aplicable; consta enviado antes del plazo requerido |
+| 10301 | Ana Trujillo Emparedados y helados | retrasado (Averia en linea de produccion) | No aplicable segun la documentacion consultada |
+| 10312 | Bon app | bloqueado (Falta de capacidad) | No aplicable segun la documentacion consultada |
+
+El principal punto de atencion es el seguimiento operativo de los pedidos bloqueados, retrasados o pendientes de datos antes de comunicar una penalizacion.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- ERP
+- Produccion
+- Documentos
+
+**Citas documentales**
+- `v2_condiciones_comerciales_northwind.pdf` - pagina `3` - chunk `doc_4732fc949ae6_p3_c1` - score `0.2898`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `3` - chunk `doc_7ba6fa7b269e_p3_c1` - score `0.2750`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `1` - chunk `doc_300d29872450_p1_c1` - score `0.2725`
+- `v2_procedimiento_produccion_bloqueos.pdf` - pagina `2` - chunk `doc_d1f559e022bc_p2_c1` - score `0.2435`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `2` - chunk `doc_300d29872450_p2_c2` - score `0.2418`
+
+**Pasos ejecutados**
+1. Consulta ERP de pedidos por mes
+2. Consulta API de produccion para pedido 10248
+3. Consulta API de produccion para pedido 10252
+4. Consulta API de produccion para pedido 10255
+5. Consulta API de produccion para pedido 10301
+6. Consulta API de produccion para pedido 10312
+7. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `ERPTool.get_orders_by_month` [success]: 5 pedidos encontrados para el mes
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion in_progress
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion blocked
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion finished
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion delayed
+- `ProductionAPITool.get_status_for_erp_orders` [success]: Estado de produccion blocked
+- `DocumentRAGTool.query` [success]: [FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_condiciones_comerciales_northwind.pdf, v2_contrato_marco_logistica_2026.pdf, v2_procedimiento_produccion_bloqueos.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_condiciones_comerciales_northwind.pdf, v2_contrato_marco_logistica_2026.pdf, v2_procedimiento_produccion_bloqueos.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "ERP",
+    "Produccion",
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "ERPTool",
+      "action": "get_orders_by_month",
+      "status": "success",
+      "source": "ERP",
+      "args": {
+        "year": 2026,
+        "month": 5
+      },
+      "output_summary": "5 pedidos encontrados para el mes",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10248
+      },
+      "output_summary": "Estado de produccion in_progress",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10252
+      },
+      "output_summary": "Estado de produccion blocked",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10255
+      },
+      "output_summary": "Estado de produccion finished",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10301
+      },
+      "output_summary": "Estado de produccion delayed",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_erp_orders",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_id": 10312
+      },
+      "output_summary": "Estado de produccion blocked",
+      "error": null
+    },
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "penalizaciones por retrasos no aplicacion bloqueo produccion falta material falta capacidad averia linea",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_condiciones_comerciales_northwind.pdf, v2_contrato_marco_logistica_2026.pdf, v2_procedimiento_produccion_bloqueos.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf, v2_condiciones_comerciales_northwind.pdf, v2_contrato_marco_logistica_2026.pdf, v2_procedimiento_produccion_bloqueos.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "erp_orders_count": 5,
+    "erp_order_ids": [
+      10248,
+      10252,
+      10255,
+      10301,
+      10312
+    ],
+    "production_statuses_count": 5,
+    "period": {
+      "year": 2026,
+      "month": 5
+    },
+    "rag": {
+      "status": "completed",
+      "chunks_count": 5,
+      "documents": [
+        "v2_anexo_penalizaciones_sla.pdf",
+        "v2_condiciones_comerciales_northwind.pdf",
+        "v2_contrato_marco_logistica_2026.pdf",
+        "v2_procedimiento_produccion_bloqueos.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_condiciones_comerciales_northwind.pdf",
+          "page": 3,
+          "chunk_id": "doc_4732fc949ae6_p3_c1",
+          "score": 0.2898
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 3,
+          "chunk_id": "doc_7ba6fa7b269e_p3_c1",
+          "score": 0.275
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 1,
+          "chunk_id": "doc_300d29872450_p1_c1",
+          "score": 0.2725
+        },
+        {
+          "filename": "v2_procedimiento_produccion_bloqueos.pdf",
+          "page": 2,
+          "chunk_id": "doc_d1f559e022bc_p2_c1",
+          "score": 0.2435
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 2,
+          "chunk_id": "doc_300d29872450_p2_c2",
+          "score": 0.2418
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-09 - PASS - Memoria conversacional
+
+Turno 1: `Que pedidos pendientes tiene el cliente ALFKI?`
+
+Resultado esperado desde el evaluador: Debe resolver referencias conversacionales sin usar memoria como fuente de verdad de negocio.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+El cliente ALFKI tiene 2 pedidos pendientes:
+
+| Pedido | Estado ERP |
+| --- | --- |
+| 10248 | Pendiente |
+| 10252 | Pendiente |
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- ERP
+
+**Pasos ejecutados**
+1. Consulta ERP de pedidos pendientes
+
+**Tool calls**
+- `ERPTool.get_pending_orders_by_customer` [success]: 2 pedidos pendientes encontrados
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "ERP"
+  ],
+  "tool_calls": [
+    {
+      "tool": "ERPTool",
+      "action": "get_pending_orders_by_customer",
+      "status": "success",
+      "source": "ERP",
+      "args": {
+        "customer_id": "ALFKI"
+      },
+      "output_summary": "2 pedidos pendientes encontrados",
+      "error": null
+    }
+  ],
+  "fallbacks": [],
+  "data": {
+    "erp_orders_count": 2,
+    "erp_order_ids": [
+      10248,
+      10252
+    ]
+  },
+  "failure_reason": null
+}
+```
+
+Turno 2: `Y cuales de esos pedidos estan bloqueados?`
+
+Resultado esperado desde el evaluador: Debe resolver referencias conversacionales sin usar memoria como fuente de verdad de negocio.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Hay pedidos bloqueados en produccion:
+
+| Pedido | Cliente | Estado produccion | Motivo |
+| --- | --- | --- | --- |
+| 10252 | ALFKI - Alfreds Futterkiste | Bloqueado | Falta de material |
+
+El siguiente punto de atencion es el pedido 10252.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Memoria
+- Produccion
+- ERP
+
+**Pasos ejecutados**
+1. Consulta memoria conversacional
+2. Consulta API de produccion para pedidos referenciados
+3. Consulta ERP de cliente para pedido 10252
+
+**Tool calls**
+- `MemoryTool.recall` [success]: Memoria conversacional: 1 interacciones recuperadas
+- `ProductionAPITool.get_status_for_order_ids` [success]: 1 pedidos de produccion encontrados por ids con estado blocked
+- `ERPTool.get_customers_for_production_orders` [success]: Cliente ALFKI encontrado
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Memoria",
+    "Produccion",
+    "ERP"
+  ],
+  "tool_calls": [
+    {
+      "tool": "MemoryTool",
+      "action": "recall",
+      "status": "success",
+      "source": "Memoria",
+      "args": {
+        "query": "Y cuales de esos pedidos estan bloqueados?",
+        "max_turns": 5
+      },
+      "output_summary": "Memoria conversacional: 1 interacciones recuperadas",
+      "error": null
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_order_ids",
+      "status": "success",
+      "source": "Produccion",
+      "args": {
+        "order_ids": [
+          10248,
+          10252
+        ],
+        "status": "blocked"
+      },
+      "output_summary": "1 pedidos de produccion encontrados por ids con estado blocked",
+      "error": null
+    },
+    {
+      "tool": "ERPTool",
+      "action": "get_customers_for_production_orders",
+      "status": "success",
+      "source": "ERP",
+      "args": {
+        "order_id": 10252
+      },
+      "output_summary": "Cliente ALFKI encontrado",
+      "error": null
+    }
+  ],
+  "fallbacks": [],
+  "data": {
+    "production_orders_count": 1,
+    "production_order_ids": [
+      10252
+    ],
+    "customers_resolved_count": 1,
+    "memory": {
+      "status": "found",
+      "turns_count": 1,
+      "customer_id": "ALFKI",
+      "order_ids": [
+        10248,
+        10252
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Turno 3: `Cual es el impacto economico de esos?`
+
+Resultado esperado desde el evaluador: Debe resolver referencias conversacionales sin usar memoria como fuente de verdad de negocio.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Con los datos disponibles, el impacto económico del pedido 10252 es de 1863.00.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Memoria
+- ERP
+
+**Pasos ejecutados**
+1. Consulta memoria conversacional
+2. Consulta ERP de importe para pedido 10252
+
+**Tool calls**
+- `MemoryTool.recall` [success]: Memoria conversacional: 2 interacciones recuperadas
+- `ERPTool.calculate_order_amount` [success]: Importe calculado
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Memoria",
+    "ERP"
+  ],
+  "tool_calls": [
+    {
+      "tool": "MemoryTool",
+      "action": "recall",
+      "status": "success",
+      "source": "Memoria",
+      "args": {
+        "query": "Cual es el impacto economico de esos?",
+        "max_turns": 5
+      },
+      "output_summary": "Memoria conversacional: 2 interacciones recuperadas",
+      "error": null
+    },
+    {
+      "tool": "ERPTool",
+      "action": "calculate_order_amount",
+      "status": "success",
+      "source": "ERP",
+      "args": {
+        "order_id": 10252
+      },
+      "output_summary": "Importe calculado",
+      "error": null
+    }
+  ],
+  "fallbacks": [],
+  "data": {
+    "order_amounts_count": 1,
+    "order_amount_order_ids": [
+      10252
+    ],
+    "economic_impact_total": "1863.00",
+    "memory": {
+      "status": "found",
+      "turns_count": 2,
+      "customer_id": "ALFKI",
+      "order_ids": [
+        10252
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-10 - PASS - Guardrail RAG
+
+Pregunta ejecutada: `Segun el PDF, que receta de cocina vegana recomienda?`
+
+Resultado esperado desde el evaluador: Debe rechazar por contexto documental insuficiente y no inventar.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+No he encontrado informacion en los documentos disponibles para responder a esa pregunta con fiabilidad.
+
+Estado: `insufficient_context` | confianza: `0.45`
+
+**Fuentes**
+- Documentos
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: 0 chunks relevantes recuperados
+
+**FALLBACKS**
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+
+**Motivo**
+No hay chunks documentales relevantes.
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "insufficient_context",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "receta de cocina vegana",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "0 chunks relevantes recuperados",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "insufficient_context",
+      "chunks_count": 0,
+      "documents": [],
+      "citations": [],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": "No hay chunks documentales relevantes."
+}
+```
+
+Veredicto: `PASS`
+
+### BT-11 - PASS - Memoria aislada
+
+Pregunta ejecutada: `Y en que estado estan?`
+
+Resultado esperado desde el evaluador: Debe aislar conversaciones por conversation_id y pedir contexto previo.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Para resolver a que pedidos te refieres necesito que me indiques el cliente o los numeros de pedido concretos.
+
+Estado: `needs_clarification` | confianza: `0.60`
+
+**Motivo**
+Falta informacion concreta para responder sin inventar.
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "needs_clarification",
+  "sources": [],
+  "tool_calls": [],
+  "fallbacks": [],
+  "data": null,
+  "failure_reason": "Falta informacion concreta para responder sin inventar."
+}
+```
+
+Veredicto: `PASS`
+
+### BT-V2-01 - PASS - V2: hitos y evidencias minimas
+
+Pregunta ejecutada: `Segun v2_contrato_marco_logistica_2026.pdf, que hitos obligatorios debe conservar cada expedicion?`
+
+Resultado esperado desde el evaluador: Debe recuperar el contrato v2 y citar la pagina donde estan los hitos y evidencias minimas.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Según el v2_contrato_marco_logistica_2026.pdf, cada expedición debe conservar cinco hitos obligatorios: liberación de producción, preparación de almacén, salida de muelle, entrega al transportista y confirmación de entrega. Cada uno de estos hitos debe registrar la fecha, el usuario o sistema de origen, el estado anterior, el estado nuevo y una observación de negocio si el cambio afecta al cliente.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Documentos
+
+**Citas documentales**
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `3` - chunk `doc_300d29872450_p3_c1` - score `0.3622`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `2` - chunk `doc_300d29872450_p2_c2` - score `0.3185`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `4` - chunk `doc_300d29872450_p4_c2` - score `0.2917`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `4` - chunk `doc_300d29872450_p4_c1` - score `0.2843`
+- `v2_contrato_marco_logistica_2026.pdf` - pagina `1` - chunk `doc_300d29872450_p1_c1` - score `0.2698`
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: [FALLBACK] 5 chunks recuperados de v2_contrato_marco_logistica_2026.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 5 chunks recuperados de v2_contrato_marco_logistica_2026.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "Según v2_contrato_marco_logistica_2026.pdf, qué hitos obligatorios debe conservar cada expedición?",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 5 chunks recuperados de v2_contrato_marco_logistica_2026.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 5 chunks recuperados de v2_contrato_marco_logistica_2026.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "completed",
+      "chunks_count": 5,
+      "documents": [
+        "v2_contrato_marco_logistica_2026.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 3,
+          "chunk_id": "doc_300d29872450_p3_c1",
+          "score": 0.3622
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 2,
+          "chunk_id": "doc_300d29872450_p2_c2",
+          "score": 0.3185
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 4,
+          "chunk_id": "doc_300d29872450_p4_c2",
+          "score": 0.2917
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 4,
+          "chunk_id": "doc_300d29872450_p4_c1",
+          "score": 0.2843
+        },
+        {
+          "filename": "v2_contrato_marco_logistica_2026.pdf",
+          "page": 1,
+          "chunk_id": "doc_300d29872450_p1_c1",
+          "score": 0.2698
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-V2-02 - PASS - V2: evidencia SLA
+
+Pregunta ejecutada: `Segun v2_anexo_penalizaciones_sla.pdf, que evidencia es obligatoria y que pasa si no se puede demostrar la causa del retraso?`
+
+Resultado esperado desde el evaluador: Debe recuperar el anexo v2 y explicar evidencia obligatoria y carga de la prueba.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Para aplicar una penalización, es obligatorio contar con el order_id, customer_id, importe del pedido, fecha prometida, fecha real de entrega, fecha de liberación, transportista, causa del retraso y la fuente responsable. Si no se puede demostrar la causa del retraso, el sistema debe informar que no hay evidencia suficiente para asignar responsabilidad y, por lo tanto, no se debe aplicar la penalización.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Documentos
+
+**Citas documentales**
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `4` - chunk `doc_7ba6fa7b269e_p4_c1` - score `0.4991`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `2` - chunk `doc_7ba6fa7b269e_p2_c1` - score `0.4682`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `1` - chunk `doc_7ba6fa7b269e_p1_c1` - score `0.4337`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `2` - chunk `doc_7ba6fa7b269e_p2_c2` - score `0.3980`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `3` - chunk `doc_7ba6fa7b269e_p3_c1` - score `0.3331`
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: [FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "Segun v2_anexo_penalizaciones_sla.pdf, que evidencia es obligatoria y que pasa si no se puede demostrar la causa del retraso?",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "completed",
+      "chunks_count": 5,
+      "documents": [
+        "v2_anexo_penalizaciones_sla.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 4,
+          "chunk_id": "doc_7ba6fa7b269e_p4_c1",
+          "score": 0.4991
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 2,
+          "chunk_id": "doc_7ba6fa7b269e_p2_c1",
+          "score": 0.4682
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 1,
+          "chunk_id": "doc_7ba6fa7b269e_p1_c1",
+          "score": 0.4337
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 2,
+          "chunk_id": "doc_7ba6fa7b269e_p2_c2",
+          "score": 0.398
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 3,
+          "chunk_id": "doc_7ba6fa7b269e_p3_c1",
+          "score": 0.3331
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-V2-03 - PASS - V2: exclusiones y pausas SLA
+
+Pregunta ejecutada: `Segun v2_anexo_penalizaciones_sla.pdf, que exclusiones y pausas de SLA existen?`
+
+Resultado esperado desde el evaluador: Debe recuperar el anexo v2 y explicar exclusiones, pausas y casos no penalizables.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Según el documento v2_anexo_penalizaciones_sla.pdf, las exclusiones y pausas del SLA son las siguientes:
+
+**Exclusiones:**
+No se aplican penalizaciones cuando el retraso se debe a:
+* Bloqueo de producción
+* Falta de material
+* Falta de capacidad
+* Avería de línea
+* Retrabajo por calidad
+* Espera de validación técnica
+* Fuerza mayor
+* Error de dirección aportado por el cliente
+* Cambio de prioridad aprobado por dirección comercial
+
+**Pausas:**
+El contador de SLA se pausa en los siguientes casos:
+* Desde la fecha de bloqueo hasta la fecha de desbloqueo registrada por producción.
+* En exportación, por documentación aduanera o sanitaria incompleta, siempre que el expediente contenga el evento, el responsable y la fecha de resolución.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Documentos
+
+**Citas documentales**
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `4` - chunk `doc_7ba6fa7b269e_p4_c1` - score `0.5074`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `1` - chunk `doc_7ba6fa7b269e_p1_c1` - score `0.4589`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `3` - chunk `doc_7ba6fa7b269e_p3_c1` - score `0.4112`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `4` - chunk `doc_7ba6fa7b269e_p4_c2` - score `0.4082`
+- `v2_anexo_penalizaciones_sla.pdf` - pagina `3` - chunk `doc_7ba6fa7b269e_p3_c2` - score `0.3988`
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: [FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "Segun v2_anexo_penalizaciones_sla.pdf, que exclusiones y pausas de SLA existen?",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 5 chunks recuperados de v2_anexo_penalizaciones_sla.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "completed",
+      "chunks_count": 5,
+      "documents": [
+        "v2_anexo_penalizaciones_sla.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 4,
+          "chunk_id": "doc_7ba6fa7b269e_p4_c1",
+          "score": 0.5074
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 1,
+          "chunk_id": "doc_7ba6fa7b269e_p1_c1",
+          "score": 0.4589
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 3,
+          "chunk_id": "doc_7ba6fa7b269e_p3_c1",
+          "score": 0.4112
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 4,
+          "chunk_id": "doc_7ba6fa7b269e_p4_c2",
+          "score": 0.4082
+        },
+        {
+          "filename": "v2_anexo_penalizaciones_sla.pdf",
+          "page": 3,
+          "chunk_id": "doc_7ba6fa7b269e_p3_c2",
+          "score": 0.3988
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-V2-04 - PASS - V2: bloqueos de produccion
+
+Pregunta ejecutada: `Segun v2_procedimiento_produccion_bloqueos.pdf, que motivos de bloqueo y campos obligatorios se registran?`
+
+Resultado esperado desde el evaluador: Debe recuperar el procedimiento v2 y explicar motivos/campos de bloqueo.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Según el documento v2_procedimiento_produccion_bloqueos.pdf, los motivos válidos de bloqueo son: falta de material, falta de capacidad, incidencia de calidad, mantenimiento no planificado, aprobación técnica pendiente y discrepancia de receta o especificación. Los campos obligatorios para cada bloqueo son: order_id, línea de producción, motivo, responsable, fecha de inicio, fecha estimada de desbloqueo, impacto en cliente y comentario operativo.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Documentos
+
+**Citas documentales**
+- `v2_procedimiento_produccion_bloqueos.pdf` - pagina `2` - chunk `doc_d1f559e022bc_p2_c1` - score `0.5227`
+- `v2_procedimiento_produccion_bloqueos.pdf` - pagina `4` - chunk `doc_d1f559e022bc_p4_c1` - score `0.5031`
+- `v2_procedimiento_produccion_bloqueos.pdf` - pagina `2` - chunk `doc_d1f559e022bc_p2_c2` - score `0.4753`
+- `v2_procedimiento_produccion_bloqueos.pdf` - pagina `3` - chunk `doc_d1f559e022bc_p3_c1` - score `0.4621`
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: [FALLBACK] 4 chunks recuperados de v2_procedimiento_produccion_bloqueos.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 4 chunks recuperados de v2_procedimiento_produccion_bloqueos.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "Segun v2_procedimiento_produccion_bloqueos.pdf, que motivos de bloqueo y campos obligatorios se registran?",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 4 chunks recuperados de v2_procedimiento_produccion_bloqueos.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 4 chunks recuperados de v2_procedimiento_produccion_bloqueos.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "completed",
+      "chunks_count": 4,
+      "documents": [
+        "v2_procedimiento_produccion_bloqueos.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_procedimiento_produccion_bloqueos.pdf",
+          "page": 2,
+          "chunk_id": "doc_d1f559e022bc_p2_c1",
+          "score": 0.5227
+        },
+        {
+          "filename": "v2_procedimiento_produccion_bloqueos.pdf",
+          "page": 4,
+          "chunk_id": "doc_d1f559e022bc_p4_c1",
+          "score": 0.5031
+        },
+        {
+          "filename": "v2_procedimiento_produccion_bloqueos.pdf",
+          "page": 2,
+          "chunk_id": "doc_d1f559e022bc_p2_c2",
+          "score": 0.4753
+        },
+        {
+          "filename": "v2_procedimiento_produccion_bloqueos.pdf",
+          "page": 3,
+          "chunk_id": "doc_d1f559e022bc_p3_c1",
+          "score": 0.4621
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-V2-05 - PASS - V2: calidad y entregas parciales
+
+Pregunta ejecutada: `Segun v2_politica_calidad_entregas.pdf, que ocurre con incidencias de calidad y entregas parciales?`
+
+Resultado esperado desde el evaluador: Debe recuperar politica de calidad v2 y explicar control previo e incidencias.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+En caso de incidencias de calidad, el pedido queda bloqueado hasta que Calidad registre una resolución que indique si el lote se libera, sustituye, reprocesa o rechaza; Producción no puede desbloquearlo sin esta aprobación. Respecto a las entregas parciales, estas requieren aprobación comercial y validación de calidad para cada lote. Si una parte del pedido se retiene, el albarán debe detallar lo enviado, lo pendiente y el motivo de la retención. Además, los indicadores mensuales registran tanto los pedidos con incidencia de calidad como las entregas parciales.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Documentos
+
+**Citas documentales**
+- `v2_politica_calidad_entregas.pdf` - pagina `2` - chunk `doc_a8f3f025af1f_p2_c1` - score `0.5958`
+- `v2_politica_calidad_entregas.pdf` - pagina `3` - chunk `doc_a8f3f025af1f_p3_c1` - score `0.5812`
+- `v2_politica_calidad_entregas.pdf` - pagina `1` - chunk `doc_a8f3f025af1f_p1_c1` - score `0.5753`
+- `v2_politica_calidad_entregas.pdf` - pagina `2` - chunk `doc_a8f3f025af1f_p2_c2` - score `0.4223`
+- `v2_politica_calidad_entregas.pdf` - pagina `1` - chunk `doc_a8f3f025af1f_p1_c2` - score `0.3593`
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: [FALLBACK] 5 chunks recuperados de v2_politica_calidad_entregas.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 5 chunks recuperados de v2_politica_calidad_entregas.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "Segun v2_politica_calidad_entregas.pdf, que ocurre con incidencias de calidad y entregas parciales?",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 5 chunks recuperados de v2_politica_calidad_entregas.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 5 chunks recuperados de v2_politica_calidad_entregas.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "completed",
+      "chunks_count": 5,
+      "documents": [
+        "v2_politica_calidad_entregas.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_politica_calidad_entregas.pdf",
+          "page": 2,
+          "chunk_id": "doc_a8f3f025af1f_p2_c1",
+          "score": 0.5958
+        },
+        {
+          "filename": "v2_politica_calidad_entregas.pdf",
+          "page": 3,
+          "chunk_id": "doc_a8f3f025af1f_p3_c1",
+          "score": 0.5812
+        },
+        {
+          "filename": "v2_politica_calidad_entregas.pdf",
+          "page": 1,
+          "chunk_id": "doc_a8f3f025af1f_p1_c1",
+          "score": 0.5753
+        },
+        {
+          "filename": "v2_politica_calidad_entregas.pdf",
+          "page": 2,
+          "chunk_id": "doc_a8f3f025af1f_p2_c2",
+          "score": 0.4223
+        },
+        {
+          "filename": "v2_politica_calidad_entregas.pdf",
+          "page": 1,
+          "chunk_id": "doc_a8f3f025af1f_p1_c2",
+          "score": 0.3593
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-V2-06 - PASS - V2: impacto economico y trazabilidad
+
+Pregunta ejecutada: `Segun v2_condiciones_comerciales_northwind.pdf, como se calcula el impacto economico y que trazabilidad se exige?`
+
+Resultado esperado desde el evaluador: Debe recuperar condiciones comerciales v2 y explicar impacto economico/trazabilidad.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+Según el documento v2_condiciones_comerciales_northwind.pdf, el impacto económico se calcula uniendo el importe del ERP, el porcentaje contractual y la causa documentada de la penalización o retraso. Si alguno de estos tres elementos falta, no se puede calcular un impacto definitivo.
+
+En cuanto a la trazabilidad, toda respuesta de negocio debe indicar las fuentes consultadas, los pasos ejecutados y las herramientas utilizadas. El razonamiento visible debe ser un resumen auditable y la respuesta debe separar hechos del ERP, reglas documentales y conclusiones. Específicamente, si se usa RAG, se debe citar el nombre del archivo y la página; si se usa ERP, la entidad consultada; y si se usa producción, el order_id y el estado operativo. Una respuesta con documentos sin página no cumple la regla.
+
+Estado: `completed` | confianza: `0.90`
+
+**Fuentes**
+- Documentos
+
+**Citas documentales**
+- `v2_condiciones_comerciales_northwind.pdf` - pagina `4` - chunk `doc_4732fc949ae6_p4_c1` - score `0.5081`
+- `v2_condiciones_comerciales_northwind.pdf` - pagina `2` - chunk `doc_4732fc949ae6_p2_c1` - score `0.4296`
+- `v2_condiciones_comerciales_northwind.pdf` - pagina `1` - chunk `doc_4732fc949ae6_p1_c1` - score `0.4001`
+- `v2_condiciones_comerciales_northwind.pdf` - pagina `2` - chunk `doc_4732fc949ae6_p2_c2` - score `0.3540`
+- `v2_condiciones_comerciales_northwind.pdf` - pagina `3` - chunk `doc_4732fc949ae6_p3_c1` - score `0.2875`
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: [FALLBACK] 5 chunks recuperados de v2_condiciones_comerciales_northwind.pdf
+
+**FALLBACKS**
+- `[FALLBACK] 5 chunks recuperados de v2_condiciones_comerciales_northwind.pdf`
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "completed",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "Según v2_condiciones_comerciales_northwind.pdf, cómo se calcula el impacto económico y qué trazabilidad se exige?",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "[FALLBACK] 5 chunks recuperados de v2_condiciones_comerciales_northwind.pdf",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "[FALLBACK] 5 chunks recuperados de v2_condiciones_comerciales_northwind.pdf",
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "completed",
+      "chunks_count": 5,
+      "documents": [
+        "v2_condiciones_comerciales_northwind.pdf"
+      ],
+      "citations": [
+        {
+          "filename": "v2_condiciones_comerciales_northwind.pdf",
+          "page": 4,
+          "chunk_id": "doc_4732fc949ae6_p4_c1",
+          "score": 0.5081
+        },
+        {
+          "filename": "v2_condiciones_comerciales_northwind.pdf",
+          "page": 2,
+          "chunk_id": "doc_4732fc949ae6_p2_c1",
+          "score": 0.4296
+        },
+        {
+          "filename": "v2_condiciones_comerciales_northwind.pdf",
+          "page": 1,
+          "chunk_id": "doc_4732fc949ae6_p1_c1",
+          "score": 0.4001
+        },
+        {
+          "filename": "v2_condiciones_comerciales_northwind.pdf",
+          "page": 2,
+          "chunk_id": "doc_4732fc949ae6_p2_c2",
+          "score": 0.354
+        },
+        {
+          "filename": "v2_condiciones_comerciales_northwind.pdf",
+          "page": 3,
+          "chunk_id": "doc_4732fc949ae6_p3_c1",
+          "score": 0.2875
+        }
+      ],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": null
+}
+```
+
+Veredicto: `PASS`
+
+### BT-V2-07 - PASS - V2: guardrail documental multipagina
+
+Pregunta ejecutada: `Segun los documentos v2, que receta de cocina vegana recomienda para un cliente premium?`
+
+Resultado esperado desde el evaluador: Debe rechazar por contexto documental insuficiente y no inventar.
+
+Respuesta exacta visible en Chainlit:
+
+```markdown
+No he encontrado informacion en los documentos disponibles para responder a esa pregunta con fiabilidad.
+
+Estado: `insufficient_context` | confianza: `0.45`
+
+**Fuentes**
+- Documentos
+
+**Pasos ejecutados**
+1. Consulta RAG documental con chunks recuperados
+
+**Tool calls**
+- `DocumentRAGTool.query` [success]: 0 chunks relevantes recuperados
+
+**FALLBACKS**
+- `FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.`
+- `FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo.`
+
+**Motivo**
+No hay chunks documentales relevantes.
+```
+
+Evidencia tecnica resumida:
+
+```json
+{
+  "status": "insufficient_context",
+  "sources": [
+    "Documentos"
+  ],
+  "tool_calls": [
+    {
+      "tool": "DocumentRAGTool",
+      "action": "query",
+      "status": "success",
+      "source": "Documentos",
+      "args": {
+        "query": "receta de cocina vegana para un cliente premium segun los documentos v2",
+        "top_k": 5,
+        "min_score": 0.2,
+        "filename": null
+      },
+      "output_summary": "0 chunks relevantes recuperados",
+      "error": null
+    }
+  ],
+  "fallbacks": [
+    "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+    "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+  ],
+  "data": {
+    "rag": {
+      "status": "insufficient_context",
+      "chunks_count": 0,
+      "documents": [],
+      "citations": [],
+      "fallbacks": [
+        "FALLBACK_VECTOR_STORE_IN_MEMORY: ChromaDB no disponible o no usado; retrieval en memoria del proceso.",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC: embeddings locales deterministas; no se esta usando proveedor externo."
+      ]
+    }
+  },
+  "failure_reason": "No hay chunks documentales relevantes."
+}
+```
+
+Veredicto: `PASS`

@@ -310,6 +310,9 @@ def should_prefer_rule_based_plan(question: str, normalized: str) -> bool:
     if _is_cross_blocked_customer_query(normalized):
         return True
 
+    if "bloquead" in normalized and ("pedido" in normalized or "order" in normalized):
+        return True
+
     if _is_problematic_production_query(normalized):
         return True
 

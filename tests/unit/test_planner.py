@@ -118,6 +118,42 @@ def test_planner_creates_blocked_orders_plan() -> None:
     ]
 
 
+def test_planner_prefers_deterministic_cross_source_plan_for_blocked_orders() -> None:
+    chat_model = _FakeChatModel(
+        """
+        {
+          "intent": "erp_production",
+          "steps": [
+            {
+              "step_id": 1,
+              "tool": "ProductionAPITool",
+              "action": "list_orders",
+              "args": {"status": "blocked"},
+              "required": true
+            }
+          ],
+          "expected_sources": ["Produccion"],
+          "answer_requirements": []
+        }
+        """
+    )
+    planner = PlannerAgent(chat_model=chat_model)
+
+    state = planner(
+        {
+            "question": "Que pedidos estan bloqueados y cual es el motivo?",
+            "attempts": 0,
+        }
+    )
+
+    assert chat_model.calls == 0
+    assert state["plan"]["expected_sources"] == ["Produccion", "ERP"]
+    assert [step["tool"] for step in state["plan"]["steps"]] == [
+        "ProductionAPITool",
+        "ERPTool",
+    ]
+
+
 def test_planner_routes_problematic_production_orders_to_blocked_and_delayed() -> None:
     planner = PlannerAgent()
 
@@ -678,14 +714,13 @@ def test_planner_falls_back_to_rules_when_llm_times_out() -> None:
 
     state = planner(
         {
-            "question": "Que pedidos estan bloqueados?",
+            "question": "Que prioridad tienen los clientes?",
             "attempts": 0,
         }
     )
 
-    assert state["intent"] == "erp_production"
-    assert state["plan"]["steps"][0]["tool"] == "ProductionAPITool"
-    assert state["plan"]["steps"][0]["args"] == {"status": "blocked"}
+    assert state["intent"] == "unsupported"
+    assert state["plan"]["steps"] == []
     assert len(state["fallbacks"]) == 1
     assert state["fallbacks"][0].startswith(
         "FALLBACK_PLANNER_RULE_BASED: LLM planner fallo"

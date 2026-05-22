@@ -172,6 +172,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R17 | cerrado | Respuesta conversacional grounded | Respuestas utiles pero demasiado rigidas | `feat(response): improve grounded conversational answers` |
 | R18 | cerrado | Stress tests reales opt-in | Validacion LLM real no automatizada | `test(llm): add opt-in real LLM stress validation` |
 | R19 | cerrado | Hotfix ensayo demo penalizacion potencial | Falso negativo RAG en pregunta flexible de penalizaciones | `fix(planner): route potential penalty queries deterministically` |
+| R20 | validado | Beta obligatoria automatizada | Visto bueno manual no repetible | `test(beta): add obligatory validation evaluator` |
 
 ## Fase R1 - Guardrail documental en planes mixtos
 
@@ -1358,6 +1359,84 @@ Criterio de aceptacion:
 - Si no hay anexo/documentos, sigue devolviendo `insufficient_context` en vez de
   inventar.
 
+## Fase R20 - Beta obligatoria automatizada y visto bueno operativo
+
+Prioridad: **antes de demo/revision tecnica**.
+
+Problema:
+
+- `docs/BETA_VALIDATION_REPORT.md` es muy util como evidencia, pero el visto
+  bueno depende de comparar manualmente resultado esperado contra respuesta real.
+- Los tests `real_llm` existentes cubren casos estresantes, pero no ejecutan de
+  forma sistematica toda la bateria obligatoria `BT-01` a `BT-11` y `BT-V2`.
+- Tras mejorar la redaccion final, hace falta validar que la respuesta visible
+  sigue conservando hechos criticos, fuentes, tool calls, datos auditables y
+  guardrails.
+
+Archivos previstos:
+
+- `scripts/beta_validation_support.py`
+- `scripts/run_beta_validation.py`
+- `tests/unit/test_beta_validation_support.py`
+- `tests/integration/test_real_llm_beta_obligatory.py`
+- `docs/plan_implementacion_vivo.md`
+
+Cambio esperado:
+
+- Definir un catalogo versionado de preguntas obligatorias con criterio
+  evaluable: `status`, `sources`, tools, terminos obligatorios/prohibidos,
+  documentos RAG, chunks minimos y valores de `data`.
+- Comparar automaticamente la respuesta real con el resultado esperado del
+  evaluador, sin exigir snapshot literal de texto completo.
+- Generar un informe Markdown con el mismo estilo operativo de
+  `BETA_VALIDATION_REPORT.md`: pregunta, esperado, respuesta visible en
+  Chainlit, evidencia tecnica resumida, incidencias y veredicto.
+- Mantener la suite rapida sin llamadas pagadas; la beta obligatoria real queda
+  opt-in con `RUN_REAL_LLM_TESTS=1`.
+
+Tests minimos:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\unit\test_beta_validation_support.py
+.\.venv\Scripts\python.exe -m pytest tests\integration\test_real_llm_beta_obligatory.py -rs
+```
+
+Validacion real opt-in:
+
+```powershell
+$env:RUN_REAL_LLM_TESTS="1"
+.\.venv\Scripts\python.exe -m pytest tests\integration\test_real_llm_beta_obligatory.py -rs
+.\.venv\Scripts\python.exe scripts\run_beta_validation.py --output docs\BETA_VALIDATION_REPORT.md --append
+```
+
+Criterio de aceptacion:
+
+- Cada caso obligatorio devuelve `PASS` o deja incidencias concretas para
+  `PARTIAL/FAIL`.
+- El evaluador bloquea datos criticos ausentes, fuentes equivocadas, tools
+  obligatorias no ejecutadas, documentos RAG no recuperados, fallbacks LLM
+  inesperados y frases roboticas en `answer`.
+- Los casos de guardrail no inventan respuesta de dominio ajeno.
+- El informe generado permite revisar el visto bueno igual que la beta manual,
+  pero con comparacion reproducible.
+
+Estado:
+
+- Validado el 2026-05-22 con suite determinista y beta real obligatoria.
+- Suite determinista: `210 passed, 23 skipped, 2 warnings`.
+- Beta real opt-in: `18 passed, 1 warning`.
+- Informe comparativo anexado en `docs/BETA_VALIDATION_REPORT.md` con
+  `PASS=18, PARTIAL=0, FAIL=0, BLOCKER=0`.
+- Incidencias corregidas durante la validacion:
+  - BT-02: plan de bloqueos ahora cruza produccion con ERP de forma
+    determinista.
+  - BT-06: el resumen generico de contrato recupera el PDF contractual
+    correcto.
+  - BT-V2-07: la consulta documental fuera de dominio queda en
+    `insufficient_context` sin chunks irrelevantes.
+  - BT-V2-01: el grounding ya no dispara fallback por capitalizacion de un
+    titulo documental presente en evidencias.
+
 ## Matriz de tests por tipo de cambio
 
 | Cambio | Tests focalizados |
@@ -1374,6 +1453,7 @@ Criterio de aceptacion:
 | API documentos | `tests/integration/test_documents_api.py` |
 | Chainlit | `tests/unit/test_chainlit_client.py`, `tests/unit/test_chainlit_formatting.py`, `tests/unit/test_chainlit_thinking.py` |
 | Trazabilidad | `tests/unit/test_traceability.py`, `tests/integration/test_query_endpoint.py` |
+| Beta obligatoria | `tests/unit/test_beta_validation_support.py`, `tests/integration/test_real_llm_beta_obligatory.py` |
 | Runtime Docker | `pytest` completo + checklist manual |
 
 ## Checklist antes de cada commit
@@ -1392,6 +1472,8 @@ Criterio de aceptacion:
 - `pytest` completo pasa.
 - `docs/MANUAL_VALIDATION.md` ejecutado al menos para casos obligatorios.
 - Smoke final Docker con LLM real registrado en `docs/BETA_VALIDATION_REPORT.md`.
+- Beta obligatoria automatizada ejecutada o justificada:
+  `RUN_REAL_LLM_TESTS=1 pytest tests\integration\test_real_llm_beta_obligatory.py -rs`.
 - Casos validados:
   - ERP + produccion: ALFKI pendientes y estados.
   - Produccion bloqueada con motivo y cliente ERP.

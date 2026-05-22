@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R14 cerrada: Query DSL segura modelada y validada sin ejecucion**.
-Siguiente bloque: **R15 ERPQueryTool y ProductionQueryTool**, si se decide ampliar la demo.
+Estado actual: **R15 cerrada: Query DSL segura ejecutable en tools aisladas**.
+Siguiente bloque: **R16 Reasoner para queries flexibles y joins controlados**, si se decide ampliar la demo.
 
 Este repositorio contiene:
 
@@ -74,7 +74,9 @@ Este repositorio contiene:
 - modelos Pydantic de Query DSL segura para ERP y Produccion, con allowlist de
   entidades, filtros, selects, orden y limite antes de ejecutar consultas
   genericas.
-- suite automatizada versionada actual: `175 passed, 2 warnings`.
+- `ERPQueryTool` y `ProductionQueryTool` ejecutan specs DSL ya validadas y
+  devuelven solo campos publicos seleccionados con tool calls trazables.
+- suite automatizada versionada actual: `184 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -96,8 +98,8 @@ Disponible para ejecutar actualmente:
 - clarificaciones controladas cuando falta cliente, pedido o contexto conversacional previo.
 - preguntas flexibles como `que tiene pendiente alfki y que riesgo operativo tiene?`
   o `pedido 10252`.
-- Query DSL validada en codigo, aun no conectada al planner ni a tools
-  ejecutoras.
+- Query DSL ejecutable desde tools internas, aun no conectada al planner ni al
+  reasoner agentic.
 
 Cierre:
 
@@ -432,5 +434,9 @@ minusculas, pedido explicito y pedidos de produccion parados/con problemas.
 
 R14 queda cerrada con modelos y validadores de Query DSL segura. La DSL valida
 entidades, filtros, selects, orden y limite, pero todavia no ejecuta consultas:
-ese cableado queda reservado para R15.
-Suite actual: `175 passed, 2 warnings`.
+ese cableado se cierra en R15 con tools internas aisladas.
+
+R15 queda cerrada con `ERPQueryTool` y `ProductionQueryTool` ejecutando specs
+DSL ya validadas, con proyeccion de campos publicos y trazabilidad. Aun no se
+conectan al planner ni al reasoner del flujo `/api/query`.
+Suite actual: `184 passed, 2 warnings`.

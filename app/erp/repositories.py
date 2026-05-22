@@ -96,6 +96,34 @@ class NorthwindRepository:
         ).fetchall()
         return [self._order_summary_from_row(row) for row in rows]
 
+    def list_order_summaries(self) -> list[OrderSummary]:
+        rows = self._connection.execute(
+            """
+            SELECT
+                o.order_id,
+                o.customer_id,
+                c.company_name AS customer_name,
+                o.order_date,
+                o.required_date,
+                o.shipped_date,
+                o.erp_status,
+                COALESCE(SUM(od.unit_price * od.quantity * (1 - od.discount)), 0) AS amount
+            FROM orders o
+            JOIN customers c ON c.customer_id = o.customer_id
+            LEFT JOIN order_details od ON od.order_id = o.order_id
+            GROUP BY
+                o.order_id,
+                o.customer_id,
+                c.company_name,
+                o.order_date,
+                o.required_date,
+                o.shipped_date,
+                o.erp_status
+            ORDER BY o.order_id
+            """
+        ).fetchall()
+        return [self._order_summary_from_row(row) for row in rows]
+
     def calculate_order_amount(self, order_id: int) -> Decimal | None:
         order_exists = self._connection.execute(
             "SELECT 1 FROM orders WHERE order_id = ?",

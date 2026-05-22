@@ -82,8 +82,9 @@ Las tools son deterministas y devuelven datos estructurados:
 ### Query DSL segura
 
 `app/tools/query_dsl.py` define una DSL estructurada para consultas flexibles a
-ERP y Produccion. En R14 solo existen modelos y validadores Pydantic; no hay
-ejecucion generica conectada al planner ni al reasoner.
+ERP y Produccion. `ERPQueryTool` y `ProductionQueryTool` ejecutan specs ya
+validadas, proyectan solo campos publicos y registran tool calls trazables. En
+R15 estas tools siguen aisladas: no estan conectadas al planner ni al reasoner.
 
 Reglas actuales:
 
@@ -94,6 +95,8 @@ Reglas actuales:
 - No hay joins en la DSL. El cruce futuro ERP-Produccion debera hacerlo el
   reasoner por `order_id`.
 - No se permite SQL, endpoints HTTP, campos internos ni claves extra.
+- La ejecucion solo recibe specs Pydantic ya validadas; el LLM no construye SQL
+  ni rutas HTTP.
 
 ## RAG
 
@@ -170,12 +173,15 @@ Implementado en el repositorio y cubierto por tests/checklist manual:
 - `needs_clarification` para ambiguedades de dominio sin consultar tools.
 - Planner flexible para sinonimos operativos, cliente en minusculas y pedidos
   explicitos sin SQL ni HTTP libre.
-- Query DSL segura modelada y testeada, sin ejecucion generica todavia.
+- Query DSL segura modelada, testeada y ejecutable mediante tools internas
+  aisladas.
+- `ERPQueryTool` y `ProductionQueryTool` para ejecutar specs DSL ya validadas,
+  todavia sin integracion agentic.
 
 Extension opcional post-cierre:
 
-- R15-R18 del plan vivo: tools DSL ejecutoras, joins controlados y tests reales
-  opt-in.
+- R16-R18 del plan vivo: integracion en reasoner, joins controlados y tests
+  reales opt-in.
 
 ## Justificacion de Arquitectura
 

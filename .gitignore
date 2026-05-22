@@ -21,6 +21,7 @@ build/
 .vscode/*
 !.vscode/settings.json
 *.log
+.tmp_beta_validation_report.md
 .pytest-tmp/
 .files/
 .secrets/

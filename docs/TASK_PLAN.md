@@ -314,7 +314,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`193 passed, 5 skipped, 2 warnings`).
+- Mantener suite automatizada versionada actual (`210 passed, 23 skipped, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.

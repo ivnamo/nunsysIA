@@ -5,6 +5,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 
@@ -14,13 +15,12 @@ if str(ROOT) not in sys.path:
 
 from app.agents.service import QueryWorkflowService
 from app.core.config import Settings, get_settings
-from app.core.llm import LLMProviderError, create_chat_model
+from app.core.llm import LLMProviderError, create_chat_model, create_embedding_model
 from app.erp.database import create_sqlite_connection, load_seed_sql
 from app.erp.repositories import NorthwindRepository
 from app.production.client import ProductionAPIClient
-from app.rag.embeddings import DeterministicEmbeddingModel
 from app.rag.ingestion import DocumentIngestionService
-from app.rag.vector_store import InMemoryDocumentVectorStore
+from app.rag.vector_store import ChromaDocumentVectorStore, VectorStoreError
 from app.schemas.query import QueryRequest, QueryResponse
 from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import ERPTool
@@ -101,7 +101,8 @@ def _run_cases(
         "",
         "- Flujo en proceso con `QueryWorkflowService`.",
         "- LLM real configurado via `.env`.",
-        "- Embeddings deterministas para aislar variabilidad al LLM.",
+        "- Embeddings reales del proveedor configurado via `.env`.",
+        "- ChromaDB persistente local obligatorio para el espacio documental.",
         "- ERP SQLite seed en memoria.",
         "- Production API mockeada en proceso.",
         "- PDFs v2 generados desde `scripts/generate_sample_pdfs.py`.",
@@ -155,17 +156,9 @@ def _build_workflow_service() -> QueryWorkflowService:
         base_url="http://production-api.test",
         transport=_production_transport(),
     )
-    vector_store = InMemoryDocumentVectorStore()
-    embedding_model = DeterministicEmbeddingModel()
-    document_service = DocumentIngestionService(
-        vector_store=vector_store,
-        embedding_model=embedding_model,
-    )
-    for filename in V2_DOCUMENTS:
-        document_service.ingest_pdf(
-            content=build_pdf_bytes(SAMPLE_DOCUMENTS[filename]),
-            filename=filename,
-        )
+    document_service = _create_real_document_service(V2_DOCUMENTS)
+    vector_store = document_service.vector_store
+    embedding_model = document_service.embedding_model
 
     return QueryWorkflowService(
         erp_tool=ERPTool(repository),
@@ -179,6 +172,107 @@ def _build_workflow_service() -> QueryWorkflowService:
         chat_model=chat_model,
         llm_timeout_seconds=_real_llm_timeout_seconds(),
     )
+
+
+def _create_real_document_service(
+    filenames: tuple[str, ...],
+) -> DocumentIngestionService:
+    settings = _real_rag_settings()
+    embedding_model = create_embedding_model(settings)
+    collection_name = _unique_beta_collection_name(settings.chroma_collection)
+    persist_directory = _beta_chroma_directory(collection_name)
+    try:
+        vector_store = ChromaDocumentVectorStore(
+            mode="persistent",
+            host=settings.chroma_host,
+            port=settings.chroma_port,
+            collection_name=collection_name,
+            persist_directory=str(persist_directory),
+        )
+    except VectorStoreError as exc:
+        raise RuntimeError(
+            "La beta real requiere ChromaDB persistente; no se permite "
+            "FALLBACK_VECTOR_STORE_IN_MEMORY."
+        ) from exc
+
+    document_service = DocumentIngestionService(
+        vector_store=vector_store,
+        embedding_model=embedding_model,
+    )
+    for filename in filenames:
+        document_service.ingest_pdf(
+            content=build_pdf_bytes(SAMPLE_DOCUMENTS[filename]),
+            filename=filename,
+        )
+    _assert_no_rag_infra_fallbacks(document_service.fallbacks)
+    return document_service
+
+
+def _real_rag_settings() -> Settings:
+    base_settings = get_settings()
+    provider = (
+        os.getenv("REAL_EMBEDDING_PROVIDER")
+        or (
+            base_settings.embedding_provider
+            if base_settings.embedding_provider in {"gemini", "openai"}
+            else None
+        )
+        or (
+            base_settings.llm_provider
+            if base_settings.llm_provider in {"gemini", "openai"}
+            else None
+        )
+        or ("gemini" if base_settings.gemini_api_key else None)
+        or ("openai" if base_settings.openai_api_key else None)
+    )
+    if provider is None:
+        raise RuntimeError(
+            "Configura REAL_EMBEDDING_PROVIDER=gemini/openai o un proveedor de "
+            "embeddings real en `.env`; no se permite "
+            "FALLBACK_EMBEDDINGS_DETERMINISTIC."
+        )
+    if provider == "gemini" and not base_settings.gemini_api_key:
+        raise RuntimeError("REAL_EMBEDDING_PROVIDER=gemini requiere GEMINI_API_KEY.")
+    if provider == "openai" and not base_settings.openai_api_key:
+        raise RuntimeError("REAL_EMBEDDING_PROVIDER=openai requiere OPENAI_API_KEY.")
+
+    return base_settings.model_copy(
+        update={
+            "embedding_provider": provider,
+            "chroma_mode": "persistent",
+        }
+    )
+
+
+def _unique_beta_collection_name(base_name: str) -> str:
+    safe_base = "".join(
+        character.lower() if character.isalnum() else "_"
+        for character in base_name.strip()
+    ).strip("_")
+    return f"{safe_base or 'documents'}_beta_{uuid4().hex[:12]}"
+
+
+def _beta_chroma_directory(collection_name: str) -> Path:
+    path = ROOT / ".pytest-tmp" / "beta_chroma" / collection_name
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _assert_no_rag_infra_fallbacks(fallbacks: list[str]) -> None:
+    forbidden = (
+        "FALLBACK_VECTOR_STORE_IN_MEMORY",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC",
+    )
+    unexpected = [
+        fallback
+        for fallback in fallbacks
+        if fallback.startswith(forbidden)
+    ]
+    if unexpected:
+        raise RuntimeError(
+            "La beta real no permite fallbacks de infraestructura RAG: "
+            + "; ".join(unexpected)
+        )
 
 
 def _create_real_chat_model() -> object:
@@ -217,7 +311,6 @@ def _real_llm_settings() -> Settings:
     return base_settings.model_copy(
         update={
             "llm_provider": provider,
-            "embedding_provider": "deterministic",
             "llm_temperature": 0.0,
             "llm_timeout_seconds": _real_llm_timeout_seconds(),
         }

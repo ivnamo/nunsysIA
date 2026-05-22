@@ -740,8 +740,9 @@ def _unexpected_llm_fallbacks(
     response: QueryResponse,
     expected: BetaExpectation,
 ) -> list[str]:
+    issues = _unexpected_rag_infra_fallbacks(response)
     if expected.allow_llm_fallbacks:
-        return []
+        return issues
     unexpected = [
         fallback
         for fallback in response.fallbacks
@@ -752,7 +753,33 @@ def _unexpected_llm_fallbacks(
             )
         )
     ]
-    return [f"fallback LLM inesperado: {fallback}" for fallback in unexpected]
+    issues.extend(f"fallback LLM inesperado: {fallback}" for fallback in unexpected)
+    return issues
+
+
+def _unexpected_rag_infra_fallbacks(response: QueryResponse) -> list[str]:
+    forbidden_prefixes = (
+        "FALLBACK_VECTOR_STORE_IN_MEMORY",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC",
+    )
+    fallback_candidates = list(response.fallbacks)
+    for call in response.tool_calls:
+        if call.output_summary:
+            fallback_candidates.append(call.output_summary)
+
+    rag = response.data.get("rag") if isinstance(response.data, dict) else None
+    if isinstance(rag, dict):
+        fallback_candidates.extend(str(value) for value in rag.get("fallbacks", []))
+
+    unexpected = [
+        fallback
+        for fallback in fallback_candidates
+        if any(prefix in fallback for prefix in forbidden_prefixes)
+    ]
+    return [
+        "fallback RAG infra prohibido en beta real: " + fallback
+        for fallback in unexpected
+    ]
 
 
 def _technical_summary(response: QueryResponse) -> dict[str, Any]:

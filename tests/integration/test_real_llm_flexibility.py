@@ -10,16 +10,13 @@ from app.core.llm import LLMProviderError, create_chat_model
 from app.erp.database import create_sqlite_connection, load_seed_sql
 from app.erp.repositories import NorthwindRepository
 from app.production.client import ProductionAPIClient
-from app.rag.embeddings import DeterministicEmbeddingModel
-from app.rag.ingestion import DocumentIngestionService
-from app.rag.vector_store import InMemoryDocumentVectorStore
 from app.schemas.query import QueryRequest, QueryResponse
 from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import ERPTool
 from app.tools.production_query_tool import ProductionQueryTool
 from app.tools.production_tool import ProductionAPITool
 from app.tools.rag_tool import DocumentRAGTool
-from scripts.generate_sample_pdfs import SAMPLE_DOCUMENTS, build_pdf_bytes
+from scripts.run_beta_validation import _create_real_document_service
 
 
 pytestmark = pytest.mark.real_llm
@@ -50,21 +47,15 @@ def workflow_service(real_chat_model) -> QueryWorkflowService:
         base_url="http://production-api.test",
         transport=_production_transport(),
     )
-    vector_store = InMemoryDocumentVectorStore()
-    embedding_model = DeterministicEmbeddingModel()
-    document_service = DocumentIngestionService(
-        vector_store=vector_store,
-        embedding_model=embedding_model,
-    )
-    for filename in (
-        "v2_anexo_penalizaciones_sla.pdf",
-        "v2_contrato_marco_logistica_2026.pdf",
-        "v2_procedimiento_produccion_bloqueos.pdf",
-    ):
-        document_service.ingest_pdf(
-            content=build_pdf_bytes(SAMPLE_DOCUMENTS[filename]),
-            filename=filename,
+    document_service = _create_real_document_service(
+        (
+            "v2_anexo_penalizaciones_sla.pdf",
+            "v2_contrato_marco_logistica_2026.pdf",
+            "v2_procedimiento_produccion_bloqueos.pdf",
         )
+    )
+    vector_store = document_service.vector_store
+    embedding_model = document_service.embedding_model
 
     return QueryWorkflowService(
         erp_tool=ERPTool(repository),
@@ -217,7 +208,6 @@ def _real_llm_settings() -> Settings:
     return base_settings.model_copy(
         update={
             "llm_provider": provider,
-            "embedding_provider": "deterministic",
             "llm_temperature": 0.0,
             "llm_timeout_seconds": _real_llm_timeout_seconds(),
         }
@@ -225,6 +215,22 @@ def _real_llm_settings() -> Settings:
 
 
 def _assert_no_llm_fallbacks(response: QueryResponse) -> None:
+    forbidden_infra = (
+        "FALLBACK_VECTOR_STORE_IN_MEMORY",
+        "FALLBACK_EMBEDDINGS_DETERMINISTIC",
+    )
+    fallback_candidates = list(response.fallbacks)
+    rag = response.data.get("rag") if isinstance(response.data, dict) else None
+    if isinstance(rag, dict):
+        fallback_candidates.extend(str(value) for value in rag.get("fallbacks", []))
+
+    unexpected_infra = [
+        fallback
+        for fallback in fallback_candidates
+        if any(prefix in fallback for prefix in forbidden_infra)
+    ]
+    assert unexpected_infra == []
+
     unexpected = [
         fallback
         for fallback in response.fallbacks

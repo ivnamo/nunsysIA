@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R13 cerrada: POC lista para revision tecnica con planner flexible**.
-Siguiente bloque: **R14 modelos y validadores de Query DSL segura**, si se decide ampliar la demo.
+Estado actual: **R14 cerrada: Query DSL segura modelada y validada sin ejecucion**.
+Siguiente bloque: **R15 ERPQueryTool y ProductionQueryTool**, si se decide ampliar la demo.
 
 Este repositorio contiene:
 
@@ -71,7 +71,10 @@ Este repositorio contiene:
 - planner flexible para cliente en minusculas, pedidos explicitos y sinonimos
   como `parados`, `atascados`, `con problemas` o `riesgo operativo`, usando
   solo tools existentes.
-- suite automatizada versionada actual: `156 passed, 2 warnings`.
+- modelos Pydantic de Query DSL segura para ERP y Produccion, con allowlist de
+  entidades, filtros, selects, orden y limite antes de ejecutar consultas
+  genericas.
+- suite automatizada versionada actual: `175 passed, 2 warnings`.
 
 Disponible para ejecutar actualmente:
 
@@ -93,6 +96,8 @@ Disponible para ejecutar actualmente:
 - clarificaciones controladas cuando falta cliente, pedido o contexto conversacional previo.
 - preguntas flexibles como `que tiene pendiente alfki y que riesgo operativo tiene?`
   o `pedido 10252`.
+- Query DSL validada en codigo, aun no conectada al planner ni a tools
+  ejecutoras.
 
 Cierre:
 
@@ -424,4 +429,8 @@ aclaracion concreta sin ejecutar tools.
 
 R13 queda cerrada con planner flexible sobre tools existentes: cliente en
 minusculas, pedido explicito y pedidos de produccion parados/con problemas.
-Suite actual: `156 passed, 2 warnings`.
+
+R14 queda cerrada con modelos y validadores de Query DSL segura. La DSL valida
+entidades, filtros, selects, orden y limite, pero todavia no ejecuta consultas:
+ese cableado queda reservado para R15.
+Suite actual: `175 passed, 2 warnings`.

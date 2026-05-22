@@ -79,6 +79,22 @@ Las tools son deterministas y devuelven datos estructurados:
 - `DocumentRAGTool`: fachada determinista que consulta documentos indexados en el vector store documental. La deteccion de filenames y consultas de documento completo vive en `app/rag/document_filters.py`; la evidencia lexica en `app/rag/relevance.py`; y la respuesta grounded en `app/rag/answer_builder.py`.
 - `MemoryTool`: recupera las ultimas 5 interacciones por `conversation_id`. Se usa solo para resolver referencias conversacionales; los datos de negocio actuales deben seguir saliendo de ERP, Produccion o Documentos.
 
+### Query DSL segura
+
+`app/tools/query_dsl.py` define una DSL estructurada para consultas flexibles a
+ERP y Produccion. En R14 solo existen modelos y validadores Pydantic; no hay
+ejecucion generica conectada al planner ni al reasoner.
+
+Reglas actuales:
+
+- ERP solo admite `entity="orders"`.
+- Produccion solo admite `entity="production_orders"`.
+- Los filtros, selects y `order_by` usan allowlists explicitas por fuente.
+- `limit` queda acotado a `50`.
+- No hay joins en la DSL. El cruce futuro ERP-Produccion debera hacerlo el
+  reasoner por `order_id`.
+- No se permite SQL, endpoints HTTP, campos internos ni claves extra.
+
 ## RAG
 
 RAG se implementa como tool, no como agente autonomo.
@@ -154,10 +170,11 @@ Implementado en el repositorio y cubierto por tests/checklist manual:
 - `needs_clarification` para ambiguedades de dominio sin consultar tools.
 - Planner flexible para sinonimos operativos, cliente en minusculas y pedidos
   explicitos sin SQL ni HTTP libre.
+- Query DSL segura modelada y testeada, sin ejecucion generica todavia.
 
 Extension opcional post-cierre:
 
-- R14-R18 del plan vivo: Query DSL segura, joins controlados y tests reales
+- R15-R18 del plan vivo: tools DSL ejecutoras, joins controlados y tests reales
   opt-in.
 
 ## Justificacion de Arquitectura

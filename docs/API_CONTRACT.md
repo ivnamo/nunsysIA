@@ -267,3 +267,25 @@ Errores posibles:
 - No devolver secretos.
 - Mantener respuestas compatibles con Pydantic.
 - Los errores deben ser comprensibles y trazables.
+
+## Query DSL interna
+
+La Query DSL segura no es un endpoint publico en R14. Existe como contrato
+interno validado en `app/tools/query_dsl.py` para preparar futuras consultas
+flexibles sin dar SQL ni HTTP libre al LLM.
+
+Restricciones actuales:
+
+- ERP: solo `entity="orders"`, filtros `customer_id`, `order_id`,
+  `erp_status`, `year`, `month`, y selects publicos `order_id`,
+  `customer_id`, `customer_name`, `erp_status`, `order_date`, `amount`.
+- Produccion: solo `entity="production_orders"`, filtros `order_id`,
+  `production_status`, y selects publicos `order_id`, `production_status`,
+  `blocked_reason`, `delay_reason`, `estimated_finish_date`.
+- Operadores permitidos: `eq` e `in`.
+- `limit` maximo: `50`.
+- `order_by` solo puede usar campos allowlist.
+- Se rechazan claves extra como `joins`, campos internos, entidades no
+  permitidas, operadores desconocidos y valores enumerados invalidos.
+- En R14 no se ejecutan consultas DSL ni se modifica el contrato de
+  `POST /api/query`.

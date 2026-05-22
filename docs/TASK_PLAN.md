@@ -19,6 +19,7 @@ evaluables de demo:
   dominio necesita cliente, pedido o contexto previo.
 - Planner flexible para sinonimos operativos, cliente en minusculas y pedidos
   explicitos sin introducir Query DSL.
+- Query DSL segura modelada y validada, todavia sin ejecucion generica.
 
 Pendiente antes del cierre final:
 
@@ -27,7 +28,7 @@ Pendiente antes del cierre final:
 
 Extension opcional post-cierre:
 
-- R14-R18 en `docs/plan_implementacion_vivo.md`: Query DSL segura, joins
+- R15-R18 en `docs/plan_implementacion_vivo.md`: tools DSL ejecutoras, joins
   controlados y tests reales opt-in con LLM. No bloquea la revision actual.
 
 ## Fase 0: Setup y estructura
@@ -313,7 +314,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`156 passed, 2 warnings`).
+- Mantener suite automatizada versionada actual (`175 passed, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.
@@ -348,7 +349,8 @@ Riesgos:
 
 ## Fase P13: Flexibilidad conversacional + Query DSL segura
 
-Estado: planificada como extension opcional.
+Estado: en curso como extension opcional. R12, R13 y R14 quedan cerradas; R15
+queda pendiente.
 
 Objetivo: ampliar la POC sin cambiar el stack ni el flujo agentic aprobado,
 permitiendo preguntas mas abiertas, aclaraciones utiles y consultas flexibles a
@@ -359,7 +361,8 @@ Tareas:
 - Mantener `needs_clarification` ya incorporado en R12 para ambiguedades de dominio.
 - Ampliar routing del planner con sinonimos de negocio y normalizacion de
   cliente/pedido.
-- Crear modelos y validadores de Query DSL antes de ejecutar nada.
+- Crear modelos y validadores de Query DSL antes de ejecutar nada. Estado:
+  completado en R14.
 - Crear `ERPQueryTool` y `ProductionQueryTool` con allowlists.
 - Ejecutar cruces ERP-Produccion solo en el reasoner y por `order_id`.
 - Mejorar respuesta final manteniendo grounding estricto.

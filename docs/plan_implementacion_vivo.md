@@ -10,7 +10,7 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R13 cerrada** y queda lista para demo/revision tecnica. El guion
+La POC tiene **R14 cerrada** y queda lista para demo/revision tecnica. El guion
 final esta en `docs/DEMO_SCRIPT.md`.
 
 Estado declarado y versionado:
@@ -23,7 +23,8 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `156 passed, 2 warnings`.
+- Suite automatizada declarada: `175 passed, 2 warnings`.
+- Query DSL segura modelada y validada sin ejecucion generica.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
   beta con LLM/embeddings reales.
 
@@ -163,7 +164,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R11 | cerrado | Guion demo y cierre | Demo no completamente paquetizada | `docs(demo): add final review script` |
 | R12 | cerrado | Contrato de clarificacion | Ambiguedad tratada como fuera de dominio | `feat(agent): add clarification status for ambiguous queries` |
 | R13 | cerrado | Planner flexible con tools existentes | Routing rigido ante sinonimos de negocio | `feat(planner): broaden flexible business routing` |
-| R14 | pendiente | Modelos y validadores de Query DSL | LLM demasiado cerca de SQL/HTTP libre | `feat(tools): add safe query dsl models` |
+| R14 | cerrado | Modelos y validadores de Query DSL | LLM demasiado cerca de SQL/HTTP libre | `feat(tools): add safe query dsl models` |
 | R15 | pendiente | ERPQueryTool y ProductionQueryTool | Consultas abiertas sin schema cerrado | `feat(tools): add safe ERP and production query dsl` |
 | R16 | pendiente | Reasoner para joins controlados | Cruces de datos ad hoc o duplicados | `feat(reasoner): execute flexible queries and business joins` |
 | R17 | pendiente | Respuesta conversacional grounded | Respuestas utiles pero demasiado rigidas | `feat(response): improve grounded conversational answers` |
@@ -1056,6 +1057,25 @@ Criterio de aceptacion:
   select no permitido y `limit > 50`.
 - La DSL no permite joins ni filtros arbitrarios.
 
+Estado:
+
+- Cerrado el 2026-05-22.
+- Nuevo modulo `app/tools/query_dsl.py` con modelos Pydantic:
+  `ERPQuerySpec`, `ProductionQuerySpec`, `QueryFilter` y `QueryOrder`.
+- ERP queda limitado a `entity="orders"`, filtros `customer_id`, `order_id`,
+  `erp_status`, `year`, `month`, selects publicos y `limit <= 50`.
+- Produccion queda limitada a `entity="production_orders"`, filtros `order_id`,
+  `production_status`, selects publicos y `limit <= 50`.
+- Operadores permitidos: `eq` e `in`; se rechazan operadores desconocidos,
+  campos internos, entidades no permitidas, joins, filtros arbitrarios y orden
+  fuera de allowlist.
+- No se conecta al planner, reasoner ni endpoint en esta fase.
+- Tests focalizados:
+  - `tests/unit/test_query_dsl.py`: 19 passed.
+- Suite completa: `175 passed, 2 warnings`.
+- No se ejecuta beta LLM real porque R14 no cambia comportamiento visible,
+  prompts, routing, tools ejecutoras ni contrato de `/api/query`.
+
 ## Fase R15 - ERPQueryTool y ProductionQueryTool
 
 Prioridad: **despues de R14**.
@@ -1240,6 +1260,7 @@ Criterio de aceptacion:
 | Tools ERP | `tests/unit/test_erp_tool.py`, `tests/unit/test_erp_repository.py` |
 | Tools produccion | `tests/unit/test_production_tool.py`, `tests/integration/test_production_mock_api.py` |
 | RAG | `tests/unit/test_rag_tool.py`, `tests/unit/test_rag_ingestion.py`, `tests/integration/test_api_document_demo_flow.py` |
+| Query DSL | `tests/unit/test_query_dsl.py` |
 | API query | `tests/integration/test_query_endpoint.py` |
 | API documentos | `tests/integration/test_documents_api.py` |
 | Chainlit | `tests/unit/test_chainlit_client.py`, `tests/unit/test_chainlit_formatting.py`, `tests/unit/test_chainlit_thinking.py` |
@@ -1304,3 +1325,4 @@ Criterio de aceptacion:
 | 2026-05-21 | R11 | cerrado | Guion demo final creado; Docker smoke final con Gemini/Chroma PASS sin fallbacks; `pytest`: 142 passed | este bloque |
 | 2026-05-21 | R12 | cerrado | `needs_clarification` implementado para ambiguedades de dominio; Docker smoke Gemini PASS; `pytest`: 145 passed | este bloque |
 | 2026-05-22 | R13 | cerrado | Planner flexible con sinonimos, cliente minusculas y pedido explicito; Docker smoke Gemini PASS; `pytest`: 156 passed | este bloque |
+| 2026-05-22 | R14 | cerrado | Query DSL segura modelada y validada sin ejecucion generica; `tests/unit/test_query_dsl.py`: 19 passed; `pytest`: 175 passed | este bloque |

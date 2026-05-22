@@ -27,11 +27,9 @@ Pendiente antes del cierre final:
 - sin pendientes tecnicos obligatorios para la revision.
 - ejecutar la demo con `docs/DEMO_SCRIPT.md`.
 
-Extension opcional post-cierre:
+Extension opcional cerrada:
 
 - R18 en `docs/plan_implementacion_vivo.md`: tests reales opt-in con LLM.
-  No bloquea la revision
-  actual.
 
 ## Fase 0: Setup y estructura
 
@@ -316,7 +314,7 @@ Objetivo: consolidar cobertura y estabilidad antes de entrega.
 
 Tareas:
 
-- Mantener suite automatizada versionada actual (`191 passed, 2 warnings`).
+- Mantener suite automatizada versionada actual (`191 passed, 5 skipped, 2 warnings`).
 - Agregar regresiones para cualquier ajuste de memoria o Docker.
 - Revisar casos de error de servicios externos.
 - Validar que los tests no requieren llamadas pagadas.
@@ -351,8 +349,8 @@ Riesgos:
 
 ## Fase P13: Flexibilidad conversacional + Query DSL segura
 
-Estado: en curso como extension opcional. R12, R13, R14, R15, R16 y R17 quedan
-cerradas.
+Estado: completada como extension opcional. R12, R13, R14, R15, R16, R17 y R18
+quedan cerradas.
 
 Objetivo: ampliar la POC sin cambiar el stack ni el flujo agentic aprobado,
 permitiendo preguntas mas abiertas, aclaraciones utiles y consultas flexibles a
@@ -371,7 +369,8 @@ Tareas:
   completado en R16.
 - Mejorar respuesta final manteniendo grounding estricto. Estado: completado
   en R17.
-- Anadir tests `real_llm` opt-in con `RUN_REAL_LLM_TESTS=1`.
+- Anadir tests `real_llm` opt-in con `RUN_REAL_LLM_TESTS=1`. Estado:
+  completado en R18.
 
 Criterio de aceptacion:
 

@@ -42,11 +42,12 @@ La arquitectura acordada es:
 2. ESTADO IMPLEMENTADO
 ======================
 
-R17 queda cerrada. La POC queda lista para demo/revision tecnica con guion
+R18 queda cerrada. La POC queda lista para demo/revision tecnica con guion
 final en `docs/DEMO_SCRIPT.md`, clarificaciones controladas para preguntas
 de dominio ambiguas, planner flexible y Query DSL segura integrada en el flujo
 agentic para cruces ERP-Produccion controlados por `order_id`, con respuesta
-final mas natural y grounded.
+final mas natural y grounded, mas tests `real_llm` opt-in para validar el
+comportamiento con proveedor real.
 
 Componentes implementados:
 
@@ -83,7 +84,8 @@ Componentes implementados:
 
 Suite versionada actual:
 
-- `191 passed, 2 warnings`
+- `191 passed, 5 skipped, 2 warnings`
+- `5 passed, 191 deselected, 2 warnings` con `RUN_REAL_LLM_TESTS=1`
 - Smoke final Docker con Gemini real y ChromaDB HTTP: PASS sin fallbacks en
   casos ERP+produccion, RAG, mixto, memoria y guardrail.
 

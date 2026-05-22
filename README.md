@@ -11,8 +11,8 @@ POC tecnica de sistema agentic empresarial. El objetivo final es responder pregu
 
 ## Estado actual
 
-Estado actual: **R17 cerrada: respuesta conversacional grounded**.
-Siguiente bloque: **R18 Stress tests reales opt-in**, si se decide cerrar la extension con tests LLM reales automatizables.
+Estado actual: **R18 cerrada: stress tests reales opt-in**.
+La extension de flexibilidad conversacional + Query DSL segura queda cerrada.
 
 Este repositorio contiene:
 
@@ -81,7 +81,9 @@ Este repositorio contiene:
   tool calls visibles.
 - Respuesta final mas natural para cruces, respuestas parciales y
   clarificaciones, manteniendo validacion de hechos criticos contra evidencias.
-- suite automatizada versionada actual: `191 passed, 2 warnings`.
+- suite automatizada versionada actual: `191 passed, 5 skipped, 2 warnings`.
+- suite opt-in con LLM real: `5 passed, 191 deselected, 2 warnings` usando
+  `RUN_REAL_LLM_TESTS=1`.
 
 Disponible para ejecutar actualmente:
 
@@ -91,6 +93,8 @@ Disponible para ejecutar actualmente:
 - interfaz Chainlit;
 - API mock de produccion;
 - tests automatizados;
+- tests `real_llm` opt-in para validar planner/final response/DSL con un
+  proveedor LLM real sin afectar a la suite rapida;
 - grafo LangGraph invocable desde API, tests y codigo Python;
 - RAG documental invocable como tool y desde endpoints documentales.
 - trazabilidad normalizada y sanitizada en `/api/query`.
@@ -454,4 +458,8 @@ R17 queda cerrada con respuestas conversacionales mas utiles sin relajar
 grounding: clientes afectados por incidencias se redactan por cliente, las
 respuestas parciales explican que fuente falta y el checker bloquea estados no
 soportados como `terminado` ante prompt injection.
-Suite actual: `191 passed, 2 warnings`.
+
+R18 queda cerrada con tests `real_llm` opt-in. Por defecto la suite rapida los
+salta; al activar `RUN_REAL_LLM_TESTS=1`, validan planner real, final real,
+Query DSL segura, memoria como referencia y guardrails de prompt injection.
+Suite actual: `191 passed, 5 skipped, 2 warnings`.

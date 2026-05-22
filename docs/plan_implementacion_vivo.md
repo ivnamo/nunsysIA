@@ -10,7 +10,7 @@ Para el historico de construccion por fases, ver `docs/TASK_PLAN.md`.
 
 Fecha base: 2026-05-21.
 
-La POC tiene **R17 cerrada** y queda lista para demo/revision tecnica. El guion
+La POC tiene **R18 cerrada** y queda lista para demo/revision tecnica. El guion
 final esta en `docs/DEMO_SCRIPT.md`.
 
 Estado declarado y versionado:
@@ -23,7 +23,8 @@ Estado declarado y versionado:
 - Chainlit como UI de demo.
 - Memoria conversacional in-memory de 5 turnos por `conversation_id`.
 - Trazabilidad publica con fuentes, pasos, tool calls, fallbacks, estado, confianza y `data`.
-- Suite automatizada declarada: `191 passed, 2 warnings`.
+- Suite automatizada declarada: `191 passed, 5 skipped, 2 warnings`.
+- Suite opt-in LLM real: `5 passed, 191 deselected, 2 warnings`.
 - Query DSL segura modelada, validada, ejecutable desde tools internas e
   integrada en planner/reasoner para cruces controlados por `order_id`.
 - Runtime Docker validado con ChromaDB HTTP real, secretos por archivo y smoke
@@ -169,7 +170,7 @@ Cada iteracion real debe anotar en `docs/BETA_VALIDATION_REPORT.md`:
 | R15 | cerrado | ERPQueryTool y ProductionQueryTool | Consultas abiertas sin schema cerrado | `feat(tools): add safe ERP and production query dsl` |
 | R16 | cerrado | Reasoner para joins controlados | Cruces de datos ad hoc o duplicados | `feat(reasoner): execute flexible queries and business joins` |
 | R17 | cerrado | Respuesta conversacional grounded | Respuestas utiles pero demasiado rigidas | `feat(response): improve grounded conversational answers` |
-| R18 | pendiente | Stress tests reales opt-in | Validacion LLM real no automatizada | `test(llm): add opt-in real LLM stress validation` |
+| R18 | cerrado | Stress tests reales opt-in | Validacion LLM real no automatizada | `test(llm): add opt-in real LLM stress validation` |
 
 ## Fase R1 - Guardrail documental en planes mixtos
 
@@ -1280,10 +1281,12 @@ Archivos previstos:
 
 Cambio esperado:
 
-- Anadir marker `real_llm`.
-- Saltar tests salvo `RUN_REAL_LLM_TESTS=1` y claves configuradas.
-- Validar planner real, final real y DSL real contra ERP/Produccion mock.
-- Usar coleccion Chroma aislada por pasada.
+- Marker `real_llm` anadido en `pytest.ini`.
+- Tests saltados salvo `RUN_REAL_LLM_TESTS=1` y claves configuradas.
+- Planner real, final real y DSL real validados contra ERP/Produccion mock en
+  proceso.
+- RAG validado con PDFs v2 cargados en vector store en memoria y embeddings
+  deterministas para aislar el coste/variabilidad al LLM.
 
 Comando:
 
@@ -1309,6 +1312,16 @@ Criterio de aceptacion:
 - `pytest -m real_llm` queda documentado como validacion local opcional.
 - `BETA_VALIDATION_REPORT.md` registra PASS/PARTIAL/FAIL y decisiones.
 - No hay fallbacks inesperados cuando se espera proveedor real.
+
+Evidencia 2026-05-22:
+
+- Suite rapida: `191 passed, 5 skipped, 2 warnings`.
+- Suite opt-in: `5 passed, 191 deselected, 2 warnings`.
+- Casos cubiertos: cruce DSL Produccion->ERP, RAG conocido de penalizaciones,
+  memoria como referencia sin fuente de verdad de negocio y dos prompt
+  injections.
+- Decision: R18 cerrado. Los tests reales quedan como validacion local de
+  confianza antes de demo sin contaminar CI ni la suite determinista.
 
 ## Matriz de tests por tipo de cambio
 
@@ -1390,3 +1403,4 @@ Criterio de aceptacion:
 | 2026-05-22 | R15 | cerrado | ERPQueryTool y ProductionQueryTool ejecutan specs DSL validadas sin integracion agentic; focales 36 passed; `pytest`: 184 passed | este bloque |
 | 2026-05-22 | R16 | cerrado | Query DSL integrada en planner/reasoner con joins controlados por `order_id`; focales 57 passed; `pytest`: 188 passed; BT-smoke Docker/Gemini PASS | este bloque |
 | 2026-05-22 | R17 | cerrado | Respuesta conversacional grounded mejorada; focales 33 passed; `pytest`: 191 passed; BT-parcial Docker/Gemini PASS | este bloque |
+| 2026-05-22 | R18 | cerrado | Tests `real_llm` opt-in implementados; suite rapida 191 passed + 5 skipped; `pytest -m real_llm`: 5 passed contra proveedor real | este bloque |

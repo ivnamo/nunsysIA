@@ -37,10 +37,27 @@ Ejecutar tests automatizados:
 Resultado esperado:
 
 ```text
-191 passed, 2 warnings
+191 passed, 5 skipped, 2 warnings
 ```
 
-Las advertencias actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
+Las advertencias actuales vienen de LangGraph/LangChain (`allowed_objects`) y de una dependencia de tracing con configuracion Pydantic v1; no bloquean la validacion. Los 5 tests saltados son `real_llm` y requieren activacion explicita. Este conteo corresponde a la suite versionada actual; si tienes tests locales no versionados dentro de `tests/`, `pytest` tambien los recogera y el numero puede cambiar.
+
+Validacion opt-in con LLM real:
+
+```powershell
+$env:RUN_REAL_LLM_TESTS="1"
+.\.venv\Scripts\python.exe -m pytest -m real_llm -rs
+```
+
+Resultado esperado con una clave real configurada:
+
+```text
+5 passed, 191 deselected, 2 warnings
+```
+
+Estos tests llaman al proveedor LLM configurado para validar planner real,
+respuesta final real, Query DSL segura, memoria conversacional como referencia y
+guardrails de prompt injection. No forman parte de la suite rapida obligatoria.
 
 ## 0.1. Alternativa Docker Compose
 

@@ -180,9 +180,9 @@ Implementado en el repositorio y cubierto por tests/checklist manual:
 - `ERPQueryTool` y `ProductionQueryTool` para ejecutar specs DSL ya validadas,
   con joins ERP-Produccion gestionados por el reasoner solo por `order_id`.
 
-Extension opcional post-cierre:
+Extension opcional cerrada:
 
-- R18 del plan vivo: tests reales opt-in.
+- R18 del plan vivo: tests reales opt-in con `RUN_REAL_LLM_TESTS=1`.
 
 ## Justificacion de Arquitectura
 

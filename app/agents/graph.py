@@ -75,6 +75,7 @@ def run_agent_graph(
     rag_tool: DocumentRAGTool | None = None,
     chat_model: ChatModel | None = None,
     llm_timeout_seconds: float = 8.0,
+    include_citation_previews: bool = False,
 ) -> QueryResponse:
     graph = build_agent_graph(
         erp_tool=erp_tool,
@@ -89,6 +90,7 @@ def run_agent_graph(
         {
             "question": question,
             "conversation_id": conversation_id,
+            "include_citation_previews": include_citation_previews,
             "conversation_history": conversation_history or [],
             "attempts": 0,
             "tool_results": [],

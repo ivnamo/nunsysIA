@@ -97,7 +97,7 @@ def _format_rag_citations(response: QueryResponse) -> str | None:
         return None
 
     lines = []
-    for citation in citations:
+    for index, citation in enumerate(citations, start=1):
         if not isinstance(citation, dict):
             continue
         filename = citation.get("filename")
@@ -110,9 +110,16 @@ def _format_rag_citations(response: QueryResponse) -> str | None:
             score_value = float(score)
         except (TypeError, ValueError):
             continue
+        text_preview = str(citation.get("text_preview") or "").strip()
+        view_text = f" - Ver texto: {citation_preview_label(index)}" if text_preview else ""
         lines.append(
-            f"- `{filename}`, pagina `{page}`, chunk `{chunk_id}`, score `{score_value:.4f}`"
+            f"- `{filename}` - pagina `{page}` - chunk `{chunk_id}` - "
+            f"score `{score_value:.4f}`{view_text}"
         )
     if not lines:
         return None
     return "**Citas documentales**\n" + "\n".join(lines)
+
+
+def citation_preview_label(index: int) -> str:
+    return f"Chunk {index}"

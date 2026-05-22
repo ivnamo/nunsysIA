@@ -31,13 +31,16 @@ Request:
 ```json
 {
   "question": "Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?",
-  "conversation_id": "demo-001"
+  "conversation_id": "demo-001",
+  "include_citation_previews": false
 }
 ```
 
 El repositorio mantiene este request de demo en `query.json`.
 
 `conversation_id` permite memoria conversacional en memoria de proceso. El backend conserva las ultimas 5 interacciones de cada conversacion y puede usarlas para resolver follow-ups breves. Si la memoria se consulta, la respuesta incluye fuente `Memoria` y una tool call `MemoryTool`; la memoria no sustituye a ERP, Produccion o Documentos como fuente de datos de negocio actuales.
+
+`include_citation_previews` es opcional y por defecto `false`. La UI Chainlit lo usa para pedir una vista previa truncada del texto de cada chunk citado y poder desplegarla al revisar evidencias. Los clientes API normales deben mantenerlo en `false` salvo que necesiten esa experiencia de auditoria visual.
 
 Los follow-ups con referencias a pedidos concretos pueden generar tool calls internas especializadas, por ejemplo `ProductionAPITool.get_status_for_order_ids` para consultar estados productivos por IDs ya resueltos y `ERPTool.calculate_order_amount` para calcular importes ERP. El contrato mantiene compatibilidad: `tool_calls.action` es opcional, los argumentos se sanitizan y `data` mantiene solo un resumen auditable.
 
@@ -142,6 +145,18 @@ En respuestas RAG completadas, `data.rag` debe incluir citas documentales por ch
       }
     ]
   }
+}
+```
+
+Si `include_citation_previews=true`, cada cita puede incluir ademas `text_preview`, siempre como vista previa truncada para UI, no como volcado raw del chunk:
+
+```json
+{
+  "filename": "contrato.pdf",
+  "page": 1,
+  "chunk_id": "doc_123_p1_c1",
+  "score": 0.9123,
+  "text_preview": "Fragmento documental truncado usado para verificar la cita..."
 }
 ```
 
@@ -261,7 +276,7 @@ Errores posibles:
 - No devolver filas raw de ERP, respuestas raw de produccion ni chunks completos en `data`.
 - `data` debe ser un resumen publico de evidencias para auditoria y demo.
 - `fallbacks` debe listar cualquier ruta alternativa usada: planner por reglas, respuesta determinista, embeddings deterministas o vector store en memoria.
-- En respuestas RAG, `data.rag.documents` resume los documentos usados y `data.rag.citations` expone `filename`, `page`, `chunk_id` y `score` por chunk recuperado.
+- En respuestas RAG, `data.rag.documents` resume los documentos usados y `data.rag.citations` expone `filename`, `page`, `chunk_id` y `score` por chunk recuperado. Si `include_citation_previews=true`, puede incluir tambien `text_preview` truncado para la UI.
 - En respuestas con memoria, `data.memory` resume conteos e identificadores; no debe exponer todo el historial.
 - En respuestas de impacto economico, `data` puede exponer conteos, IDs de pedido y total agregado; no debe exponer lineas raw ni objetos ERP internos.
 - No devolver secretos.

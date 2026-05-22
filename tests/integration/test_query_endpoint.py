@@ -94,7 +94,8 @@ def test_query_endpoint_does_not_assume_customer_for_pending_orders(
     assert payload["status"] == "needs_clarification"
     assert payload["sources"] == []
     assert payload["tool_calls"] == []
-    assert "cliente concreto" in payload["answer"]
+    assert "cliente" in payload["answer"]
+    assert "numero de pedido" in payload["answer"]
     assert "ALFKI" not in payload["answer"]
 
 
@@ -191,7 +192,8 @@ def test_query_endpoint_keeps_conversation_memory_by_id(client: TestClient) -> N
     assert isolated_response.status_code == 200
     isolated_payload = isolated_response.json()
     assert isolated_payload["status"] == "needs_clarification"
-    assert "contexto conversacional previo" in isolated_payload["answer"]
+    assert "cliente" in isolated_payload["answer"]
+    assert "numeros de pedido" in isolated_payload["answer"]
 
 
 def test_query_endpoint_resolves_blocked_and_economic_memory_follow_ups(
@@ -279,6 +281,37 @@ def test_query_endpoint_answers_document_question_after_upload(
     assert citation["chunk_id"].endswith("_p1_c1")
     assert isinstance(citation["score"], float)
     assert "Contrato marco" not in str(payload["data"])
+
+
+def test_query_endpoint_can_return_citation_previews_for_ui(
+    client: TestClient,
+) -> None:
+    upload_response = client.post(
+        "/api/documents/upload",
+        files={
+            "file": (
+                "contrato.pdf",
+                _pdf_bytes("Contrato marco con penalizacion por retrasos en entrega."),
+                "application/pdf",
+            )
+        },
+    )
+
+    assert upload_response.status_code == 201
+
+    response = client.post(
+        "/api/query",
+        json={
+            "question": "Que dice el PDF del contrato sobre penalizacion?",
+            "include_citation_previews": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    citation = payload["data"]["rag"]["citations"][0]
+    assert citation["filename"] == "contrato.pdf"
+    assert citation["text_preview"].startswith("Contrato marco")
 
 
 def test_query_endpoint_rejects_blank_question(client: TestClient) -> None:

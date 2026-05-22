@@ -231,6 +231,8 @@ El campo `data` puede usarse para facilitar demo y auditoria, pero debe contener
 - `rag.chunks_count`
 - `rag.documents`
 - `rag.citations` con `filename`, `page`, `chunk_id` y `score`
+- `rag.citations[].text_preview` solo cuando la UI lo pide explicitamente,
+  como vista previa truncada para auditoria visual
 - `rag.fallbacks`
 - `memory.status`
 - `memory.turns_count`
@@ -246,7 +248,7 @@ El campo `data` puede usarse para facilitar demo y auditoria, pero debe contener
 
 No debe contener lineas raw de pedido, textos completos de chunks, connection strings, errores raw, prompts ni objetos internos. Para impacto economico se permiten IDs de pedido, conteos y total agregado como evidencia publica.
 
-Las citas documentales por chunk se devuelven en `data.rag.citations`. No deben incluir texto completo del chunk: solo metadatos publicos y score para auditoria.
+Las citas documentales por chunk se devuelven en `data.rag.citations`. Por defecto no deben incluir texto del chunk: solo metadatos publicos y score para auditoria. La UI puede solicitar `text_preview` truncado para desplegar una evidencia verificable sin convertir `data` en un volcado raw.
 
 Los eventos de replanning deben explicar que hubo un replan y por que, pero no
 deben incluir el plan completo, inputs raw de tools, prompts ni deliberacion del

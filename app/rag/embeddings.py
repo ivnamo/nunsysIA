@@ -16,6 +16,10 @@ class DeterministicEmbeddingModel:
     def __init__(self, dimensions: int = 128) -> None:
         self._dimensions = dimensions
 
+    @property
+    def dimensions(self) -> int:
+        return self._dimensions
+
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return [self.embed_query(text) for text in texts]
 

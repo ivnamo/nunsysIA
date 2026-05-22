@@ -62,7 +62,7 @@
             "actions": {
                 "send": "Send message",
                 "stop": "Stop Task",
-                "attachFiles": "Attach files"
+                "attachFiles": "Attach PDFs"
             }
         },
         "favorites": {
@@ -85,7 +85,7 @@
             "connecting": "Connecting"
         },
         "fileUpload": {
-            "dragDrop": "Drag and drop files here",
+            "dragDrop": "Drag and drop PDFs here",
             "browse": "Browse Files",
             "sizeLimit": "Limit:",
             "errors": {

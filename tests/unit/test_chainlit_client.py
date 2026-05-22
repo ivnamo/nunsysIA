@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 
 import httpx
@@ -17,6 +18,7 @@ def test_backend_client_queries_api() -> None:
         response = await client.query(
             question="Que pedidos pendientes tiene ALFKI?",
             conversation_id="demo-001",
+            include_citation_previews=True,
         )
 
         assert response.status == "completed"
@@ -26,7 +28,10 @@ def test_backend_client_queries_api() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
         assert request.url.path == "/api/query"
-        assert request.read()
+        payload = json.loads(request.read())
+        assert payload["question"] == "Que pedidos pendientes tiene ALFKI?"
+        assert payload["conversation_id"] == "demo-001"
+        assert payload["include_citation_previews"] is True
         return httpx.Response(
             200,
             json={

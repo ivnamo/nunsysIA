@@ -111,6 +111,65 @@ def test_document_rag_tool_accepts_planner_rewritten_summary_query() -> None:
     )
 
 
+def test_document_rag_tool_infers_contract_filename_for_generic_summary() -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Contrato marco de logistica. Regula expedicion, entrega y cierre "
+            "de pedidos de cliente."
+        ),
+        filename="contrato_marco_logistica_2026.pdf",
+    )
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Anexo de penalizaciones SLA. Define porcentajes por retrasos."
+        ),
+        filename="anexo_penalizaciones_sla.pdf",
+    )
+    tool = DocumentRAGTool(vector_store=vector_store)
+
+    result = tool.query(
+        DocumentRAGInput(
+            query="Resume los puntos clave del contrato",
+            top_k=5,
+            min_score=0,
+        )
+    )
+
+    assert result.data["status"] == "completed"
+    filenames = {chunk["metadata"]["filename"] for chunk in result.data["chunks"]}
+    assert filenames == {"contrato_marco_logistica_2026.pdf"}
+    assert "entrega" in result.data["answer"]
+
+
+def test_document_rag_tool_uses_single_topic_overlap_for_named_document() -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Trazabilidad operativa. Toda respuesta debe indicar fuentes "
+            "consultadas, pasos ejecutados y herramientas utilizadas."
+        ),
+        filename="condiciones_comerciales_northwind.pdf",
+    )
+    tool = DocumentRAGTool(vector_store=vector_store)
+
+    result = tool.query(
+        DocumentRAGInput(
+            query=(
+                "Segun condiciones_comerciales_northwind.pdf, como se calcula "
+                "el impacto economico y que trazabilidad se exige?"
+            ),
+            top_k=5,
+            min_score=0,
+        )
+    )
+
+    assert result.data["status"] == "completed"
+    assert "fuentes consultadas" in result.data["answer"]
+
+
 def test_document_rag_tool_returns_insufficient_context_without_relevant_chunks() -> None:
     vector_store = InMemoryDocumentVectorStore()
     service = DocumentIngestionService(vector_store=vector_store)
@@ -146,6 +205,40 @@ def test_document_rag_tool_rejects_single_weak_overlap_for_multi_topic_query() -
     result = tool.query(
         DocumentRAGInput(
             query="Segun el PDF, que receta de cocina vegana recomienda?",
+            top_k=5,
+            min_score=0,
+        )
+    )
+
+    assert result.data["status"] == "insufficient_context"
+    assert result.data["chunks"] == []
+
+
+def test_document_rag_tool_rejects_broad_v2_cooking_query() -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Politica de calidad para entregas a cliente. Garantiza calidad "
+            "documental, preparacion y trazabilidad de lote."
+        ),
+        filename="v2_politica_calidad_entregas.pdf",
+    )
+    service.ingest_pdf(
+        content=_pdf_bytes(
+            "Condiciones comerciales Northwind. Los clientes prioritarios pueden "
+            "adelantarse si hay aprobacion comercial."
+        ),
+        filename="v2_condiciones_comerciales_northwind.pdf",
+    )
+    tool = DocumentRAGTool(vector_store=vector_store)
+
+    result = tool.query(
+        DocumentRAGInput(
+            query=(
+                "Segun los documentos v2, que receta de cocina vegana recomienda "
+                "para un cliente premium?"
+            ),
             top_k=5,
             min_score=0,
         )

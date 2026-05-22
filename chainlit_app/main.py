@@ -11,6 +11,7 @@ from app.schemas.query import QueryResponse
 from chainlit_app.client import BackendClient, BackendClientError
 from chainlit_app.config import get_chainlit_settings
 from chainlit_app.formatting import (
+    citation_preview_label,
     format_document_list,
     format_error,
     format_query_response,
@@ -57,6 +58,7 @@ async def on_message(message: cl.Message) -> None:
             operation=client.query(
                 question=question,
                 conversation_id=cl.user_session.get("conversation_id"),
+                include_citation_previews=True,
             ),
             message=response_message,
         )
@@ -64,6 +66,7 @@ async def on_message(message: cl.Message) -> None:
         response_message.content = format_error(str(exc))
     else:
         response_message.content = format_query_response(response)
+        response_message.elements = _citation_preview_elements(response)
 
     await response_message.update()
 
@@ -137,3 +140,48 @@ async def _send_document_list(client: BackendClient) -> None:
 
 def _is_pdf(name: str, mime: str | None) -> bool:
     return name.lower().endswith(".pdf") or mime == "application/pdf"
+
+
+def _citation_preview_elements(response: QueryResponse) -> list[cl.Text]:
+    rag = (response.data or {}).get("rag") if response.data else None
+    if not isinstance(rag, dict):
+        return []
+
+    citations = rag.get("citations")
+    if not isinstance(citations, list):
+        return []
+
+    elements: list[cl.Text] = []
+    for index, citation in enumerate(citations, start=1):
+        if not isinstance(citation, dict):
+            continue
+        text_preview = str(citation.get("text_preview") or "").strip()
+        if not text_preview:
+            continue
+
+        filename = str(citation.get("filename") or "documento")
+        page = citation.get("page")
+        chunk_id = str(citation.get("chunk_id") or "")
+        score = citation.get("score")
+        content = (
+            f"{filename}\n"
+            f"Pagina: {page}\n"
+            f"Chunk: {chunk_id}\n"
+            f"Score: {score}\n\n"
+            f"{text_preview}"
+        )
+        elements.append(
+            cl.Text(
+                thread_id=_chainlit_thread_id(),
+                name=citation_preview_label(index),
+                content=content,
+                display="side",
+            )
+        )
+    return elements
+
+
+def _chainlit_thread_id() -> str:
+    with suppress(Exception):
+        return str(cl.context.session.thread_id)
+    return ""

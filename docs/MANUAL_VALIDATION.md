@@ -86,7 +86,7 @@ URLs:
 Dentro de Compose, el backend usa `PRODUCTION_API_BASE_URL=http://production-api:8001`
 y `CHROMA_HOST=chromadb`. El Compose base no pasa `GEMINI_API_KEY` ni
 `OPENAI_API_KEY` como variables directas del contenedor. Para validar con Gemini
-real, monta el secreto por archivo:
+real y embeddings RAG reales, monta el secreto por archivo:
 
 ```powershell
 New-Item -ItemType Directory -Force .secrets
@@ -99,6 +99,10 @@ try {
 }
 docker compose -f docker-compose.yml -f docker-compose.secrets.yml up --build
 ```
+
+El compose base usa `EMBEDDING_PROVIDER=gemini` por defecto. Sin secreto real,
+las rutas RAG deben fallar de forma explicita en vez de usar embeddings
+deterministas.
 
 No pegues secretos en comandos que vayas a capturar ni en documentos
 versionados.

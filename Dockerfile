@@ -16,6 +16,8 @@ RUN python -m pip install --upgrade pip \
 
 COPY app ./app
 COPY chainlit_app ./chainlit_app
+COPY .chainlit ./.chainlit
+COPY public ./public
 COPY production_mock ./production_mock
 COPY data ./data
 COPY query.json ./query.json

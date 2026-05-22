@@ -65,7 +65,7 @@ Este repositorio contiene:
 - Planner hibrido: LLM opcional + schema Pydantic + lista cerrada de tools/actions;
 - PDFs mock realistas en `data/sample_docs/`;
 - validacion manual documentada en `docs/MANUAL_VALIDATION.md`.
-- citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`).
+- citas documentales visibles por chunk en respuestas RAG (`filename`, `page`, `chunk_id`, `score`) y vista previa desplegable en Chainlit.
 - memoria conversacional en memoria de proceso para las ultimas 5 interacciones por `conversation_id`, usada solo como contexto acotado y visible como fuente `Memoria`.
 - estado publico `needs_clarification` para ambiguedades de dominio sin ejecutar tools ni inventar datos.
 - planner flexible para cliente en minusculas, pedidos explicitos y sinonimos
@@ -226,8 +226,9 @@ Para conectar contra un servidor Chroma HTTP, usa `CHROMA_MODE=http` con `CHROMA
 
 ## Como introducir tu API key
 
-La POC puede ejecutarse sin clave real usando proveedores deterministas. Para
-validacion con LLM/embeddings reales, el evaluador puede usar Gemini u OpenAI.
+La POC puede ejecutar el planner/respuesta final sin LLM real, pero los
+embeddings RAG deben ser reales en Docker. Para validacion con
+LLM/embeddings reales, el evaluador puede usar Gemini u OpenAI.
 No versiones `.env`, `.secrets/` ni capturas con claves.
 
 ### Local sin Docker
@@ -264,6 +265,10 @@ docker compose -f docker-compose.yml -f docker-compose.secrets.yml up --build
 `.secrets/` esta ignorado por Git y por el build de Docker. El backend lee la
 clave desde `GEMINI_API_KEY_FILE=/run/secrets/gemini_api_key`.
 
+El compose base usa `EMBEDDING_PROVIDER=gemini` por defecto. Si no montas el
+secreto o no configuras una clave real, el backend devolvera un error explicito
+al inicializar RAG en vez de caer a embeddings deterministas.
+
 Para OpenAI, usa `OPENAI_API_KEY` en `.env` para local o monta un archivo y
 apunta `OPENAI_API_KEY_FILE` al secreto en Docker.
 
@@ -287,8 +292,8 @@ El compose pasa al backend `PRODUCTION_API_BASE_URL=http://production-api:8001`,
 `CHROMA_MODE=http`, `CHROMA_HOST=chromadb` y `CHROMA_PORT=8000`. Si existe un
 `.env` local, Docker Compose lo usa solo para interpolar variables como
 `LLM_PROVIDER` o modelos; no pasa `GEMINI_API_KEY` ni `OPENAI_API_KEY` como
-variables directas del contenedor. Sin secretos montados, usa proveedores
-deterministas y los fallbacks quedan visibles.
+variables directas del contenedor. Sin secretos montados, los embeddings reales
+no pueden inicializarse y el backend lo indicara con un error explicito.
 
 Para levantar Docker Compose con Gemini real, usa la seccion anterior
 `Como introducir tu API key`.

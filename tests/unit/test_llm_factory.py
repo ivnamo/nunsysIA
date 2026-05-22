@@ -19,16 +19,18 @@ def test_create_embedding_model_returns_deterministic_for_unconfigured_provider(
     assert isinstance(create_embedding_model(settings), DeterministicEmbeddingModel)
 
 
-def test_gemini_embeddings_fall_back_when_api_key_is_missing() -> None:
+def test_gemini_embeddings_require_api_key() -> None:
     settings = Settings(embedding_provider="gemini", gemini_api_key=None)
 
-    assert isinstance(create_embedding_model(settings), DeterministicEmbeddingModel)
+    with pytest.raises(LLMProviderError, match="GEMINI_API_KEY"):
+        create_embedding_model(settings)
 
 
-def test_openai_embeddings_fall_back_when_api_key_is_missing() -> None:
+def test_openai_embeddings_require_api_key() -> None:
     settings = Settings(embedding_provider="openai", openai_api_key=None)
 
-    assert isinstance(create_embedding_model(settings), DeterministicEmbeddingModel)
+    with pytest.raises(LLMProviderError, match="OPENAI_API_KEY"):
+        create_embedding_model(settings)
 
 
 def test_gemini_chat_requires_optional_dependency_when_api_key_exists(

@@ -26,6 +26,7 @@ class BackendClient:
         self,
         question: str,
         conversation_id: str | None = None,
+        include_citation_previews: bool = False,
     ) -> QueryResponse:
         async with self._client() as client:
             response = await client.post(
@@ -33,6 +34,7 @@ class BackendClient:
                 json={
                     "question": question,
                     "conversation_id": conversation_id,
+                    "include_citation_previews": include_citation_previews,
                 },
             )
 

@@ -104,6 +104,32 @@ def test_build_public_data_summary_does_not_return_raw_rows() -> None:
     }
 
 
+def test_build_public_data_summary_can_include_rag_text_preview_for_ui() -> None:
+    summary = build_public_data_summary(
+        {
+            "rag": {
+                "status": "completed",
+                "chunks": [
+                    {
+                        "text": "contenido documental para verificar la cita",
+                        "metadata": {
+                            "filename": "contrato.pdf",
+                            "page": 2,
+                            "chunk_id": "doc_123_p2_c1",
+                        },
+                        "score": 0.876543,
+                    }
+                ],
+            },
+        },
+        include_rag_text_preview=True,
+    )
+
+    assert summary["rag"]["citations"][0]["text_preview"] == (
+        "contenido documental para verificar la cita"
+    )
+
+
 def test_build_public_data_summary_includes_memory_summary_without_turn_text() -> None:
     summary = build_public_data_summary(
         {

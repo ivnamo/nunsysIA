@@ -11,7 +11,7 @@ from app.rag.document_filters import (
     resolve_requested_filenames,
 )
 from app.rag.embeddings import DeterministicEmbeddingModel, EmbeddingModel
-from app.rag.relevance import has_query_evidence
+from app.rag.relevance import has_query_evidence, meaningful_tokens, token_overlap
 from app.rag.vector_store import (
     DocumentVectorStore,
     InMemoryDocumentVectorStore,
@@ -49,11 +49,12 @@ class DocumentRAGTool:
 
     def query(self, tool_input: DocumentRAGInput) -> ToolResult:
         started_at = perf_counter()
-        requested_names = self._resolve_requested_filenames(
-            requested_filenames(tool_input.query, tool_input.filename)
-        )
+        explicit_filenames = requested_filenames(tool_input.query, tool_input.filename)
         evidence_query = query_without_filenames(tool_input.query)
         document_wide_query = is_document_wide_query(tool_input.query)
+        requested_names = self._resolve_requested_filenames(explicit_filenames)
+        if not requested_names and document_wide_query:
+            requested_names = self._infer_requested_filenames(evidence_query)
         try:
             query_embedding = self._embedding_model.embed_query(tool_input.query)
             chunks = self._vector_store.similarity_search(
@@ -79,6 +80,12 @@ class DocumentRAGTool:
             if chunk.score < tool_input.min_score:
                 continue
             if requested_names and document_wide_query:
+                relevant_chunks.append(chunk)
+                continue
+            if requested_names and _has_requested_document_topic_evidence(
+                evidence_query,
+                chunk.text,
+            ):
                 relevant_chunks.append(chunk)
                 continue
             if has_query_evidence(evidence_query, chunk.text):
@@ -162,8 +169,33 @@ class DocumentRAGTool:
     def _resolve_requested_filenames(self, filenames: set[str]) -> set[str]:
         return resolve_requested_filenames(self._vector_store, filenames)
 
+    def _infer_requested_filenames(self, query: str) -> set[str]:
+        query_tokens = meaningful_tokens(query)
+        if not query_tokens:
+            return set()
+        try:
+            documents = self._vector_store.list_documents()
+        except Exception:
+            return set()
+
+        inferred = set()
+        for document in documents:
+            filename_tokens = meaningful_tokens(document.filename.replace("_", " "))
+            if token_overlap(query_tokens, filename_tokens):
+                inferred.add(document.filename)
+        return inferred
+
+
+def _has_requested_document_topic_evidence(query: str, text: str) -> bool:
+    query_tokens = meaningful_tokens(query)
+    if not query_tokens:
+        return False
+    text_tokens = meaningful_tokens(text)
+    return bool(token_overlap(query_tokens, text_tokens))
+
 
 _has_query_evidence = has_query_evidence
 _requested_filenames = requested_filenames
 _query_without_filenames = query_without_filenames
 _is_document_wide_query = is_document_wide_query
+_has_requested_document_topic_evidence = _has_requested_document_topic_evidence

@@ -58,7 +58,10 @@ def sanitize_exception(exc: BaseException, max_length: int = 240) -> str:
     return _short_text(_sanitize_error(detail), max_length=max_length) or exc.__class__.__name__
 
 
-def build_public_data_summary(data: dict[str, Any]) -> dict[str, Any] | None:
+def build_public_data_summary(
+    data: dict[str, Any],
+    include_rag_text_preview: bool = False,
+) -> dict[str, Any] | None:
     summary: dict[str, Any] = {}
 
     if data.get("erp_orders") is not None:
@@ -104,7 +107,10 @@ def build_public_data_summary(data: dict[str, Any]) -> dict[str, Any] | None:
             "status": rag.get("status"),
             "chunks_count": len(chunks),
             "documents": _document_names(chunks),
-            "citations": _rag_citations(chunks),
+            "citations": _rag_citations(
+                chunks,
+                include_text_preview=include_rag_text_preview,
+            ),
         }
         if rag.get("fallbacks"):
             summary["rag"]["fallbacks"] = [
@@ -216,7 +222,10 @@ def _document_names(chunks: list[Any]) -> list[str]:
     return sorted(names)
 
 
-def _rag_citations(chunks: list[Any]) -> list[dict[str, Any]]:
+def _rag_citations(
+    chunks: list[Any],
+    include_text_preview: bool = False,
+) -> list[dict[str, Any]]:
     citations: list[dict[str, Any]] = []
     seen_chunk_ids: set[str] = set()
     for chunk in chunks:
@@ -245,15 +254,22 @@ def _rag_citations(chunks: list[Any]) -> list[dict[str, Any]]:
         except (TypeError, ValueError):
             continue
 
-        citations.append(
-            {
-                "filename": str(filename),
-                "page": page_value,
-                "chunk_id": chunk_id_text,
-                "score": score_value,
-            }
-        )
+        citation: dict[str, Any] = {
+            "filename": str(filename),
+            "page": page_value,
+            "chunk_id": chunk_id_text,
+            "score": score_value,
+        }
+        if include_text_preview:
+            citation["text_preview"] = _chunk_text_preview(chunk.get("text"))
+        citations.append(citation)
     return citations
+
+
+def _chunk_text_preview(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    return _short_text(value, max_length=700) or ""
 
 
 def _memory_order_ids(values: Any) -> list[int]:

@@ -48,6 +48,7 @@ class QueryWorkflowService:
             question=request.question,
             conversation_id=request.conversation_id,
             conversation_history=conversation_history,
+            include_citation_previews=request.include_citation_previews,
         )
         self._memory_store.remember(
             conversation_id=request.conversation_id,

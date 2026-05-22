@@ -116,7 +116,7 @@ Si no hay contexto documental suficiente, el sistema debe devolver `insufficient
 
 El vector store objetivo es ChromaDB. El codigo actual soporta `CHROMA_MODE=persistent` con `chromadb.PersistentClient` y `CHROMA_MODE=http` con `chromadb.HttpClient`. Si el cliente Python no esta instalado o Chroma no se puede abrir/conectar, la app usa un fallback en memoria para que la POC siga siendo validable.
 
-La respuesta publica devuelve documentos usados en `data.rag.documents` y citas visibles por chunk en `data.rag.citations` con `filename`, `page`, `chunk_id` y `score`. No expone textos completos de chunks en `data`.
+La respuesta publica devuelve documentos usados en `data.rag.documents` y citas visibles por chunk en `data.rag.citations` con `filename`, `page`, `chunk_id` y `score`. No expone textos completos de chunks en `data`; Chainlit puede pedir `text_preview` truncado para desplegar evidencias en la UI.
 
 ## LLM y proveedores
 

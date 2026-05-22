@@ -36,6 +36,7 @@ ValidationDecision = Literal["finish", "replan", "fail"]
 class AgentState(TypedDict, total=False):
     question: str
     conversation_id: str | None
+    include_citation_previews: bool
     conversation_history: list[dict[str, Any]]
     intent: AgentIntent | None
     plan: dict[str, Any] | None

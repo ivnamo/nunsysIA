@@ -62,7 +62,7 @@
             "actions": {
                 "send": "Enviar mensaje",
                 "stop": "Detener tarea",
-                "attachFiles": "Adjuntar archivos"
+                "attachFiles": "Adjuntar PDFs"
             }
         },
         "favorites": {
@@ -85,7 +85,7 @@
             "connecting": "Conectando"
         },
         "fileUpload": {
-            "dragDrop": "Arrastra y suelta archivos aqu\u00ed",
+            "dragDrop": "Arrastra y suelta PDFs aqu\u00ed",
             "browse": "Buscar archivos",
             "sizeLimit": "L\u00edmite:",
             "errors": {

@@ -23,6 +23,7 @@ RAG_STOPWORDS = {
     "las",
     "los",
     "pdf",
+    "para",
     "por",
     "que",
     "recomienda",
@@ -34,6 +35,7 @@ RAG_STOPWORDS = {
     "sobre",
     "un",
     "una",
+    "documentos",
 }
 
 

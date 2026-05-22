@@ -11,6 +11,8 @@ def test_settings_default_gemini_model_is_current_flash_model() -> None:
 
     assert settings.gemini_model == "gemini-2.5-flash"
     assert settings.gemini_api_transport == "rest"
+    assert settings.embedding_provider == "gemini"
+    assert settings.gemini_embedding_model == "gemini-embedding-001"
 
 
 def test_settings_load_llm_and_embedding_provider_env(

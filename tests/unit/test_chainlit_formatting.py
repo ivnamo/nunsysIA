@@ -39,6 +39,25 @@ def test_format_query_response_includes_traceability_sections() -> None:
     assert "`ERPTool.calculate_order_amount` [success]: 2 pedidos encontrados" in content
 
 
+def test_format_query_response_preserves_answer_markdown_table() -> None:
+    response = QueryResponse(
+        answer=(
+            "El cliente ALFKI tiene 2 pedidos pendientes:\n\n"
+            "| Pedido | Estado |\n"
+            "|---|---|\n"
+            "| 10248 | En curso |"
+        ),
+        sources=["ERP"],
+        status="completed",
+    )
+
+    content = format_query_response(response)
+
+    assert "| Pedido | Estado |" in content
+    assert "|---|---|" in content
+    assert "**Fuentes**" in content
+
+
 def test_format_query_response_shows_fallbacks() -> None:
     response = QueryResponse(
         answer="Respuesta determinista.",
@@ -70,6 +89,7 @@ def test_format_query_response_shows_document_citations() -> None:
                         "page": 1,
                         "chunk_id": "doc_123_p1_c1",
                         "score": 0.91234,
+                        "text_preview": "El contrato fija penalizaciones por retraso verificables.",
                     }
                 ],
             }
@@ -79,7 +99,40 @@ def test_format_query_response_shows_document_citations() -> None:
     content = format_query_response(response)
 
     assert "**Citas documentales**" in content
-    assert "`contrato.pdf`, pagina `1`, chunk `doc_123_p1_c1`, score `0.9123`" in content
+    assert (
+        "`contrato.pdf` - pagina `1` - chunk `doc_123_p1_c1` - "
+        "score `0.9123` - Ver texto: Chunk 1"
+    ) in content
+    assert "```rag-citation-previews" not in content
+    assert "rag_preview=" not in content
+
+
+def test_format_query_response_keeps_citation_link_out_without_preview() -> None:
+    response = QueryResponse(
+        answer="El contrato fija penalizaciones.",
+        sources=["Documentos"],
+        status="completed",
+        data={
+            "rag": {
+                "status": "completed",
+                "chunks_count": 1,
+                "documents": ["contrato.pdf"],
+                "citations": [
+                    {
+                        "filename": "contrato.pdf",
+                        "page": 1,
+                        "chunk_id": "doc_123_p1_c1",
+                        "score": 0.91234,
+                    }
+                ],
+            }
+        },
+    )
+
+    content = format_query_response(response)
+
+    assert "Ver texto" not in content
+    assert "rag-citation-previews" not in content
 
 
 def test_format_upload_response_summarizes_indexing() -> None:

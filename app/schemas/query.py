@@ -21,6 +21,13 @@ class QueryRequest(BaseModel):
 
     question: str = Field(min_length=1)
     conversation_id: str | None = None
+    include_citation_previews: bool = Field(
+        default=False,
+        description=(
+            "Incluye una vista previa truncada de chunks documentales en "
+            "data.rag.citations para clientes UI autorizados."
+        ),
+    )
 
 
 class QueryResponse(BaseModel):

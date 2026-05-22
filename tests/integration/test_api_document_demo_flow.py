@@ -144,7 +144,7 @@ def test_api_returns_insufficient_context_for_unrelated_document_question(
     payload = response.json()
     assert payload["status"] == "insufficient_context"
     assert payload["sources"] == ["Documentos"]
-    assert "contexto documental suficiente" in payload["answer"]
+    assert "documentos disponibles" in payload["answer"]
 
 
 def _erp_tool() -> ERPTool:

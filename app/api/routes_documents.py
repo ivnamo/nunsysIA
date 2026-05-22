@@ -16,6 +16,7 @@ from app.api.upload_parser import (
     read_pdf_upload,
 )
 from app.core.config import get_settings
+from app.core.llm import LLMProviderError
 from app.rag.factory import create_document_service
 from app.rag.ingestion import (
     DocumentIngestionService,
@@ -31,7 +32,13 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 @lru_cache
 def get_document_service() -> DocumentIngestionService:
-    return create_document_service(get_settings())
+    try:
+        return create_document_service(get_settings())
+    except LLMProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post(

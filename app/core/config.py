@@ -29,10 +29,10 @@ class Settings(BaseModel):
     openai_model: str = "gpt-4o-mini"
     llm_temperature: float = 0.0
     llm_timeout_seconds: float = 45.0
-    embedding_provider: str = "deterministic"
+    embedding_provider: str = "gemini"
     gemini_embedding_model: str = "gemini-embedding-001"
     openai_embedding_model: str = "text-embedding-3-small"
-    embedding_model: str = "deterministic"
+    embedding_model: str = "gemini-embedding-001"
 
 
 @lru_cache
@@ -73,7 +73,7 @@ def get_settings() -> Settings:
         openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0")),
         llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "45")),
-        embedding_provider=os.getenv("EMBEDDING_PROVIDER", "deterministic").lower(),
+        embedding_provider=os.getenv("EMBEDDING_PROVIDER", "gemini").lower(),
         gemini_embedding_model=os.getenv(
             "GEMINI_EMBEDDING_MODEL",
             "gemini-embedding-001",
@@ -82,7 +82,7 @@ def get_settings() -> Settings:
             "OPENAI_EMBEDDING_MODEL",
             "text-embedding-3-small",
         ),
-        embedding_model=os.getenv("EMBEDDING_MODEL", "deterministic"),
+        embedding_model=os.getenv("EMBEDDING_MODEL", "gemini-embedding-001"),
     )
 
 

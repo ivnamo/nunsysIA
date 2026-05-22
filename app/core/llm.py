@@ -28,7 +28,11 @@ def create_embedding_model(settings: Settings) -> EmbeddingModel:
         return _create_gemini_embeddings(settings)
     if provider == "openai":
         return _create_openai_embeddings(settings)
-    return DeterministicEmbeddingModel()
+    if provider == "deterministic":
+        return DeterministicEmbeddingModel()
+    raise LLMProviderError(
+        "EMBEDDING_PROVIDER debe ser gemini, openai o deterministic."
+    )
 
 
 def _create_gemini_chat_model(settings: Settings) -> ChatModel | None:
@@ -74,7 +78,9 @@ def _create_openai_chat_model(settings: Settings) -> ChatModel | None:
 
 def _create_gemini_embeddings(settings: Settings) -> EmbeddingModel:
     if not settings.gemini_api_key:
-        return DeterministicEmbeddingModel()
+        raise LLMProviderError(
+            "EMBEDDING_PROVIDER=gemini requiere GEMINI_API_KEY o GEMINI_API_KEY_FILE."
+        )
 
     try:
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -92,7 +98,9 @@ def _create_gemini_embeddings(settings: Settings) -> EmbeddingModel:
 
 def _create_openai_embeddings(settings: Settings) -> EmbeddingModel:
     if not settings.openai_api_key:
-        return DeterministicEmbeddingModel()
+        raise LLMProviderError(
+            "EMBEDDING_PROVIDER=openai requiere OPENAI_API_KEY o OPENAI_API_KEY_FILE."
+        )
 
     try:
         from langchain_openai import OpenAIEmbeddings

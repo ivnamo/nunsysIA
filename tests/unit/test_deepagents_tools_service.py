@@ -1,6 +1,7 @@
 import httpx
 
 from app.agents.deepagents_tools_service import DeepAgentsToolsQueryService
+from app.core.tracing import ToolCallTrace, ToolResult
 from app.erp.database import create_sqlite_connection, load_seed_sql
 from app.erp.repositories import NorthwindRepository
 from app.production.client import ProductionAPIClient
@@ -12,6 +13,7 @@ from app.tools.erp_query_tool import ERPQueryTool
 from app.tools.erp_tool import ERPTool
 from app.tools.production_query_tool import ProductionQueryTool
 from app.tools.production_tool import ProductionAPITool
+from app.tools.rag_tool import DocumentRAGInput
 from app.tools.rag_tool import DocumentRAGTool
 
 
@@ -33,6 +35,80 @@ class _FakeAgent:
                 }
             ]
         }
+
+
+class _ToolNamesAgent:
+    def __init__(self, tools, seen: dict):
+        seen["tool_names"] = [tool.__name__ for tool in tools]
+
+    def invoke(self, payload: dict) -> dict:
+        return {"messages": [{"content": "Sin consultas para inspeccion de tools."}]}
+
+
+class _RAGSpamAgent:
+    def __init__(self, tools):
+        self._tools = {tool.__name__: tool for tool in tools}
+
+    def invoke(self, payload: dict) -> dict:
+        query_documents = self._tools["query_documents"]
+        query_documents("contrato penalizaciones")
+        query_documents("otra consulta documental")
+        query_documents("contrato penalizaciones")
+        return {"messages": [{"content": "Respuesta documental con presupuesto RAG."}]}
+
+
+class _FollowupAgent:
+    def __init__(self, tools):
+        self._tools = {tool.__name__: tool for tool in tools}
+
+    def invoke(self, payload: dict) -> dict:
+        if "resolve_referenced_orders_with_erp_and_production" in self._tools:
+            self._tools["resolve_referenced_orders_with_erp_and_production"]()
+        else:
+            self._tools["get_pending_orders_by_customer"]("ALFKI")
+        return {
+            "messages": [
+                {
+                    "content": (
+                        "ALFKI tiene los pedidos 10248 y 10252 con estados "
+                        "actuales consultados."
+                    )
+                }
+            ]
+        }
+
+
+class _CountingRAGTool:
+    def __init__(self) -> None:
+        self.query_count = 0
+
+    def query(self, tool_input: DocumentRAGInput) -> ToolResult:
+        self.query_count += 1
+        return ToolResult(
+            data={
+                "status": "completed",
+                "chunks": [
+                    {
+                        "text": "No se aplican penalizaciones por falta de material.",
+                        "score": 0.91,
+                        "metadata": {
+                            "filename": "contrato.pdf",
+                            "page": 1,
+                            "chunk_id": "contrato-1",
+                        },
+                    }
+                ],
+            },
+            tool_call=ToolCallTrace(
+                tool="DocumentRAGTool",
+                action="query",
+                args=tool_input.model_dump(),
+                status="success",
+                output_summary="1 chunks documentales recuperados",
+                duration_ms=0,
+                source="Documentos",
+            ),
+        )
 
 
 def test_deepagents_tools_service_records_direct_tool_traces() -> None:
@@ -67,6 +143,87 @@ def test_deepagents_tools_service_records_direct_tool_traces() -> None:
         "production_statuses_count": 2,
     }
     assert "10252" in response.answer
+
+
+def test_deepagents_tools_service_selects_tools_by_intent() -> None:
+    seen: dict = {}
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _ToolNamesAgent(kwargs["tools"], seen),
+    )
+
+    service.run(
+        QueryRequest(
+            question="Que pedidos pendientes tiene ALFKI?",
+            conversation_id="tools-selection",
+        )
+    )
+
+    assert "query_documents" not in seen["tool_names"]
+    assert "get_pending_orders_by_customer" in seen["tool_names"]
+    assert "query_erp_orders" in seen["tool_names"]
+    assert "query_production_orders" not in seen["tool_names"]
+
+
+def test_deepagents_tools_service_limits_document_queries() -> None:
+    rag_tool = _CountingRAGTool()
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=rag_tool,
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _RAGSpamAgent(kwargs["tools"]),
+    )
+
+    response = service.run(
+        QueryRequest(
+            question="Que dice el contrato sobre penalizaciones?",
+            conversation_id="tools-rag-budget",
+        )
+    )
+
+    assert rag_tool.query_count == 1
+    assert [call.tool for call in response.tool_calls] == ["DocumentRAGTool"]
+    assert response.data["rag"]["chunks_count"] == 1
+
+
+def test_deepagents_tools_service_resolves_followups_with_erp_and_production() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _FollowupAgent(kwargs["tools"]),
+    )
+
+    service.run(
+        QueryRequest(
+            question="Que pedidos pendientes tiene ALFKI?",
+            conversation_id="tools-followup",
+        )
+    )
+    response = service.run(
+        QueryRequest(
+            question="Y en que estado estan?",
+            conversation_id="tools-followup",
+        )
+    )
+
+    assert response.sources == ["Memoria", "ERP", "Produccion"]
+    assert [call.tool for call in response.tool_calls] == [
+        "MemoryTool",
+        "ERPQueryTool",
+        "ProductionAPITool",
+    ]
 
 
 def _erp_tool() -> ERPTool:

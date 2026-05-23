@@ -29,6 +29,12 @@ from app.agents.deepagents_policy import (
     normalize_text as _normalize_text,
     tool_policy as _tool_policy,
 )
+from app.agents.deepagents_subagents import build_business_subagents, subagent_names
+from app.agents.evidence_verifier import (
+    VerificationResult,
+    required_evidence,
+    verify_response,
+)
 from app.agents.penalty_policy import build_order_penalties_answer
 from app.agents.prompts import MAIN_DEEP_AGENT_PROMPT
 from app.core.config import Settings
@@ -75,6 +81,7 @@ class DeepAgentsToolsQueryService:
         openai_api_key: str | None = None,
         memory_store: ConversationMemoryStore | None = None,
         agent_builder: AgentBuilder | None = None,
+        orchestration_mode: str = "verified_subagents",
     ) -> None:
         self._erp_tool = erp_tool
         self._production_tool = production_tool
@@ -86,6 +93,7 @@ class DeepAgentsToolsQueryService:
         self._openai_api_key = openai_api_key
         self._memory_store = memory_store or ConversationMemoryStore()
         self._agent_builder = agent_builder or _create_deep_agent
+        self._orchestration_mode = orchestration_mode
 
     def run(self, request: QueryRequest) -> QueryResponse:
         self._prime_provider_environment()
@@ -94,11 +102,77 @@ class DeepAgentsToolsQueryService:
         if preflight_response is not None:
             return self._remember_and_return(request, preflight_response)
 
-        execution.run_mandatory_tools()
+        if self._orchestration_mode == "legacy_guarded":
+            execution.run_guarded_fallback()
+            result = self._invoke_agent(execution, request)
+            execution.record_deepagents_planning(result)
+            response = execution.build_response(
+                _last_message_text(result),
+                prefer_agent_answer=True,
+                verification=VerificationResult("passed"),
+                repair_attempted=False,
+            )
+            return self._remember_and_return(request, response)
+
+        return self._run_verified_subagents(request, execution)
+
+    def _run_verified_subagents(
+        self,
+        request: QueryRequest,
+        execution: "_DirectToolsExecution",
+    ) -> QueryResponse:
         result = self._invoke_agent(execution, request)
         execution.record_deepagents_planning(result)
-        response = execution.build_response(_last_message_text(result))
-        return self._remember_and_return(request, response)
+        response = execution.build_response(
+            _last_message_text(result),
+            prefer_agent_answer=True,
+            verification=VerificationResult("passed"),
+            repair_attempted=False,
+        )
+        verification = execution.verify(response)
+        if verification.passed:
+            response = execution.with_verification_metadata(
+                response,
+                verification=verification,
+                repair_attempted=False,
+            )
+            return self._remember_and_return(request, response)
+
+        execution.run_guarded_fallback()
+        repair_result = self._invoke_agent(
+            execution,
+            request,
+            repair_feedback=verification.repair_prompt(),
+        )
+        execution.record_deepagents_planning(repair_result)
+        repaired_response = execution.build_response(
+            _last_message_text(repair_result),
+            prefer_agent_answer=True,
+            verification=verification,
+            repair_attempted=True,
+        )
+        repaired_verification = execution.verify(repaired_response)
+        if repaired_verification.passed:
+            repaired_response = execution.with_verification_metadata(
+                repaired_response,
+                verification=repaired_verification,
+                repair_attempted=True,
+            )
+            return self._remember_and_return(request, repaired_response)
+
+        fallback_response = execution.build_response(
+            _last_message_text(repair_result) or _last_message_text(result),
+            prefer_agent_answer=False,
+            verification=repaired_verification,
+            repair_attempted=True,
+        )
+        final_verification = execution.verify(fallback_response)
+        fallback_response = execution.with_verification_metadata(
+            fallback_response,
+            verification=final_verification,
+            repair_attempted=True,
+        )
+        return self._remember_and_return(request, fallback_response)
 
     def _build_execution(self, request: QueryRequest) -> "_DirectToolsExecution":
         history = self._memory_store.history(request.conversation_id)
@@ -112,16 +186,20 @@ class DeepAgentsToolsQueryService:
             production_query_tool=self._production_query_tool,
             rag_tool=self._rag_tool,
             memory_tool=MemoryTool(),
+            model=self._model,
         )
 
     def _invoke_agent(
         self,
         execution: "_DirectToolsExecution",
         request: QueryRequest,
+        repair_feedback: str | None = None,
     ) -> Any:
+        subagents = execution.subagents(self._model)
         agent = self._agent_builder(
             model=self._model,
             tools=execution.tools(),
+            subagents=subagents,
             system_prompt=MAIN_DEEP_AGENT_PROMPT,
             name="nunsys-deepagent-query",
         )
@@ -130,7 +208,10 @@ class DeepAgentsToolsQueryService:
                 "messages": [
                     {
                         "role": "user",
-                        "content": execution.agent_user_message(request),
+                        "content": execution.agent_user_message(
+                            request,
+                            repair_feedback=repair_feedback,
+                        ),
                     }
                 ]
             }
@@ -170,6 +251,7 @@ def create_deepagents_tools_query_service(
         model=settings.deepagents_model,
         gemini_api_key=settings.gemini_api_key,
         openai_api_key=settings.openai_api_key,
+        orchestration_mode=settings.deepagents_orchestration_mode,
     )
 
 
@@ -185,6 +267,7 @@ class _DirectToolsExecution:
         production_query_tool: ProductionQueryTool,
         rag_tool: DocumentRAGTool,
         memory_tool: MemoryTool,
+        model: str,
     ) -> None:
         self._question = question
         self._conversation_history = conversation_history
@@ -195,6 +278,7 @@ class _DirectToolsExecution:
         self._production_query_tool = production_query_tool
         self._rag_tool = rag_tool
         self._memory_tool = memory_tool
+        self._model = model
         self._policy = _tool_policy(question, conversation_history)
         self._lock = Lock()
         self._cache: dict[Any, Any] = {}
@@ -226,8 +310,12 @@ class _DirectToolsExecution:
             failure_reason=None,
         )
 
-    def run_mandatory_tools(self) -> None:
-        """Ejecuta las tools beta-criticas antes del texto libre del agente."""
+    @property
+    def policy(self):
+        return self._policy
+
+    def run_guarded_fallback(self) -> None:
+        """Ejecuta el fallback determinista solo si el agente no verifica."""
         if self._policy.needs_penalty:
             self.assess_penalty_risk_for_orders()
             return
@@ -258,6 +346,58 @@ class _DirectToolsExecution:
                 self.get_customer_pending_orders_with_production(customer_id)
             elif customer_id:
                 self.get_pending_orders_by_customer(customer_id)
+
+    run_mandatory_tools = run_guarded_fallback
+
+    def verify(self, response: QueryResponse) -> VerificationResult:
+        return verify_response(response, policy=self._policy, data=self.data)
+
+    def with_verification_metadata(
+        self,
+        response: QueryResponse,
+        *,
+        verification: VerificationResult,
+        repair_attempted: bool,
+    ) -> QueryResponse:
+        metadata = dict(response.metadata or {})
+        metadata["orchestration_style"] = "deepagents_subagents_verified"
+        metadata["verification_status"] = verification.status
+        metadata["repair_attempted"] = repair_attempted
+        if verification.issues:
+            metadata["verification_issues"] = list(verification.issues)
+        return response.model_copy(
+            update={
+                "metadata": metadata,
+                "failure_reason": None
+                if verification.passed
+                else "; ".join(verification.issues),
+            }
+        )
+
+    def subagents(self, model: str | None = None) -> list[dict[str, Any]]:
+        return build_business_subagents(
+            model=model or self._model,
+            erp_tools=[
+                self.query_erp_customer_summary,
+                self.get_pending_orders_by_customer,
+                self.get_orders_by_month,
+                self.calculate_order_amount,
+                self.query_erp_orders,
+            ],
+            production_tools=[
+                self.query_production_status,
+                self.list_production_orders,
+                self.get_production_status_for_order_ids,
+                self.query_production_orders,
+            ],
+            document_tools=[
+                self.answer_document_question_with_citations,
+                self.search_documents,
+                self.summarize_document_context,
+                self.query_documents,
+            ],
+            memory_tools=[self.recall_memory],
+        )
 
     def tools(self) -> list[Callable[..., dict[str, Any] | list[dict[str, Any]] | None]]:
         tools: list[Callable[..., Any]] = []
@@ -758,8 +898,20 @@ class _DirectToolsExecution:
             "chunks": result.get("chunks", []),
         }
 
-    def agent_user_message(self, request: QueryRequest) -> str:
-        lines = [_direct_tools_user_message(request)]
+    def agent_user_message(
+        self,
+        request: QueryRequest,
+        repair_feedback: str | None = None,
+    ) -> str:
+        lines = [
+            _direct_tools_user_message(request),
+            "",
+            "Evidencia minima requerida por la politica de tools: "
+            + ", ".join(required_evidence(self._policy) or ["sin fuente obligatoria"]),
+            "Subagentes disponibles: " + ", ".join(subagent_names(self.subagents())),
+        ]
+        if repair_feedback:
+            lines.extend(["", "Feedback de verificacion:", repair_feedback])
         if self._policy.needs_documents:
             document_context = _document_context_for_agent(self.data.get("rag"))
             if document_context:
@@ -790,18 +942,39 @@ class _DirectToolsExecution:
 
     def record_deepagents_planning(self, result: Any) -> None:
         todo_tool_calls_count = _count_tool_calls(result, "write_todos")
-        if todo_tool_calls_count <= 0:
-            return
+        subagents = self.subagents(self._model)
         with self._lock:
-            self.data["deepagents_planning"] = {
+            planning = dict(self.data.get("deepagents_planning") or {})
+            planning.update(
+                {
                 "todos_used": True,
                 "todo_tool_calls_count": todo_tool_calls_count,
-            }
+                    "subagents_available": subagent_names(subagents),
+                    "required_evidence": required_evidence(self._policy),
+                }
+            )
+            if todo_tool_calls_count <= 0:
+                planning["todos_used"] = bool(planning.get("todos_used"))
+            self.data["deepagents_planning"] = planning
 
-    def build_response(self, answer: str | None) -> QueryResponse:
+    def build_response(
+        self,
+        answer: str | None,
+        *,
+        prefer_agent_answer: bool,
+        verification: VerificationResult,
+        repair_attempted: bool,
+    ) -> QueryResponse:
         agent_answer = _agent_answer_from_text(answer)
         status = self._status(agent_answer)
-        deterministic_answer = self._deterministic_answer(status, agent_answer)
+        should_use_fallback_answer = (
+            not prefer_agent_answer or not _usable_business_agent_answer(agent_answer)
+        )
+        deterministic_answer = (
+            self._deterministic_answer(status, agent_answer)
+            if should_use_fallback_answer
+            else None
+        )
         normalized_answer = _normalized_answer(
             deterministic_answer or agent_answer,
             status,
@@ -820,7 +993,12 @@ class _DirectToolsExecution:
             confidence=_confidence(status),
             status=status,
             data=public_data,
-            failure_reason=None,
+            metadata={
+                "orchestration_style": "deepagents_subagents_verified",
+                "verification_status": verification.status,
+                "repair_attempted": repair_attempted,
+            },
+            failure_reason=None if verification.passed else "; ".join(verification.issues),
         )
 
     def _deterministic_answer(
@@ -1005,6 +1183,26 @@ def _usable_document_agent_answer(answer: str | None) -> bool:
             "no puedo responder",
             "sin informacion suficiente",
             "respuesta no determinista",
+        )
+    )
+
+
+def _usable_business_agent_answer(answer: str | None) -> bool:
+    if not isinstance(answer, str) or not answer.strip():
+        return False
+    normalized = answer.strip()
+    if len(normalized.split()) < 4:
+        return False
+    lowered = normalized.lower()
+    return not any(
+        marker in lowered
+        for marker in (
+            "respuesta no determinista",
+            "sin consultas para inspeccion",
+            "no tengo contexto",
+            "no puedo responder",
+            "no hay informacion suficiente",
+            "deep agents no genero",
         )
     )
 

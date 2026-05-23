@@ -37,6 +37,7 @@ class Settings(BaseModel):
     agent_execution_timeout_seconds: float = 120.0
     enable_deepagents_experiment: bool = False
     deepagents_model: str = "google_genai:gemini-2.5-flash"
+    deepagents_orchestration_mode: str = "verified_subagents"
 
 
 @lru_cache
@@ -96,6 +97,10 @@ def get_settings() -> Settings:
             "DEEPAGENTS_MODEL",
             "google_genai:gemini-2.5-flash",
         ),
+        deepagents_orchestration_mode=os.getenv(
+            "DEEPAGENTS_ORCHESTRATION_MODE",
+            "verified_subagents",
+        ).strip().lower(),
     )
 
 

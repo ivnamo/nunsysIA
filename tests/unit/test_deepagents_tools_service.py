@@ -273,13 +273,15 @@ def test_deepagents_tools_service_records_direct_tool_traces() -> None:
         "ERPTool",
         "ProductionAPITool",
     ]
-    assert response.data == {
-        "erp_orders_count": 2,
-        "erp_order_ids": [10248, 10252],
-        "production_orders_count": 2,
-        "production_order_ids": [10248, 10252],
-        "production_statuses_count": 2,
-    }
+    assert response.data["erp_orders_count"] == 2
+    assert response.data["erp_order_ids"] == [10248, 10252]
+    assert response.data["production_orders_count"] == 2
+    assert response.data["production_order_ids"] == [10248, 10252]
+    assert response.data["production_statuses_count"] == 2
+    assert response.data["deepagents_planning"]["required_evidence"] == [
+        "ERP",
+        "Produccion",
+    ]
     assert "10252" in response.answer
 
 
@@ -479,10 +481,8 @@ def test_deepagents_tools_service_handles_delayed_orders_beta_case() -> None:
 
     assert response.status == "completed"
     assert response.sources == ["Produccion", "ERP"]
-    assert [call.tool for call in response.tool_calls][:2] == [
-        "ProductionAPITool",
-        "ERPTool",
-    ]
+    assert "ProductionQueryTool" in [call.tool for call in response.tool_calls]
+    assert "ERPQueryTool" in [call.tool for call in response.tool_calls]
     assert response.data["production_order_ids"] == [10301]
     assert "10301" in response.answer
     assert "ANATR" in response.answer
@@ -570,10 +570,13 @@ def test_deepagents_tools_service_exposes_sanitized_todo_usage() -> None:
         )
     )
 
-    assert response.data["deepagents_planning"] == {
-        "todos_used": True,
-        "todo_tool_calls_count": 1,
-    }
+    assert response.data["deepagents_planning"]["todos_used"] is True
+    assert response.data["deepagents_planning"]["todo_tool_calls_count"] == 1
+    assert response.data["deepagents_planning"]["required_evidence"] == [
+        "ERP",
+        "Produccion",
+    ]
+    assert "erp_specialist" in response.data["deepagents_planning"]["subagents_available"]
     assert "Consultar ERP" not in str(response.data["deepagents_planning"])
 
 

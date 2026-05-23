@@ -64,6 +64,7 @@ services:
       APP_ENV: docker
       AGENT_MODE: ${AGENT_MODE:-deepagent}
       AGENT_EXECUTION_TIMEOUT_SECONDS: ${AGENT_EXECUTION_TIMEOUT_SECONDS:-120}
+      DEEPAGENTS_ORCHESTRATION_MODE: ${DEEPAGENTS_ORCHESTRATION_MODE:-verified_subagents}
       PRODUCTION_API_BASE_URL: http://production-api:8001
       PRODUCTION_API_TIMEOUT_SECONDS: ${PRODUCTION_API_TIMEOUT_SECONDS:-5.0}
       CHROMA_MODE: http
@@ -124,6 +125,7 @@ services:
       BACKEND_API_BASE_URL: http://backend:8000
       BACKEND_API_TIMEOUT_SECONDS: ${BACKEND_API_TIMEOUT_SECONDS:-120.0}
       AGENT_MODE: ${AGENT_MODE:-deepagent}
+      DEEPAGENTS_ORCHESTRATION_MODE: ${DEEPAGENTS_ORCHESTRATION_MODE:-verified_subagents}
     command:
       [
         "python",
@@ -165,6 +167,7 @@ services:
     environment:
       API_BASE_URL: http://backend:8000
       AGENT_MODE: ${AGENT_MODE:-deepagent}
+      DEEPAGENTS_ORCHESTRATION_MODE: ${DEEPAGENTS_ORCHESTRATION_MODE:-verified_subagents}
       EVALUATOR_DOCKER_COMMAND: ${EVALUATOR_DOCKER_COMMAND:-docker compose --profile eval up --build evaluator}
     command:
       [

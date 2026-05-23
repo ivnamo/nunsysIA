@@ -21,6 +21,23 @@ async def test_agent_router_defaults_to_deepagent() -> None:
 
 
 @pytest.mark.asyncio
+async def test_agent_router_uses_configured_default_mode() -> None:
+    legacy_service = _Service("legacy")
+    router = AgentRouter(
+        deepagent_service=_Service("deep"),
+        legacy_service=legacy_service,
+        response_normalizer=ResponseNormalizer(),
+        default_mode=AgentMode.LEGACY_LANGGRAPH,
+    )
+
+    response = await router.query("Pregunta", mode=None)
+
+    assert response.answer == "legacy"
+    assert response.metadata["agent_mode"] == "legacy_langgraph"
+    assert legacy_service.calls == [("Pregunta", None, False)]
+
+
+@pytest.mark.asyncio
 async def test_agent_router_raises_clear_error_for_missing_experimental_mode() -> None:
     router = AgentRouter(
         deepagent_service=_Service("deep"),

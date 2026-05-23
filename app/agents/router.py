@@ -28,20 +28,22 @@ class AgentRouter:
         response_normalizer: ResponseNormalizer,
         sidecar_service: AgentService | None = None,
         legacy_service: AgentService | None = None,
+        default_mode: AgentMode = AgentMode.DEEPAGENT,
     ) -> None:
         self._deepagent_service = deepagent_service
         self._sidecar_service = sidecar_service
         self._legacy_service = legacy_service
         self._response_normalizer = response_normalizer
+        self._default_mode = default_mode
 
     async def query(
         self,
         question: str,
         conversation_id: str | None = None,
-        mode: AgentMode | None = AgentMode.DEEPAGENT,
+        mode: AgentMode | None = None,
         include_citation_previews: bool = False,
     ) -> QueryResponse:
-        selected_mode = mode or AgentMode.DEEPAGENT
+        selected_mode = mode or self._default_mode
         service = self._service_for_mode(selected_mode)
         raw_result = await _call_service(
             service=service,

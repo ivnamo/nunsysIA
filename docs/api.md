@@ -59,11 +59,13 @@ Campos:
 - `question`: obligatorio.
 - `conversation_id`: opcional. Permite memoria conversacional in-memory.
 - `mode`: opcional. Valores: `deepagent`, `deepagent_sidecar`,
-  `legacy_langgraph`.
+  `legacy_langgraph`. Si se omite, se usa `AGENT_MODE` y su valor por defecto
+  es `deepagent`.
 - `include_citation_previews`: opcional. Usado por Chainlit para mostrar
   previews truncadas de citas documentales.
 
-Si `mode` no se envia, el backend usa `deepagent`.
+Para entrega se debe dejar `AGENT_MODE=deepagent`; los otros modos son
+comparativos o legacy.
 
 Response `200`:
 

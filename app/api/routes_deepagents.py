@@ -14,14 +14,12 @@ from app.agents.deepagents_tools_service import (
     DeepAgentsToolsQueryService,
     create_deepagents_tools_query_service,
 )
-from app.agents.service import (
-    _create_erp_tools,
-    _create_production_tools,
-    create_query_workflow_service,
-)
+from app.agents.service import create_query_workflow_service
 from app.api.routes_documents import get_document_service
 from app.core.config import get_settings
 from app.schemas.query import QueryRequest, QueryResponse
+from app.services.erp_service import create_erp_tools
+from app.services.production_service import create_production_tools
 from app.tools.rag_tool import DocumentRAGTool
 
 
@@ -58,8 +56,8 @@ def _cached_deepagents_query_service() -> DeepAgentsQueryService:
 @lru_cache
 def _cached_deepagents_tools_query_service() -> DeepAgentsToolsQueryService:
     settings = get_settings()
-    erp_tool, erp_query_tool = _create_erp_tools()
-    production_tool, production_query_tool = _create_production_tools(settings)
+    erp_tool, erp_query_tool = create_erp_tools()
+    production_tool, production_query_tool = create_production_tools(settings)
     document_service = get_document_service()
     return create_deepagents_tools_query_service(
         settings=settings,

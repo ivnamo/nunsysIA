@@ -72,7 +72,7 @@ class _ToolPolicy:
 
 
 class DeepAgentsToolsQueryService:
-    """DeepAgents business flow with direct access to deterministic tools."""
+    """Primary DeepAgents business flow with auditable deterministic guardrails."""
 
     def __init__(
         self,
@@ -100,8 +100,20 @@ class DeepAgentsToolsQueryService:
 
     def run(self, request: QueryRequest) -> QueryResponse:
         self._prime_provider_environment()
+        execution = self._build_execution(request)
+        preflight_response = execution.preflight_response()
+        if preflight_response is not None:
+            return self._remember_and_return(request, preflight_response)
+
+        execution.run_mandatory_tools()
+        result = self._invoke_agent(execution, request)
+        execution.record_deepagents_planning(result)
+        response = execution.build_response(_last_message_text(result))
+        return self._remember_and_return(request, response)
+
+    def _build_execution(self, request: QueryRequest) -> "_DirectToolsExecution":
         history = self._memory_store.history(request.conversation_id)
-        execution = _DirectToolsExecution(
+        return _DirectToolsExecution(
             question=request.question,
             conversation_history=history,
             include_citation_previews=request.include_citation_previews,
@@ -112,23 +124,19 @@ class DeepAgentsToolsQueryService:
             rag_tool=self._rag_tool,
             memory_tool=MemoryTool(),
         )
-        preflight_response = execution.preflight_response()
-        if preflight_response is not None:
-            self._memory_store.remember(
-                conversation_id=request.conversation_id,
-                question=request.question,
-                response=preflight_response,
-            )
-            return preflight_response
 
-        execution.run_mandatory_tools()
+    def _invoke_agent(
+        self,
+        execution: "_DirectToolsExecution",
+        request: QueryRequest,
+    ) -> Any:
         agent = self._agent_builder(
             model=self._model,
             tools=execution.tools(),
             system_prompt=MAIN_DEEP_AGENT_PROMPT,
             name="nunsys-deepagent-query",
         )
-        result = agent.invoke(
+        return agent.invoke(
             {
                 "messages": [
                     {
@@ -138,8 +146,12 @@ class DeepAgentsToolsQueryService:
                 ]
             }
         )
-        execution.record_deepagents_planning(result)
-        response = execution.build_response(_last_message_text(result))
+
+    def _remember_and_return(
+        self,
+        request: QueryRequest,
+        response: QueryResponse,
+    ) -> QueryResponse:
         self._memory_store.remember(
             conversation_id=request.conversation_id,
             question=request.question,

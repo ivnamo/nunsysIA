@@ -28,7 +28,7 @@ class QueryRequest(BaseModel):
 
     question: str = Field(min_length=1)
     conversation_id: str | None = None
-    mode: AgentMode | None = AgentMode.DEEPAGENT
+    mode: AgentMode | None = None
     include_citation_previews: bool = Field(
         default=False,
         description=(

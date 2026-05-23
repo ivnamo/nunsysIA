@@ -8,7 +8,7 @@ from app.agents.deepagents_service import DeepAgentsExecutionError
 from app.agents.router import AgentModeUnavailableError, AgentRouter
 from app.api.routes_documents import get_document_service
 from app.core.config import get_settings
-from app.schemas.query import AgentMode, QueryRequest, QueryResponse
+from app.schemas.query import QueryRequest, QueryResponse
 from app.services.agent_service import create_agent_router
 
 
@@ -32,12 +32,11 @@ async def query(
     request: QueryRequest,
     agent_router: AgentRouter = Depends(get_agent_router),
 ) -> QueryResponse:
-    mode = request.mode or AgentMode.DEEPAGENT
     try:
         return await agent_router.query(
             question=request.question,
             conversation_id=request.conversation_id,
-            mode=mode,
+            mode=request.mode,
             include_citation_previews=request.include_citation_previews,
         )
     except AgentModeUnavailableError as exc:

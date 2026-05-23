@@ -53,6 +53,7 @@ def create_agent_router(
         sidecar_service=sidecar_service,
         legacy_service=legacy_service,
         response_normalizer=response_normalizer,
+        default_mode=configured_agent_mode(settings),
     )
 
 

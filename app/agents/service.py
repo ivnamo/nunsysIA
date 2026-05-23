@@ -67,8 +67,8 @@ def create_query_workflow_service(
     except LLMProviderError:
         chat_model = None
 
-    erp_tool, erp_query_tool = _create_erp_tools()
-    production_tool, production_query_tool = _create_production_tools(settings)
+    erp_tool, erp_query_tool = create_erp_tools()
+    production_tool, production_query_tool = create_production_tools(settings)
 
     return QueryWorkflowService(
         erp_tool=erp_tool,
@@ -80,12 +80,3 @@ def create_query_workflow_service(
         llm_timeout_seconds=settings.llm_timeout_seconds,
     )
 
-
-def _create_erp_tools() -> tuple[ERPTool, ERPQueryTool]:
-    return create_erp_tools()
-
-
-def _create_production_tools(
-    settings: Settings,
-) -> tuple[ProductionAPITool, ProductionQueryTool]:
-    return create_production_tools(settings)

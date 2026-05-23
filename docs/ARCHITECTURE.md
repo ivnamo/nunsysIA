@@ -26,7 +26,8 @@ Usuario o Chainlit
 -> QueryResponse
 ```
 
-`mode` es opcional. Si no se envia, se usa `deepagent`.
+`mode` es opcional. Si no se envia, se usa `AGENT_MODE`; la configuracion de
+entrega debe mantener `AGENT_MODE=deepagent`.
 
 ## Modos agentic
 

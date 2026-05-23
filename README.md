@@ -38,7 +38,8 @@ Usuario / Chainlit
 -> QueryResponse
 ```
 
-DeepAgents es el modo por defecto real del endpoint de negocio. El servicio
+DeepAgents es el modo por defecto real del endpoint de negocio mientras
+`AGENT_MODE=deepagent`, que es la configuracion de entrega. El servicio
 principal puede ejecutar tools deterministas obligatorias antes y despues de la
 invocacion agentic para garantizar trazabilidad y evitar respuestas no
 grounded; esa logica forma parte del guardrail de entrega, no de un flujo

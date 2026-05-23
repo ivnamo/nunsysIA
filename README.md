@@ -38,6 +38,21 @@ Usuario / Chainlit
 -> QueryResponse
 ```
 
+```mermaid
+flowchart LR
+    U[Usuario / Chainlit] --> API[FastAPI POST /api/query]
+    API --> R[AgentRouter]
+    R --> D[DeepAgentService mode=deepagent]
+    D --> DA[LangChain DeepAgents]
+    DA --> T[Tools auditables]
+    T --> ERP[ERP Northwind SQLite]
+    T --> PROD[API produccion mock]
+    T --> RAG[RAG ChromaDB + PDFs v2]
+    T --> MEM[Memoria conversacional]
+    D --> N[ResponseNormalizer]
+    N --> Q[QueryResponse answer/sources/reasoning/tool_calls]
+```
+
 DeepAgents es el modo por defecto real del endpoint de negocio mientras
 `AGENT_MODE=deepagent`, que es la configuracion de entrega. El servicio
 principal puede ejecutar tools deterministas obligatorias antes y despues de la
@@ -254,6 +269,14 @@ Request:
 }
 ```
 
+Ejemplo `curl`:
+
+```powershell
+curl.exe -X POST "http://localhost:8000/api/query" `
+  -H "Content-Type: application/json" `
+  --data "{""question"":""Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?""}"
+```
+
 Response simplificada:
 
 ```json
@@ -264,7 +287,13 @@ Response simplificada:
     "Consulta ERP para pedidos",
     "Consulta API de produccion",
     "Fusion de resultados"
-  ]
+  ],
+  "metadata": {
+    "agent_mode": "deepagent",
+    "agent_framework": "LangChain DeepAgents",
+    "request_id": "uuid",
+    "duration_ms": 842
+  }
 }
 ```
 
@@ -300,6 +329,18 @@ El sistema devuelve:
 La trazabilidad expone decisiones auditables, no chain-of-thought interno del
 modelo. Los logs de backend existen via logging estandar de FastAPI/Uvicorn y
 los errores controlados se traducen a estados o codigos HTTP.
+
+## Troubleshooting rapido
+
+- `/health/ready` devuelve `503`: falta ChromaDB, produccion o una API key
+  compatible con `LLM_PROVIDER`, `EMBEDDING_PROVIDER` o `DEEPAGENTS_MODEL`.
+- Las preguntas documentales devuelven `insufficient_context`: sube los PDFs
+  `v2_*` o ejecuta `scripts/seed_rag.py` desde un entorno que vea ChromaDB.
+- Chainlit responde con timeout: sube `BACKEND_API_TIMEOUT_SECONDS` y revisa
+  `AGENT_EXECUTION_TIMEOUT_SECONDS`.
+- `docker compose --profile eval up --build evaluator` falla: comprueba que
+  backend, Chainlit y ChromaDB estan healthy y que `.env` no fuerza proveedores
+  sin clave.
 
 ## Limitaciones conocidas
 

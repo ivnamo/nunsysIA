@@ -66,6 +66,8 @@ from app.tools.rag_tool import DocumentRAGInput, DocumentRAGTool
 
 AgentBuilder = Callable[..., Any]
 _CACHE_MISS = object()
+
+
 class DeepAgentsToolsQueryService:
     """Primary DeepAgents business flow with auditable deterministic guardrails."""
 
@@ -947,8 +949,8 @@ class _DirectToolsExecution:
             planning = dict(self.data.get("deepagents_planning") or {})
             planning.update(
                 {
-                "todos_used": True,
-                "todo_tool_calls_count": todo_tool_calls_count,
+                    "todos_used": True,
+                    "todo_tool_calls_count": todo_tool_calls_count,
                     "subagents_available": subagent_names(subagents),
                     "required_evidence": required_evidence(self._policy),
                 }
@@ -1199,6 +1201,9 @@ def _usable_business_agent_answer(answer: str | None) -> bool:
         for marker in (
             "respuesta no determinista",
             "sin consultas para inspeccion",
+            "pregunta:",
+            "conversation_id:",
+            "usa solo las tools",
             "no tengo contexto",
             "no puedo responder",
             "no hay informacion suficiente",

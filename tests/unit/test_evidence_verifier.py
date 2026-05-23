@@ -20,7 +20,7 @@ def test_evidence_verifier_rejects_missing_required_tool_calls() -> None:
                 args={"customer_id": "ALFKI"},
                 status="success",
                 source="ERP",
-            )
+            ),
         ],
         status="completed",
     )
@@ -44,7 +44,7 @@ def test_evidence_verifier_rejects_rag_without_citations() -> None:
                 args={"query": "plazos"},
                 status="success",
                 source="Documentos",
-            )
+            ),
         ],
         status="completed",
     )
@@ -98,3 +98,70 @@ def test_evidence_verifier_accepts_grounded_rag_response() -> None:
 
     assert result.passed
 
+
+def test_evidence_verifier_rejects_prompt_echo() -> None:
+    policy = tool_policy("Dame un resumen del estado de los pedidos de este mes", [])
+    response = QueryResponse(
+        answer="Pregunta: Dame un resumen\nconversation_id:\nUsa solo las tools",
+        sources=["ERP", "Produccion"],
+        reasoning=["Consulta ERP", "Consulta produccion"],
+        tool_calls=[
+            ToolCallTrace(
+                tool="ERPTool",
+                action="get_orders_by_month",
+                args={"year": 2026, "month": 5},
+                status="success",
+                source="ERP",
+            ),
+            ToolCallTrace(
+                tool="ProductionAPITool",
+                action="get_status_for_order_ids",
+                args={"order_ids": [10248]},
+                status="success",
+                source="Produccion",
+            ),
+        ],
+        status="completed",
+    )
+
+    result = verify_response(response, policy=policy, data={"erp_orders": []})
+
+    assert not result.passed
+    assert "answer no usable o generico pese a status completed" in result.issues
+
+
+def test_evidence_verifier_does_not_treat_years_as_order_ids() -> None:
+    policy = tool_policy("Dame un resumen del estado de los pedidos de este mes", [])
+    response = QueryResponse(
+        answer="En mayo de 2026 el pedido 10248 esta en curso.",
+        sources=["ERP", "Produccion"],
+        reasoning=["Consulta ERP", "Consulta produccion"],
+        tool_calls=[
+            ToolCallTrace(
+                tool="ERPTool",
+                action="get_orders_by_month",
+                args={"year": 2026, "month": 5},
+                status="success",
+                source="ERP",
+            ),
+            ToolCallTrace(
+                tool="ProductionAPITool",
+                action="get_status_for_order_ids",
+                args={"order_ids": [10248]},
+                status="success",
+                source="Produccion",
+            ),
+        ],
+        status="completed",
+    )
+
+    result = verify_response(
+        response,
+        policy=policy,
+        data={
+            "erp_orders": [{"order_id": 10248}],
+            "production_orders": [{"order_id": 10248}],
+        },
+    )
+
+    assert result.passed

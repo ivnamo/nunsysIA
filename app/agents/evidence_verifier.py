@@ -172,13 +172,16 @@ def _looks_unusable_answer(answer: str) -> bool:
             "sin consultas para inspeccion",
             "deep agents no genero",
             "no se pudo generar una respuesta final",
+            "pregunta:",
+            "conversation_id:",
+            "usa solo las tools",
         )
     )
 
 
 def _order_ids_from_text(value: str) -> list[int]:
     order_ids: list[int] = []
-    for raw in re.findall(r"\b\d{4,}\b", value or ""):
+    for raw in re.findall(r"\b\d{5,}\b", value or ""):
         order_id = int(raw)
         if order_id not in order_ids:
             order_ids.append(order_id)

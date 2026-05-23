@@ -25,6 +25,7 @@ from app.rag.ingestion import (
 )
 from app.rag.vector_store import VectorStoreError
 from app.schemas.documents import DocumentListResponse, DocumentUploadResponse
+from app.schemas.documents import DocumentResetResponse
 
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -89,3 +90,26 @@ def list_documents(
         return service.list_documents()
     except VectorStoreError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@router.delete("", response_model=DocumentResetResponse)
+def reset_documents(
+    confirm: str,
+    service: DocumentIngestionService = Depends(get_document_service),
+) -> DocumentResetResponse:
+    settings = get_settings()
+    if settings.app_env not in {"development", "docker", "test"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El reset documental solo esta disponible en entornos de desarrollo o entrega local.",
+        )
+    if confirm != "reset-delivery-rag":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Confirmacion de reset documental invalida.",
+        )
+    try:
+        removed = service.clear_documents()
+    except VectorStoreError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    return DocumentResetResponse(chunks_removed=removed, fallbacks=service.fallbacks)

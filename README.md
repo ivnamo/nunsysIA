@@ -2,9 +2,10 @@
 
 ## Descripcion
 
-nunsysIA es una POC de workflow multi-agente para responder consultas de
-negocio en lenguaje natural combinando datos de ERP, una API REST de produccion
-y documentos PDF indexados mediante RAG.
+nunsysIA es una POC de workflow agentic con LangChain DeepAgents como
+orquestador principal para responder consultas de negocio en lenguaje natural
+combinando datos de ERP, una API REST de produccion y documentos PDF indexados
+mediante RAG.
 
 El objetivo no es sustituir sistemas corporativos reales, sino demostrar una
 orquestacion agentic trazable: el sistema consulta fuentes, ejecuta tools,
@@ -22,6 +23,21 @@ combina evidencias y devuelve una respuesta con `answer`, `sources` y
   `fallbacks`, `status` y `data`.
 - Interfaz grafica con Chainlit.
 - Ejecucion con Docker y Docker Compose.
+
+## Requisitos de la prueba cubiertos
+
+| Requisito | Implementacion verificable |
+| --- | --- |
+| ERP Northwind | SQLite sembrado con `data/northwind_seed.sql` y consultado por `app/tools/erp_tool.py`. |
+| Produccion via API REST | Servicio `production_mock/` levantado por Compose en `production-api`. |
+| Fusion ERP + produccion | `app/agents/deepagents_tools_service.py` cruza pedidos por `order_id`. |
+| RAG documental | `app/rag/` usa PDFs subidos, embeddings reales y ChromaDB. |
+| Endpoint obligatorio | `POST /api/query` en `app/api/routes_query.py`. |
+| `answer`, `sources`, `reasoning` | Contrato `QueryResponse` normalizado por `app/services/response_normalizer.py`. |
+| Trazabilidad | `tool_calls`, `metadata.request_id`, `metadata.duration_ms`, `fallbacks` y `status`. |
+| DeepAgents | Flujo por defecto `mode=deepagent`; LangGraph queda como `legacy_langgraph`. |
+| UI | Chainlit en `chainlit_app/main.py`, puerto `8002` en Compose. |
+| Docker | `Dockerfile`, `docker-compose.yml` y perfil `eval` para validacion end-to-end. |
 
 ## Flujo principal actual
 
@@ -68,6 +84,12 @@ Componentes reales:
 - `app/agents/deep_agent.py`: envoltorio del servicio principal.
 - `app/agents/deepagents_tools_service.py`: flujo principal con DeepAgents y
   tools directas de ERP, produccion, RAG y memoria.
+- `app/agents/deepagents_policy.py`: politica de seleccion de tools por
+  intencion.
+- `app/agents/deepagents_harness.py`: registro del harness DeepAgents sin
+  tools genericas de filesystem o shell.
+- `app/agents/deepagents_answering.py`: respuestas deterministas grounded
+  cuando ya hay evidencia de tools.
 - `app/services/response_normalizer.py`: normaliza la salida a `QueryResponse`.
 - `app/tools/`: tools deterministas para ERP, produccion, RAG, memoria y Query
   DSL interna.
@@ -86,6 +108,8 @@ Componentes reales:
 
 Los endpoints `/api/experimental/deepagents/*` estan deshabilitados por defecto
 y solo se activan con `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
+Los servicios `deepagent_sidecar` y `legacy_langgraph` se cargan bajo demanda;
+no se instancian durante consultas normales con `mode=deepagent`.
 
 ## Decisiones tecnicas
 
@@ -175,7 +199,7 @@ crear `.secrets/gemini_api_key` y usar `docker-compose.secrets.yml`.
 ## Ejecucion con Docker
 
 ```powershell
-docker compose up --build
+docker compose up -d --build
 ```
 
 Servicios:
@@ -192,6 +216,18 @@ Invoke-RestMethod -Uri "http://localhost:8000/health"
 Invoke-RestMethod -Uri "http://localhost:8000/health/ready"
 Invoke-RestMethod -Uri "http://localhost:8000/api/documents"
 ```
+
+Comandos operativos utiles:
+
+```powershell
+docker compose logs -f backend
+docker compose down
+docker compose down -v
+```
+
+En un arranque limpio, ChromaDB puede estar vacio. Las preguntas RAG requieren
+subir PDFs por `POST /api/documents/upload`, ejecutar `scripts/seed_rag.py` o
+lanzar la validacion de entrega, que reinicia e indexa los PDFs `v2_*`.
 
 Con secreto Gemini por archivo:
 
@@ -261,6 +297,9 @@ POST /api/query
 Content-Type: application/json
 ```
 
+OpenAPI/Swagger esta disponible en `http://localhost:8000/docs` cuando el
+backend esta levantado.
+
 Request:
 
 ```json
@@ -272,9 +311,27 @@ Request:
 Ejemplo `curl`:
 
 ```powershell
-curl.exe -X POST "http://localhost:8000/api/query" `
-  -H "Content-Type: application/json" `
-  --data "{""question"":""Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?""}"
+curl.exe --% -X POST http://localhost:8000/api/query -H "Content-Type: application/json" -d "{\"question\":\"Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?\"}"
+```
+
+Ejemplo equivalente con PowerShell nativo:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/api/query" `
+  -ContentType "application/json" `
+  -Body '{"question":"Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?"}'
+```
+
+Ejemplo de pedidos bloqueados:
+
+```powershell
+curl.exe --% -X POST http://localhost:8000/api/query -H "Content-Type: application/json" -d "{\"question\":\"Que pedidos estan bloqueados y cual es el motivo?\"}"
+```
+
+Ejemplo RAG tras indexar o subir PDFs:
+
+```powershell
+curl.exe --% -X POST http://localhost:8000/api/query -H "Content-Type: application/json" -d "{\"question\":\"Que dice este documento sobre plazos de entrega?\"}"
 ```
 
 Response simplificada:
@@ -313,6 +370,12 @@ Con Docker levantado y credenciales reales configuradas, ejecuta:
 El criterio de entrega es `PASS=18, FAIL=0` sobre las preguntas obligatorias y
 extendidas de negocio. Los informes beta anteriores se conservan bajo
 `docs/archive/validation/` solo como evidencia historica.
+El script resetea el indice documental mediante el endpoint protegido
+`DELETE /api/documents?confirm=reset-delivery-rag` y vuelve a cargar solo los
+PDFs oficiales `v2_*`, para evitar contaminacion de ejecuciones previas.
+
+No se incluye video de demo en el repositorio. La demo reproducible es el stack
+Docker junto con `docs/VALIDACION_ENTREGA.md` y el perfil Compose `eval`.
 
 ## Trazabilidad y explicabilidad
 

@@ -3,13 +3,32 @@ from __future__ import annotations
 import os
 import json
 import re
-import unicodedata
-from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
 from threading import Lock
 from typing import Any, Callable
 
-from app.agents.deepagents_adapter import DeepAgentsUnavailableError, deepagents_is_available
+from app.agents.deepagents_answering import (
+    confidence as _confidence,
+    economic_impact_answer as _economic_impact_answer,
+    erp_orders_answer as _erp_orders_answer,
+    erp_with_production_answer as _erp_with_production_answer,
+    month_summary_answer as _month_summary_answer,
+    normalized_answer as _normalized_answer,
+    production_status_answer as _production_status_answer,
+    with_deepagents_planning as _with_deepagents_planning,
+)
+from app.agents.deepagents_harness import (
+    REGISTERED_BUSINESS_HARNESS_MODELS as _REGISTERED_BUSINESS_HARNESS_MODELS,
+)
+from app.agents.deepagents_harness import create_deep_agent as _create_deep_agent
+from app.agents.deepagents_harness import (
+    register_business_harness_profile as _register_business_harness_profile,
+)
+from app.agents.deepagents_policy import (
+    KNOWN_CUSTOMER_IDS as _KNOWN_CUSTOMER_IDS,
+    contains_any as _contains_any,
+    normalize_text as _normalize_text,
+    tool_policy as _tool_policy,
+)
 from app.agents.penalty_policy import build_order_penalties_answer
 from app.agents.prompts import MAIN_DEEP_AGENT_PROMPT
 from app.core.config import Settings
@@ -41,36 +60,6 @@ from app.tools.rag_tool import DocumentRAGInput, DocumentRAGTool
 
 AgentBuilder = Callable[..., Any]
 _CACHE_MISS = object()
-_DEEPAGENTS_BUSINESS_EXCLUDED_TOOLS = frozenset(
-    {
-        "ls",
-        "read_file",
-        "write_file",
-        "edit_file",
-        "glob",
-        "grep",
-        "execute",
-        "task",
-    }
-)
-_REGISTERED_BUSINESS_HARNESS_MODELS: set[str] = set()
-_KNOWN_CUSTOMER_IDS = frozenset({"ALFKI", "ANATR", "BONAP"})
-
-
-@dataclass(frozen=True)
-class _ToolPolicy:
-    needs_memory: bool
-    needs_isolated_clarification: bool
-    needs_documents: bool
-    needs_penalty: bool
-    needs_economic_impact: bool
-    needs_customer_orders: bool
-    needs_production: bool
-    needs_blocked_cross: bool
-    needs_erp: bool
-    rag_budget: int
-
-
 class DeepAgentsToolsQueryService:
     """Primary DeepAgents business flow with auditable deterministic guardrails."""
 
@@ -161,7 +150,6 @@ class DeepAgentsToolsQueryService:
 
     def _prime_provider_environment(self) -> None:
         _set_env_if_missing("GEMINI_API_KEY", self._gemini_api_key)
-        _set_env_if_missing("GOOGLE_API_KEY", self._gemini_api_key)
         _set_env_if_missing("OPENAI_API_KEY", self._openai_api_key)
 
 
@@ -901,26 +889,6 @@ class _DirectToolsExecution:
         return "completed"
 
 
-def _create_deep_agent(**kwargs: Any) -> Any:
-    if not deepagents_is_available():
-        raise DeepAgentsUnavailableError(
-            "deepagents no esta instalado. Instala requirements.txt "
-            "en un entorno compatible para activar el flujo principal DeepAgents."
-        )
-    try:
-        from deepagents import HarnessProfile, create_deep_agent, register_harness_profile
-    except ImportError as exc:
-        raise DeepAgentsUnavailableError(
-            "deepagents esta instalado pero no puede importarse correctamente."
-        ) from exc
-    _register_business_harness_profile(
-        kwargs.get("model"),
-        harness_profile=HarnessProfile,
-        register_harness_profile=register_harness_profile,
-    )
-    return create_deep_agent(**kwargs)
-
-
 def _direct_tools_user_message(request: QueryRequest) -> str:
     return "\n".join(
         [
@@ -1140,66 +1108,6 @@ def _mapping_value(value: Any, key: str) -> Any:
     return getattr(value, key, None)
 
 
-def _normalized_answer(answer: str | None, status: QueryStatus) -> str:
-    if status == "insufficient_context":
-        return (
-            "No he encontrado informacion en los documentos disponibles para "
-            "responder a esa pregunta con fiabilidad."
-        )
-    if status == "needs_clarification":
-        return (
-            "Necesito contexto previo o que me indiques el cliente, pedido "
-            "o periodo concreto para saber a que te refieres."
-        )
-    if answer and answer.strip():
-        return answer.strip()
-    if status == "tool_error":
-        return "No se pudo completar la consulta por un error en una fuente."
-    return "Deep Agents no genero una respuesta final usable para esta consulta."
-
-
-def _confidence(status: QueryStatus) -> float | None:
-    if status == "completed":
-        return 0.75
-    if status == "insufficient_context":
-        return 0.45
-    if status == "needs_clarification":
-        return 0.6
-    return None
-
-
-def _with_deepagents_planning(
-    public_data: dict[str, Any] | None,
-    raw_data: dict[str, Any],
-) -> dict[str, Any] | None:
-    planning = raw_data.get("deepagents_planning")
-    if not isinstance(planning, dict):
-        return public_data
-    summary = dict(public_data or {})
-    summary["deepagents_planning"] = {
-        "todos_used": bool(planning.get("todos_used")),
-        "todo_tool_calls_count": int(planning.get("todo_tool_calls_count") or 0),
-    }
-    return summary
-
-
-def _register_business_harness_profile(
-    model: Any,
-    harness_profile: Any,
-    register_harness_profile: Any,
-) -> None:
-    if not isinstance(model, str) or not model.strip():
-        return
-    model_key = model.strip()
-    if model_key in _REGISTERED_BUSINESS_HARNESS_MODELS:
-        return
-    register_harness_profile(
-        model_key,
-        harness_profile(excluded_tools=_DEEPAGENTS_BUSINESS_EXCLUDED_TOOLS),
-    )
-    _REGISTERED_BUSINESS_HARNESS_MODELS.add(model_key)
-
-
 def _dedupe_tools(tools: list[Callable[..., Any]]) -> list[Callable[..., Any]]:
     deduped = []
     seen: set[str] = set()
@@ -1210,111 +1118,6 @@ def _dedupe_tools(tools: list[Callable[..., Any]]) -> list[Callable[..., Any]]:
         seen.add(name)
         deduped.append(tool)
     return deduped
-
-
-def _tool_policy(
-    question: str,
-    conversation_history: list[dict[str, Any]],
-) -> _ToolPolicy:
-    text = _normalize_text(question)
-    has_history = bool(conversation_history)
-    needs_isolated_clarification = _looks_like_follow_up(text) and not has_history
-    mentions_penalty = _contains_any(text, ("penaliz", "sla"))
-    document_first = _contains_any(text, ("segun", "pdf", "document", "contrato", "anexo"))
-    needs_penalty = mentions_penalty and not document_first and _contains_any(
-        text,
-        ("pedido", "pedidos", "estado", "erp", "produccion"),
-    )
-    needs_economic_impact = has_history and _contains_any(
-        text,
-        ("impacto economico", "importe", "importes", "valor", "cuanto suman"),
-    )
-    needs_documents = mentions_penalty or _contains_any(
-        text,
-        (
-            "segun",
-            "contrato",
-            "document",
-            "pdf",
-            "anexo",
-            "clausul",
-            "criptomon",
-            "bitcoin",
-            "divisa",
-            "plazo contractual",
-            "logistic",
-            "receta",
-            "cocina",
-            "vegana",
-        ),
-    )
-    has_known_customer = any(customer_id.lower() in text for customer_id in _KNOWN_CUSTOMER_IDS)
-    needs_customer_orders = has_known_customer or (
-        "cliente" in text and "pedido" in text and "pendiente" in text
-    )
-    needs_blocked_cross = "bloque" in text and _contains_any(
-        text,
-        ("produccion", "erp", "cliente", "cruza", "cruce"),
-    )
-    needs_production = _contains_any(
-        text,
-        ("produccion", "estado", "bloque", "retras", "fabricacion"),
-    )
-    needs_erp = needs_customer_orders or needs_economic_impact or _contains_any(
-        text,
-        ("erp", "pedido"),
-    )
-    needs_memory = has_history and (
-        _looks_like_follow_up(text) or not _has_explicit_business_anchor(text)
-    )
-
-    if needs_penalty or needs_blocked_cross:
-        needs_erp = True
-        needs_production = True
-    if needs_memory and _contains_any(text, ("estado", "produccion")):
-        needs_production = True
-
-    return _ToolPolicy(
-        needs_memory=needs_memory,
-        needs_isolated_clarification=needs_isolated_clarification,
-        needs_documents=needs_documents,
-        needs_penalty=needs_penalty,
-        needs_economic_impact=needs_economic_impact,
-        needs_customer_orders=needs_customer_orders,
-        needs_production=needs_production,
-        needs_blocked_cross=needs_blocked_cross,
-        needs_erp=needs_erp,
-        rag_budget=1 if needs_documents else 0,
-    )
-
-
-def _contains_any(text: str, needles: tuple[str, ...]) -> bool:
-    return any(needle in text for needle in needles)
-
-
-def _looks_like_follow_up(text: str) -> bool:
-    tokenized = f" {_word_text(text)} "
-    return text.startswith(("y ", "ademas", "tambien")) or _contains_any(
-        tokenized,
-        (" esos ", " esas ", " ellos ", " ellas ", " anterior ", " antes "),
-    )
-
-
-def _has_explicit_business_anchor(text: str) -> bool:
-    return bool(_order_ids_from_text(text)) or _contains_any(
-        text,
-        ("alfki", "bonap", "anatr", "cliente", "pedido", "contrato", "document", "pdf"),
-    )
-
-
-def _normalize_text(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value.lower())
-    return "".join(character for character in normalized if not unicodedata.combining(character))
-
-
-def _word_text(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", value).strip()
-
 
 def _cache_key(action: str, args: dict[str, Any]) -> tuple[Any, ...]:
     return (action, _freeze(args))
@@ -1387,242 +1190,6 @@ def _is_month_summary(text: str) -> bool:
         normalized,
         ("pedido", "pedidos", "estado"),
     )
-
-
-def _economic_impact_answer(data: dict[str, Any]) -> str:
-    order_amounts = [
-        amount
-        for amount in data.get("order_amounts", [])
-        if isinstance(amount, dict)
-    ]
-    rows = []
-    total = Decimal("0.00")
-    for amount in order_amounts:
-        order_id = amount.get("order_id")
-        value = _money(amount.get("amount"))
-        if order_id is None or value is None:
-            continue
-        total += value
-        rows.append([str(order_id), f"{value:.2f}"])
-
-    if not rows:
-        return "No se encontraron importes ERP para los pedidos referenciados."
-    if len(rows) == 1:
-        return (
-            "Con los datos disponibles, el impacto economico del pedido "
-            f"referenciado es {rows[0][0]}: {rows[0][1]}."
-        )
-    return (
-        "Con los datos disponibles, el impacto economico total de los pedidos "
-        f"referenciados es {total:.2f}.\n\n"
-        + _markdown_table(["Pedido", "Importe"], rows)
-    )
-
-
-def _production_status_answer(data: dict[str, Any]) -> str:
-    requested_status = data.get("requested_production_status")
-    production_orders = [
-        order
-        for order in data.get("production_orders", [])
-        if isinstance(order, dict)
-        and (
-            not isinstance(requested_status, str)
-            or order.get("production_status") == requested_status
-        )
-    ]
-    if not production_orders:
-        return "No se encontraron estados de produccion para los pedidos referenciados."
-
-    customers_by_order = data.get("customers_by_order") or {}
-    rows = []
-    for order in production_orders:
-        order_id = int(order["order_id"])
-        customer = customers_by_order.get(order_id) or customers_by_order.get(
-            str(order_id)
-        )
-        customer_label = _customer_label(customer)
-        reason = (
-            order.get("blocked_reason")
-            or order.get("delay_reason")
-            or "sin motivo informado"
-        )
-        rows.append(
-            [
-                str(order_id),
-                customer_label,
-                _production_status_label(str(order.get("production_status") or "")),
-                str(reason),
-            ]
-        )
-
-    return (
-        "Estos son los estados de produccion de los pedidos referenciados:\n\n"
-        + _markdown_table(["Pedido", "Cliente", "Estado", "Motivo"], rows)
-    )
-
-
-def _erp_with_production_answer(data: dict[str, Any]) -> str:
-    orders = [
-        order
-        for order in data.get("erp_orders", [])
-        if isinstance(order, dict)
-    ]
-    production_by_order = data.get("production_by_order") or {}
-    if not orders:
-        return "No se encontraron pedidos ERP con los criterios solicitados."
-
-    rows = []
-    for order in orders:
-        order_id = int(order["order_id"])
-        production = production_by_order.get(order_id) or production_by_order.get(
-            str(order_id)
-        )
-        if isinstance(production, dict):
-            production_status = _production_status_label(
-                str(production.get("production_status") or "")
-            )
-            observation = (
-                production.get("blocked_reason")
-                or production.get("delay_reason")
-                or "sin bloqueo informado"
-            )
-        else:
-            production_status = "sin informacion"
-            observation = "sin estado de produccion disponible"
-        rows.append(
-            [
-                str(order_id),
-                _erp_status_label(str(order.get("erp_status") or "")),
-                production_status,
-                str(observation),
-            ]
-        )
-
-    customer_id = str(orders[0].get("customer_id") or "cliente")
-    return (
-        f"El cliente {customer_id} tiene {len(orders)} pedidos pendientes:\n\n"
-        + _markdown_table(
-            ["Pedido", "Estado ERP", "Estado produccion", "Observacion"],
-            rows,
-        )
-    )
-
-
-def _month_summary_answer(data: dict[str, Any]) -> str:
-    orders = [
-        order
-        for order in data.get("erp_orders", [])
-        if isinstance(order, dict)
-    ]
-    production_by_order = data.get("production_by_order") or {}
-    period = data.get("period") or {}
-    rows = []
-    status_counts: dict[str, int] = {}
-    for order in orders:
-        order_id = int(order["order_id"])
-        production = production_by_order.get(order_id) or production_by_order.get(
-            str(order_id)
-        )
-        if isinstance(production, dict):
-            status = _production_status_label(
-                str(production.get("production_status") or "")
-            )
-        else:
-            status = "sin informacion"
-        status_counts[status] = status_counts.get(status, 0) + 1
-        rows.append([str(order_id), _erp_status_label(str(order.get("erp_status") or "")), status])
-
-    month = int(period.get("month") or 5)
-    year = int(period.get("year") or 2026)
-    summary = ", ".join(
-        f"{status}: {count}" for status, count in sorted(status_counts.items())
-    )
-    return (
-        f"En mayo de {year} hay {len(orders)} pedidos ERP. "
-        f"Distribucion por estado de produccion: {summary}.\n\n"
-        + _markdown_table(["Pedido", "Estado ERP", "Estado produccion"], rows)
-        + f"\n\nPeriodo auditado: {year}-{month:02d}."
-    )
-
-
-def _erp_orders_answer(data: dict[str, Any]) -> str:
-    orders = [
-        order
-        for order in data.get("erp_orders", [])
-        if isinstance(order, dict)
-    ]
-    if not orders:
-        return "No se encontraron pedidos ERP con los criterios solicitados."
-
-    rows = [
-        [
-            str(order.get("order_id")),
-            _erp_status_label(str(order.get("erp_status") or "")),
-        ]
-        for order in orders
-    ]
-    customer_id = str(orders[0].get("customer_id") or "cliente")
-    return (
-        f"El cliente {customer_id} tiene {len(orders)} pedidos pendientes:\n\n"
-        + _markdown_table(["Pedido", "Estado ERP"], rows)
-    )
-
-
-def _markdown_table(headers: list[str], rows: list[list[str]]) -> str:
-    header = "| " + " | ".join(headers) + " |"
-    separator = "| " + " | ".join("---" for _ in headers) + " |"
-    body = ["| " + " | ".join(row) + " |" for row in rows]
-    return "\n".join([header, separator, *body])
-
-
-def _money(value: Any) -> Decimal | None:
-    try:
-        return Decimal(str(value)).quantize(Decimal("0.01"))
-    except (InvalidOperation, ValueError):
-        return None
-
-
-def _customer_label(customer: Any) -> str:
-    if not isinstance(customer, dict):
-        return "cliente ERP no resuelto"
-    customer_id = customer.get("customer_id")
-    customer_name = customer.get("company_name") or customer.get("customer_name")
-    if customer_id and customer_name:
-        return f"{customer_id} - {customer_name}"
-    if customer_id:
-        return str(customer_id)
-    return "cliente ERP no resuelto"
-
-
-def _production_status_label(status: str) -> str:
-    labels = {
-        "blocked": "bloqueado",
-        "delayed": "retrasado",
-        "finished": "finalizado",
-        "in_progress": "en curso",
-    }
-    return labels.get(status, status or "sin informacion")
-
-
-def _erp_status_label(status: str) -> str:
-    labels = {
-        "pending": "pendiente",
-        "shipped": "enviado",
-        "completed": "completado",
-        "cancelled": "cancelado",
-    }
-    return labels.get(status, status or "sin informacion")
-
-
-def _order_ids_from_text(text: str) -> list[int]:
-    order_ids = []
-    for raw_word in text.replace(",", " ").replace(".", " ").split():
-        if not raw_word.isdigit():
-            continue
-        value = int(raw_word)
-        if value > 0 and value not in order_ids:
-            order_ids.append(value)
-    return order_ids
 
 
 def _merge_rows(left: Any, right: Any) -> list[dict[str, Any]]:

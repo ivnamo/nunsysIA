@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+import inspect
+from typing import Any, Callable
+
 from app.agents.deep_agent import DeepAgentService
 from app.agents.deepagents_service import create_deepagents_query_service
 from app.agents.deepagents_tools_service import create_deepagents_tools_query_service
@@ -13,6 +18,35 @@ from app.services.production_service import create_production_tools
 from app.services.rag_service import create_rag_tool
 from app.services.response_normalizer import ResponseNormalizer
 from app.services.trace_service import TraceService
+
+
+class LazyAgentService:
+    """Carga flujos alternativos solo cuando se solicitan explicitamente."""
+
+    def __init__(self, factory: Callable[[], Any]) -> None:
+        self._factory = factory
+        self._service: Any | None = None
+
+    async def query(
+        self,
+        question: str,
+        conversation_id: str | None = None,
+        include_citation_previews: bool = False,
+    ) -> Any:
+        service = self._get_service()
+        result = service.query(
+            question=question,
+            conversation_id=conversation_id,
+            include_citation_previews=include_citation_previews,
+        )
+        if inspect.isawaitable(result):
+            return await result
+        return result
+
+    def _get_service(self) -> Any:
+        if self._service is None:
+            self._service = self._factory()
+        return self._service
 
 
 def create_agent_router(
@@ -36,15 +70,25 @@ def create_agent_router(
         )
     )
 
-    legacy_workflow = create_query_workflow_service(
-        settings=settings,
-        document_service=document_service,
-    )
-    legacy_service = LegacyLangGraphService(legacy_workflow)
-    sidecar_service = DeepAgentSidecarService(
-        create_deepagents_query_service(
-            settings=settings,
-            workflow=legacy_workflow,
+    legacy_workflow_cache: dict[str, Any] = {}
+
+    def legacy_workflow() -> Any:
+        workflow = legacy_workflow_cache.get("workflow")
+        if workflow is None:
+            workflow = create_query_workflow_service(
+                settings=settings,
+                document_service=document_service,
+            )
+            legacy_workflow_cache["workflow"] = workflow
+        return workflow
+
+    legacy_service = LazyAgentService(lambda: LegacyLangGraphService(legacy_workflow()))
+    sidecar_service = LazyAgentService(
+        lambda: DeepAgentSidecarService(
+            create_deepagents_query_service(
+                settings=settings,
+                workflow=legacy_workflow(),
+            )
         )
     )
 

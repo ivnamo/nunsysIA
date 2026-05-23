@@ -8,7 +8,7 @@ Para regenerarlos:
 .\.venv\Scripts\python.exe scripts\generate_sample_pdfs.py
 ```
 
-Documentos base generados:
+Documentos base generados, conservados solo como historico de desarrollo:
 
 - `contrato_marco_logistica_2026.pdf`: plazos de entrega, trazabilidad y exclusiones.
 - `anexo_penalizaciones_sla.pdf`: penalizaciones por retrasos y evidencias necesarias.
@@ -16,7 +16,7 @@ Documentos base generados:
 - `politica_calidad_entregas.pdf`: controles de calidad y documentacion de entrega.
 - `condiciones_comerciales_northwind.pdf`: reglas comerciales, ERP e impacto economico.
 
-Documentos extendidos multipagina:
+Documentos oficiales de entrega y demo (`v2_*`):
 
 - `v2_contrato_marco_logistica_2026.pdf`: contrato logistico en 4 paginas con alcance, plazos, trazabilidad y casos de decision.
 - `v2_anexo_penalizaciones_sla.pdf`: anexo SLA en 4 paginas con matriz, evidencias, exclusiones y calculo economico.

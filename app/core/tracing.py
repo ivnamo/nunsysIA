@@ -16,7 +16,7 @@ class ToolCallTrace(BaseModel):
     status: ToolCallStatus
     output_summary: str | None = None
     error: str | None = None
-    duration_ms: int | None = Field(default=None, ge=0)
+    duration_ms: int = Field(default=0, ge=0)
     source: SourceName
 
 

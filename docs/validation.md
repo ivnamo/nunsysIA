@@ -11,7 +11,7 @@ docker compose config --quiet
 Levantar servicios:
 
 ```powershell
-docker compose up --build
+docker compose up -d --build
 ```
 
 Comprobar backend y documentos:
@@ -29,12 +29,18 @@ URLs esperadas:
 - Chainlit: `http://localhost:8002`
 - ChromaDB: `http://localhost:8003`
 
+Comandos operativos:
+
+```powershell
+docker compose logs -f backend
+docker compose down
+docker compose down -v
+```
+
 ## Consulta API
 
 ```powershell
-curl.exe -X POST "http://localhost:8000/api/query" `
-  -H "Content-Type: application/json" `
-  --data "{""question"":""Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?""}"
+curl.exe --% -X POST http://localhost:8000/api/query -H "Content-Type: application/json" -d "{\"question\":\"Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?\"}"
 ```
 
 La respuesta debe incluir al menos:
@@ -54,6 +60,8 @@ documental no acepta embeddings deterministas ni vector store en memoria.
 ## RAG
 
 Los PDFs oficiales de demo son solo los `v2_*` en `data/sample_docs/`.
+En un arranque limpio, ChromaDB puede no contener documentos; en ese caso las
+preguntas documentales deben sembrarse o subir PDFs antes de validar RAG.
 Para limpiar la coleccion y sembrar esos documentos desde el entorno Python que
 ve ChromaDB:
 
@@ -71,9 +79,7 @@ curl.exe -X POST "http://localhost:8000/api/documents/upload" `
 Consultar por documento:
 
 ```powershell
-curl.exe -X POST "http://localhost:8000/api/query" `
-  -H "Content-Type: application/json" `
-  --data "{""question"":""Que dice este documento sobre plazos de entrega?""}"
+curl.exe --% -X POST http://localhost:8000/api/query -H "Content-Type: application/json" -d "{\"question\":\"Que dice este documento sobre plazos de entrega?\"}"
 ```
 
 Si no hay documentos indexados o no hay contexto suficiente, el sistema debe
@@ -109,6 +115,10 @@ Comando usado para regenerarlo con Docker levantado:
 ```powershell
 .\.venv\Scripts\python.exe scripts\run_delivery_validation.py --output docs\VALIDACION_ENTREGA.md
 ```
+
+Ese comando limpia primero el indice RAG del backend con
+`DELETE /api/documents?confirm=reset-delivery-rag` y despues sube solo los PDFs
+`v2_*`. Asi la validacion no depende del estado previo de ChromaDB.
 
 Tambien puede ejecutarse dentro de Compose con el perfil `eval`; el servicio
 `evaluator` escribe el informe en `reports/VALIDACION_ENTREGA.md`:

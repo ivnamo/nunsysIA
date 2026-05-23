@@ -1,5 +1,8 @@
 # API
 
+La documentacion OpenAPI/Swagger generada por FastAPI esta disponible en
+`http://localhost:8000/docs` con el backend levantado.
+
 ## `GET /health`
 
 Comprueba que el backend esta vivo.
@@ -42,6 +45,12 @@ sin exponer secretos.
 ## `POST /api/query`
 
 Endpoint principal de consulta en lenguaje natural.
+
+Ejemplo PowerShell/curl:
+
+```powershell
+curl.exe --% -X POST http://localhost:8000/api/query -H "Content-Type: application/json" -d "{\"question\":\"Que pedidos pendientes tiene el cliente ALFKI y en que estado de produccion estan?\"}"
+```
 
 Request:
 
@@ -149,7 +158,7 @@ Response `201`:
   "document_id": "doc_...",
   "filename": "v2_contrato_marco_logistica_2026.pdf",
   "status": "indexed",
-  "chunks_indexed": 4,
+  "chunks_indexed": 8,
   "fallbacks": []
 }
 ```
@@ -174,12 +183,40 @@ Response `200`:
       "document_id": "doc_...",
       "filename": "v2_contrato_marco_logistica_2026.pdf",
       "uploaded_at": "2026-05-22T20:00:00Z",
-      "chunks_indexed": 4
+      "chunks_indexed": 8
     }
   ],
   "fallbacks": []
 }
 ```
+
+## `DELETE /api/documents`
+
+Limpia el indice documental para validaciones reproducibles. Esta ruta esta
+limitada a `APP_ENV=development`, `APP_ENV=docker` o `APP_ENV=test`, y exige
+confirmacion explicita.
+
+Request:
+
+```powershell
+curl.exe -X DELETE "http://localhost:8000/api/documents?confirm=reset-delivery-rag"
+```
+
+Response `200`:
+
+```json
+{
+  "status": "cleared",
+  "chunks_removed": 38,
+  "fallbacks": []
+}
+```
+
+Errores:
+
+- `400`: confirmacion invalida.
+- `403`: entorno no permitido.
+- `500`: error de vector store.
 
 ## Endpoints experimentales
 

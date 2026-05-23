@@ -49,6 +49,12 @@ class DocumentListResponse(BaseModel):
     fallbacks: list[str] = Field(default_factory=list)
 
 
+class DocumentResetResponse(BaseModel):
+    status: Literal["cleared"] = "cleared"
+    chunks_removed: int = Field(ge=0)
+    fallbacks: list[str] = Field(default_factory=list)
+
+
 class DocumentRAGAnswer(BaseModel):
     answer: str
     status: RAGStatus

@@ -84,6 +84,13 @@ def _format_meta(response: QueryResponse) -> str | None:
     values = [f"Estado: `{response.status}`"]
     if response.confidence is not None:
         values.append(f"confianza: `{response.confidence:.2f}`")
+    metadata = response.metadata or {}
+    request_id = metadata.get("request_id")
+    if request_id:
+        values.append(f"request_id: `{request_id}`")
+    duration_ms = metadata.get("duration_ms")
+    if isinstance(duration_ms, int):
+        values.append(f"duracion: `{duration_ms} ms`")
     return " | ".join(values) if values else None
 
 

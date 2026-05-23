@@ -67,7 +67,6 @@ class DeepAgentsQueryService:
 
     def _prime_provider_environment(self) -> None:
         _set_env_if_missing("GEMINI_API_KEY", self._gemini_api_key)
-        _set_env_if_missing("GOOGLE_API_KEY", self._gemini_api_key)
         _set_env_if_missing("OPENAI_API_KEY", self._openai_api_key)
 
 

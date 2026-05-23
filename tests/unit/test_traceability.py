@@ -32,6 +32,7 @@ def test_sanitize_tool_calls_redacts_sensitive_args_and_errors() -> None:
     }
     assert sanitized[0].action == "calculate_order_amount"
     assert sanitized[0].error == "[redacted]"
+    assert sanitized[0].duration_ms == 0
 
 
 def test_sanitize_reasoning_keeps_visible_steps_short() -> None:

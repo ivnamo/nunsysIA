@@ -1,6 +1,6 @@
 # Validacion de entrega Docker/API
 
-Fecha de ejecucion: 2026-05-23 09:14:02
+Fecha de ejecucion: 2026-05-23 10:23:35
 Endpoint validado: `http://localhost:8000/api/query`
 Modo agentic: `deepagent`
 
@@ -31,8 +31,8 @@ Resultado global: PASS=18, FAIL=0, casos=18.
 | --- | --- | --- | --- | --- | --- | --- |
 | F-ERP-01 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | ERP, Produccion | ERPTool, ProductionAPITool |
 | F-ERP-02 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | Produccion, ERP | ProductionAPITool, ERPTool, ProductionQueryTool |
-| F-ERP-03 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | Produccion, ERP | ProductionAPITool, ERPTool |
-| F-ERP-04 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | ERP, Produccion | ERPTool, ProductionAPITool, ERPQueryTool |
+| F-ERP-03 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | Produccion, ERP | ProductionAPITool, ERPTool, ProductionQueryTool, ERPQueryTool |
+| F-ERP-04 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | ERP, Produccion | ERPTool, ProductionAPITool |
 | F-RAG-01 | OBLIGATORIO | PDF 2.2 | PASS | 200/completed | Documentos | DocumentRAGTool |
 | F-RAG-02 | OBLIGATORIO | PDF 2.2 | PASS | 200/completed | Documentos | DocumentRAGTool |
 | F-RAG-03 | OBLIGATORIO | PDF 2.2 | PASS | 200/completed | Documentos | DocumentRAGTool |
@@ -108,7 +108,7 @@ Pregunta 1: `Que clientes tienen pedidos retrasados por problemas de produccion?
 
 HTTP: `200` | status: `completed`
 Fuentes: `["Produccion", "ERP"]`
-Tools: `["ProductionAPITool", "ERPTool"]`
+Tools: `["ProductionAPITool", "ERPTool", "ProductionQueryTool", "ERPQueryTool"]`
 Fallbacks: `[]`
 
 Respuesta:
@@ -125,6 +125,8 @@ Pasos:
 
 - Consulta API de produccion por estado
 - Consulta ERP de cliente para pedido 10301
+- Consulta Produccion mediante filtros seguros
+- Consulta ERP mediante filtros seguros
 
 ### F-ERP-04 - PASS - Resumen mensual de pedidos
 
@@ -132,7 +134,7 @@ Pregunta 1: `Dame un resumen del estado de los pedidos de este mes`
 
 HTTP: `200` | status: `completed`
 Fuentes: `["ERP", "Produccion"]`
-Tools: `["ERPTool", "ProductionAPITool", "ERPQueryTool"]`
+Tools: `["ERPTool", "ProductionAPITool"]`
 Fallbacks: `[]`
 
 Respuesta:
@@ -155,7 +157,6 @@ Pasos:
 
 - Consulta ERP de pedidos por mes
 - Consulta API de produccion para pedidos referenciados
-- Consulta ERP mediante filtros seguros
 
 ### F-RAG-01 - PASS - Plazos de entrega en documento
 
@@ -169,7 +170,33 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-El documento establece que, para pedidos standard, el plazo maximo de entrega es de 5 dias laborables desde la liberacion de produccion. Tambien fija un plazo maximo de 48 horas para pedidos urgentes. Para aplicar una penalizacion, no basta con que haya retraso: debe existir incumplimiento de plazo, causa imputable al operador logistico y evidencia completa en ERP, produccion y prueba de entrega.
+Aquí está un resumen de los plazos de entrega según el documento proporcionado:
+
+**Plazos de entrega:**
+*   **Pedidos estándar:** Deben entregarse en un plazo máximo de 5 días laborables desde la liberación de producción.
+*   **Pedidos urgentes:** Deben entregarse en un plazo máximo de 48 horas desde la liberación de producción.
+
+**Consideraciones para el cálculo de días laborables:**
+*   Se excluyen sábados, domingos, festivos nacionales y festivos de la provincia de destino donde el transportista no preste servicio.
+*   Si un pedido sale después de las 14:00, el primer día computable será el siguiente día laborable.
+*   En exportación, aduanas y la documentación sanitaria pueden pausar el contador si hay evidencia en el expediente.
+
+**Excepciones (no hay incumplimiento logístico):**
+*   No se considera incumplimiento si el retraso se debe a falta de material, avería crítica de línea, cambio de prioridad aprobado o datos ERP incompletos. Estas excepciones deben estar documentadas con el `order_id`, causa, responsable y fecha de resolución.
+
+**Penalizaciones:**
+*   Se pueden aplicar penalizaciones económicas si hay incumplimiento de plazo, la causa es imputable al operador logístico y existe evidencia completa en ERP, producción y prueba de entrega.
+*   Para pedidos estándar con más de 2 días laborables de retraso imputable, la penalización es del 2%. Si superan los 5 días laborables, la penalización sube al 5%.
+
+---
+**Fuentes consultadas:**
+*   v2_contrato_marco_logistica_2026.pdf [1, 2]
+*   v2_anexo_penalizaciones_sla.pdf [3]
+
+**Pasos ejecutados:**
+1.  Se analizó el contexto documental proporcionado para identificar la información relevante sobre plazos de entrega, calendarios, excepciones y penalizaciones.
+2.  Se extrajeron los puntos clave de cada sección para sintetizar la respuesta.
+3.  Se citaron las fuentes correspondientes a cada fragmento de información.
 ```
 
 Pasos:
@@ -195,22 +222,27 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-El contrato marco de logística 2026 regula la preparación, expedición, entrega y cierre documental de pedidos comerciales para el año 2026, abarcando pedidos estándar, urgentes, entregas parciales y aquellos con salida desde almacén central o externo [1].
+El contrato marco de logística 2026 regula la preparación, expedición, entrega y cierre documental de pedidos comerciales durante el año 2026, abarcando pedidos estándar, urgentes, entregas parciales y salidas desde almacenes centrales o externos [1].
 
-**Definiciones clave:**
+**Definiciones Clave:**
 *   **Pedido estándar:** Orden ERP liberada por producción sin prioridad comercial especial [1].
-*   **Pedido urgente:** Orden con alta prioridad y fecha requerida menor o igual a 48 horas, marcada por dirección comercial [1].
+*   **Pedido urgente:** Orden con alta prioridad de dirección comercial y fecha requerida igual o menor a 48 horas [1].
 *   **Pedido bloqueado:** Orden detenida por producción debido a falta de material, capacidad, incidencia de calidad o aprobación pendiente [1].
 
-**Plazos y calendario:**
-*   El plazo logístico comienza cuando producción registra la liberación final y el ERP contiene la dirección de entrega y contacto [1].
-*   Los pedidos estándar deben entregarse en un máximo de 5 días laborables desde la liberación de producción [3].
-*   Los pedidos urgentes tienen un plazo máximo de 48 horas [3].
-*   El cálculo de días laborables excluye sábados, domingos, festivos nacionales y festivos de la provincia de destino. Si un pedido sale después de las 14:00, el primer día computable es el siguiente día laborable [3].
+**Plazos de Entrega:**
+*   **Pedidos estándar:** Máximo 5 días laborables desde la liberación de producción [3].
+*   **Pedidos urgentes:** Máximo 48 horas [3].
+*   Las entregas parciales solo cumplen si son aprobadas por comercial y el cliente acepta la documentación [3].
 
-**Trazabilidad y evidencia:**
-*   Cada expedición debe registrar cinco hitos obligatorios: liberación de producción, preparación de almacén, salida de muelle, entrega al transportista y confirmación de entrega [2].
-*   Para auditorías, se requiere evidencia mínima que incluya `order_id`, `customer_id`, cliente, fecha prometida, fecha real, transportista, estado ERP, estado de producción y causa de desviación [2].
+**Cálculo de Plazos:**
+*   Excluye sábados, domingos, festivos nacionales y festivos de la provincia de destino [3].
+*   Si el pedido sale después de las 14:00, el primer día computable es el siguiente día laborable [3].
+*   En exportación, aduanas y documentación sanitaria pueden pausar el contador si hay evidencia [3].
+
+**Trazabilidad y Evidencia:**
+*   Se deben conservar cinco hitos por expedición: liberación de producción, preparación de almacén, salida de muelle, entrega al transportista y confirmación de entrega, cada uno con fecha, origen, estados y observaciones [2].
+*   La evidencia mínima para auditorías incluye order_id, customer_id, cliente, fecha prometida, fecha real, transportista, estado ERP, estado de producción y causa de desviación [2].
+*   El informe mensual debe separar pedidos en curso, bloqueados, retrasados, finalizados, urgentes y entregas parciales [2].
 ```
 
 Pasos:
@@ -236,7 +268,9 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Sí, existen penalizaciones por retrasos. Para pedidos estándar, se aplica una penalización del 2% si el retraso imputable supera los 2 días laborables, y sube al 5% si supera los 5 días laborables. Para pedidos urgentes, la penalización es del 3% desde el primer día de retraso imputable. Estas penalizaciones solo proceden si hay un incumplimiento de plazo imputable al operador logístico y evidencia completa en ERP, producción y prueba de entrega. Es necesario que consten datos como el order_id, customer_id, importe del pedido, fechas de entrega y liberación, transportista, causa del retraso y fuente responsable para aplicar una penalización.
+Sí, existen penalizaciones por retrasos. Para pedidos estándar, se aplica una penalización del 2% si el retraso imputable supera los 2 días laborables, y del 5% si excede los 5 días laborables. Para pedidos urgentes, la penalización es del 3% desde el primer día de retraso imputable.
+
+La penalización solo procede si hay un incumplimiento de plazo, la causa es imputable al operador logístico y existe evidencia completa en el ERP, producción y prueba de entrega. Para aplicar una penalización, se requiere evidencia obligatoria como el `order_id`, `customer_id`, importe del pedido, fechas de promesa y entrega real, fecha de liberación, transportista, causa del retraso y la fuente responsable.
 ```
 
 Pasos:
@@ -431,15 +465,14 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según el documento "v2_anexo_penalizaciones_sla.pdf":
+Según el documento `v2_anexo_penalizaciones_sla.pdf`:
 
-La evidencia obligatoria para aplicar una penalización incluye: order_id, customer_id, importe del pedido (debe proceder de líneas ERP), fecha prometida, fecha real de entrega, fecha de liberación, transportista, causa del retraso y fuente responsable [1].
+Para aplicar una penalización, la evidencia obligatoria debe incluir el `order_id`, `customer_id`, importe del pedido, fecha prometida, fecha real de entrega, fecha de liberación, transportista, causa del retraso y la fuente responsable. El importe debe provenir de las líneas del ERP [1].
 
-Si no se puede demostrar la causa del retraso, el sistema debe informar que no existe evidencia suficiente para asignar responsabilidad, y no se debe aplicar la penalización basándose únicamente en que la fecha real sea posterior a la prometida [1, 2].
+Si no se puede demostrar la causa del retraso, el sistema debe indicar que no hay evidencia suficiente para asignar responsabilidad. En este caso, no se debe aplicar una penalización solo porque la fecha real de entrega sea posterior a la fecha prometida [1, 2].
 
-Fuentes:
-*   [1] v2_anexo_penalizaciones_sla.pdf, página 2
-*   [2] v2_anexo_penalizaciones_sla.pdf, página 2
+**Fuentes consultadas:**
+* v2_anexo_penalizaciones_sla.pdf
 ```
 
 Pasos:
@@ -465,7 +498,7 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según el documento v2_anexo_penalizaciones_sla.pdf, las exclusiones de SLA se aplican cuando el retraso se debe a: bloqueo de producción, falta de material, falta de capacidad, avería de línea, retrabajo por calidad, espera de validación técnica, fuerza mayor, error de dirección aportado por el cliente o cambio de prioridad aprobado por dirección comercial. Las pausas de SLA ocurren cuando el contador se detiene desde la fecha de bloqueo hasta la fecha de desbloqueo registrada por producción. En casos de exportación, también puede pausarse por documentación aduanera o sanitaria incompleta, siempre que el expediente contenga el evento, responsable y fecha de resolución.
+Según el documento "v2_anexo_penalizaciones_sla.pdf", las exclusiones de penalizaciones de SLA incluyen retrasos por bloqueo de producción, falta de material, falta de capacidad, avería de línea, retrabajo por calidad, espera de validación técnica, fuerza mayor, error de dirección aportado por el cliente o cambio de prioridad aprobado por dirección comercial. Las pausas en el contador de SLA ocurren desde la fecha de bloqueo hasta la fecha de desbloqueo registrada por producción. En exportación, también puede pausarse por documentación aduanera o sanitaria incompleta, siempre que el expediente contenga evento, responsable y fecha de resolución.
 ```
 
 Pasos:
@@ -491,22 +524,27 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según el documento "v2_procedimiento_produccion_bloqueos.pdf", los motivos de bloqueo y los campos obligatorios que se registran son los siguientes:
+Según el documento v2_procedimiento_produccion_bloqueos.pdf, los motivos válidos para un bloqueo son:
+* Falta de material
+* Falta de capacidad
+* Incidencia de calidad
+* Mantenimiento no planificado
+* Aprobación técnica pendiente
+* Discrepancia de receta o especificación
 
-**Motivos de bloqueo:**
-Los motivos válidos para un bloqueo incluyen falta de material, falta de capacidad, incidencia de calidad, mantenimiento no planificado, aprobación técnica pendiente y discrepancia de receta o especificación [1].
+No se debe usar el estado "blocked" para retrasos menores si la orden puede continuar su fabricación.
 
-**Campos obligatorios:**
-Cada bloqueo debe registrar los siguientes campos: order_id, línea de producción, motivo, responsable, fecha de inicio, fecha estimada de desbloqueo, impacto en cliente y comentario operativo [1].
+Los campos obligatorios que se deben registrar para cada bloqueo incluyen:
+* Order_id
+* Línea de producción
+* Motivo
+* Responsable
+* Fecha de inicio
+* Fecha estimada de desbloqueo
+* Impacto en cliente
+* Comentario operativo
 
-**Fuentes:**
-*   v2_procedimiento_produccion_bloqueos.pdf, página 2, doc_797ae319cef6_p2_c1
-
-**Razonamiento:**
-1.  Se identificó que la pregunta solicitaba información sobre motivos de bloqueo y campos obligatorios de registro.
-2.  Se consultó el contexto documental proporcionado, específicamente el chunk [1], que contenía ambas piezas de información directamente.
-3.  Se extrajeron los motivos de bloqueo y los campos obligatorios del texto.
-4.  Se construyó la respuesta utilizando solo la información del contexto y se citó la fuente.
+Si la fecha estimada de desbloqueo no está disponible, el sistema debe indicar que no existe una fecha comunicable.
 ```
 
 Pasos:
@@ -532,9 +570,18 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según la política de calidad para entregas a cliente (v2_politica_calidad_entregas.pdf), una incidencia de calidad bloquea el pedido hasta que el departamento de calidad registre una resolución. Esta resolución debe especificar si el lote se libera, se sustituye, se reprocesa o se rechaza, y Producción no puede desbloquear una retención de calidad sin la aprobación de Calidad.
+Según el documento `v2_politica_calidad_entregas.pdf`:
 
-En cuanto a las entregas parciales, estas requieren la aprobación comercial y la validación de calidad para cada lote entregado. Si una parte del pedido queda retenida, el albarán debe detallar la parte enviada, la parte pendiente y el motivo de la retención.
+*   **Incidencias de calidad:** Una incidencia de calidad bloquea el pedido hasta que el departamento de calidad registre una resolución. Esta resolución debe especificar si el lote se libera, se sustituye, se reprocesa o se rechaza. El equipo de producción no puede desbloquear una retención de calidad sin la aprobación de calidad. [1]
+*   **Entregas parciales:** Requieren la aprobación comercial y la validación de calidad para cada lote entregado. Si una parte del pedido se retiene, el albarán debe detallar la parte enviada, la parte pendiente y el motivo de la retención. [1, 3]
+
+**Fuentes:**
+*   v2_politica_calidad_entregas.pdf, página 2, doc_059ef28fa502_p2_c1
+*   v2_politica_calidad_entregas.pdf, página 2, doc_059ef28fa502_p2_c2
+*   v2_politica_calidad_entregas.pdf, página 3, doc_059ef28fa502_p3_c1
+
+**Razonamiento:**
+Se ha sintetizado la información relevante sobre incidencias de calidad y entregas parciales directamente del contexto documental proporcionado, citando las fuentes correspondientes.
 ```
 
 Pasos:
@@ -562,9 +609,9 @@ Respuesta:
 ```markdown
 Según el documento v2_condiciones_comerciales_northwind.pdf:
 
-El **impacto económico** se calcula uniendo el importe del ERP, el porcentaje contractual y la causa documentada, siempre que una penalización o retraso tenga dicho impacto. Si alguno de estos tres elementos no está disponible, no se calcula un impacto definitivo.
+El **impacto económico** se calcula uniendo el importe del ERP, el porcentaje contractual y la causa documentada, en caso de que una penalización o retraso tenga consecuencias económicas. Si falta alguno de estos tres elementos, no se puede determinar un impacto definitivo [1].
 
-La **trazabilidad** exige que toda respuesta de negocio indique las fuentes consultadas, los pasos ejecutados y las herramientas utilizadas. El razonamiento debe ser un resumen auditable que separe los hechos del ERP, las reglas documentales y las conclusiones. Si se utiliza RAG, se debe citar el nombre del archivo y la página; si se usa ERP, la entidad consultada; y si se usa producción, el `order_id` y el estado operativo.
+En cuanto a la **trazabilidad**, toda respuesta de negocio debe especificar las fuentes consultadas, los pasos ejecutados y las herramientas utilizadas. El razonamiento proporcionado debe ser un resumen auditable, distinguiendo entre hechos del ERP, reglas documentales y conclusiones. Para las consultas RAG, se debe citar el nombre del archivo y la página; para el ERP, la entidad consultada; y para producción, el order_id y el estado operativo [2].
 ```
 
 Pasos:

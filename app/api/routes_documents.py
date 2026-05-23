@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 def get_document_service() -> DocumentIngestionService:
     try:
         return create_document_service(get_settings())
-    except LLMProviderError as exc:
+    except (LLMProviderError, VectorStoreError) as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),

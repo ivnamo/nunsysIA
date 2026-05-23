@@ -47,6 +47,8 @@ Para usar un modelo real de DeepAgents, configura una clave compatible con
 `DEEPAGENTS_MODEL`. En Docker se recomienda `docker-compose.secrets.yml` con
 `.secrets/gemini_api_key`. Recuerda que Docker Compose lee `.env` si existe; los
 valores locales pueden cambiar `LLM_PROVIDER` o `EMBEDDING_PROVIDER`.
+Para la entrega, `EMBEDDING_PROVIDER` debe ser `gemini` u `openai`; el runtime
+documental no acepta embeddings deterministas ni vector store en memoria.
 
 ## RAG
 
@@ -86,6 +88,18 @@ $env:RUN_REAL_LLM_TESTS="1"
 Los conteos exactos de tests pueden cambiar al evolucionar el repositorio. Para
 la entrega importa que la suite rapida sea determinista y que las pruebas con
 proveedor real sean opt-in.
+
+## Informe end-to-end de entrega
+
+La validacion Docker/API de entrega se documenta en `docs/VALIDACION_ENTREGA.md`.
+Ese informe ordena primero las preguntas obligatorias del PDF y despues los
+casos beta extendidos.
+
+Comando usado para regenerarlo con Docker levantado:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_delivery_validation.py --output docs\VALIDACION_ENTREGA.md
+```
 
 ## Evidencia historica
 

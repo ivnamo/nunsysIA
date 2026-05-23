@@ -35,7 +35,7 @@ class Settings(BaseModel):
     embedding_model: str = "gemini-embedding-001"
     agent_mode: str = "deepagent"
     enable_deepagents_experiment: bool = False
-    deepagents_model: str = "google_genai:gemini-3.5-flash"
+    deepagents_model: str = "google_genai:gemini-2.5-flash"
 
 
 @lru_cache
@@ -90,7 +90,7 @@ def get_settings() -> Settings:
         enable_deepagents_experiment=_env_bool("ENABLE_DEEPAGENTS_EXPERIMENT"),
         deepagents_model=os.getenv(
             "DEEPAGENTS_MODEL",
-            "google_genai:gemini-3.5-flash",
+            "google_genai:gemini-2.5-flash",
         ),
     )
 

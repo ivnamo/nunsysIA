@@ -1,31 +1,31 @@
 from app.core.config import Settings
-from app.core.llm import create_embedding_model
+from app.core.llm import LLMProviderError, create_embedding_model
 from app.rag.embeddings import DeterministicEmbeddingModel
 from app.rag.ingestion import DocumentIngestionService
 from app.rag.splitter import RecursiveTextSplitter
 from app.rag.vector_store import (
     ChromaDocumentVectorStore,
-    InMemoryDocumentVectorStore,
-    VectorStoreError,
 )
 
 
 def create_document_service(settings: Settings) -> DocumentIngestionService:
     embedding_model = create_embedding_model(settings)
-
-    try:
-        vector_store = ChromaDocumentVectorStore(
-            mode=settings.chroma_mode,
-            host=settings.chroma_host,
-            port=settings.chroma_port,
-            collection_name=_embedding_scoped_collection_name(
-                settings.chroma_collection,
-                embedding_model,
-            ),
-            persist_directory=settings.chroma_persist_directory,
+    if isinstance(embedding_model, DeterministicEmbeddingModel):
+        raise LLMProviderError(
+            "El runtime documental requiere embeddings reales. "
+            "Configura EMBEDDING_PROVIDER=gemini/openai y la clave correspondiente."
         )
-    except VectorStoreError:
-        vector_store = InMemoryDocumentVectorStore()
+
+    vector_store = ChromaDocumentVectorStore(
+        mode=settings.chroma_mode,
+        host=settings.chroma_host,
+        port=settings.chroma_port,
+        collection_name=_embedding_scoped_collection_name(
+            settings.chroma_collection,
+            embedding_model,
+        ),
+        persist_directory=settings.chroma_persist_directory,
+    )
 
     return DocumentIngestionService(
         vector_store=vector_store,

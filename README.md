@@ -16,7 +16,7 @@ combina evidencias y devuelve una respuesta con `answer`, `sources` y
 - Consultas sobre ERP/Northwind con clientes, pedidos, estados e importes.
 - Consultas sobre API REST de produccion con estados, bloqueos y retrasos.
 - Combinacion de fuentes ERP + produccion por `order_id`.
-- RAG sobre PDFs subidos e indexados en ChromaDB o fallback local.
+- RAG sobre PDFs subidos e indexados en ChromaDB con embeddings reales.
 - Endpoint principal `POST /api/query`.
 - Respuestas trazables con `answer`, `sources`, `reasoning`, `tool_calls`,
   `fallbacks`, `status` y `data`.
@@ -73,8 +73,8 @@ y solo se activan con `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
   agente invente datos o acceda directamente a infraestructura.
 - RAG: permite responder preguntas sobre PDFs subidos, con chunks y metadatos
   auditables.
-- Vector store: ChromaDB es el objetivo del proyecto. En desarrollo puede caer
-  a memoria si Chroma no esta disponible.
+- Vector store: ChromaDB es obligatorio en el runtime de entrega. Si ChromaDB
+  no esta disponible, la app falla de forma explicita en lugar de usar memoria.
 - Docker: levanta backend, API mock de produccion, Chainlit y ChromaDB con un
   comando reproducible.
 - API REST: FastAPI expone un contrato estable para la UI y para consumidores
@@ -136,7 +136,9 @@ Variables principales:
 - `GEMINI_API_KEY` / `OPENAI_API_KEY`: claves locales en `.env`.
 - `GEMINI_API_KEY_FILE` / `OPENAI_API_KEY_FILE`: alternativa por archivo para
   Docker o entornos con secretos montados.
-- `EMBEDDING_PROVIDER`: `deterministic`, `gemini` u `openai`.
+- `EMBEDDING_PROVIDER`: `gemini` u `openai` para ejecucion real. El proveedor
+  `deterministic` queda limitado a tests unitarios y no se acepta en el factory
+  documental de la app.
 
 El `docker-compose.yml` arranca la infraestructura sin publicar secretos. Docker
 Compose lee automaticamente `.env` si existe; si ahi configuras proveedores
@@ -284,7 +286,8 @@ los errores controlados se traducen a estados o codigos HTTP.
 - La memoria conversacional es in-memory por proceso y conserva una ventana
   corta de interacciones.
 - RAG depende de PDFs previamente subidos o versionados en `data/sample_docs/`.
-- El fallback vectorial en memoria es util para desarrollo, no para produccion.
+- El runtime documental no usa fallback vectorial en memoria ni embeddings
+  deterministas; requiere ChromaDB y proveedor real de embeddings.
 - No hay autenticacion, autorizacion ni multi-tenant productivo.
 - LangGraph sigue en el repo como flujo legacy para comparativa, no como camino
   principal.

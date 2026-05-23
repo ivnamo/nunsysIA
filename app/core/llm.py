@@ -51,7 +51,6 @@ def _create_gemini_chat_model(settings: Settings) -> ChatModel | None:
         google_api_key=settings.gemini_api_key,
         temperature=settings.llm_temperature,
         request_timeout=settings.llm_timeout_seconds,
-        api_transport=settings.gemini_api_transport,
         retries=0,
     )
 

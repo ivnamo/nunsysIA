@@ -97,8 +97,12 @@ Las tools devuelven datos estructurados y trazas sanitizadas.
 - extraccion de texto PDF;
 - particionado en chunks;
 - embeddings;
-- persistencia en ChromaDB o fallback en memoria;
+- persistencia obligatoria en ChromaDB en el runtime de entrega;
 - retrieval con metadatos.
+
+El factory documental de la aplicacion falla de forma explicita si no puede
+crear ChromaDB o si el proveedor de embeddings es determinista. Las clases
+in-memory/deterministicas se conservan solo para tests unitarios acotados.
 
 Cada chunk conserva `document_id`, `filename`, `page`, `chunk_id` y
 `uploaded_at`.
@@ -118,7 +122,9 @@ La respuesta publica incluye:
 - `sources`: fuentes usadas.
 - `reasoning`: pasos visibles, resumidos y aptos para auditoria.
 - `tool_calls`: tool, accion, argumentos sanitizados, estado y resumen.
-- `fallbacks`: rutas de fallback usadas.
+- `fallbacks`: rutas alternativas usadas por capas no documentales. En la
+  entrega no debe aparecer fallback de vector store en memoria ni embeddings
+  deterministas.
 - `data`: resumen publico de evidencias, no filas raw completas.
 
 No se devuelve chain-of-thought interno.

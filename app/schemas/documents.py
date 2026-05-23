@@ -10,10 +10,12 @@ RAGStatus = Literal["completed", "insufficient_context"]
 
 class DocumentChunkMetadata(BaseModel):
     document_id: str
+    document_hash: str
     filename: str
     page: int = Field(ge=1)
     chunk_id: str
     uploaded_at: datetime
+    indexed_at: datetime
 
 
 class DocumentChunk(BaseModel):

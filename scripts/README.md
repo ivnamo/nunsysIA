@@ -7,6 +7,8 @@ Scripts activos de entrega:
 - `beta_validation_support.py`: catalogo compartido de preguntas y criterios de
   validacion usados por la validacion oficial.
 - `generate_sample_pdfs.py`: regeneracion controlada de PDFs mock versionados.
+- `seed_rag.py`: limpia ChromaDB y carga solo los PDFs `v2_*` oficiales de
+  entrega.
 
 Scripts legacy o historicos:
 

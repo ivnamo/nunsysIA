@@ -32,6 +32,34 @@ def test_document_ingestion_indexes_pdf_chunks_with_required_metadata() -> None:
     assert documents[0].chunks_indexed == 1
 
 
+def test_document_ingestion_is_idempotent_by_filename_and_hash() -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    content = _pdf_bytes("Contrato marco con penalizacion por retrasos en entrega.")
+
+    first = service.ingest_pdf(content=content, filename="contrato.pdf")
+    second = service.ingest_pdf(content=content, filename="contrato.pdf")
+
+    documents = service.list_documents().documents
+    assert second.document_id == first.document_id
+    assert len(documents) == 1
+    assert documents[0].chunks_indexed == 1
+
+
+def test_document_ingestion_clear_documents_removes_indexed_chunks() -> None:
+    vector_store = InMemoryDocumentVectorStore()
+    service = DocumentIngestionService(vector_store=vector_store)
+    service.ingest_pdf(
+        content=_pdf_bytes("Contrato marco con penalizacion por retrasos."),
+        filename="contrato.pdf",
+    )
+
+    removed = service.clear_documents()
+
+    assert removed == 1
+    assert service.list_documents().documents == []
+
+
 def test_document_ingestion_returns_controlled_error_when_embedding_fails() -> None:
     service = DocumentIngestionService(
         vector_store=InMemoryDocumentVectorStore(),

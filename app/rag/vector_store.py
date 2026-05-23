@@ -18,6 +18,18 @@ class DocumentVectorStore(Protocol):
     ) -> None:
         ...
 
+    def delete_chunks(
+        self,
+        *,
+        document_id: str | None = None,
+        filename: str | None = None,
+        document_hash: str | None = None,
+    ) -> int:
+        ...
+
+    def clear(self) -> int:
+        ...
+
     def similarity_search(
         self,
         query_embedding: list[float],
@@ -40,6 +52,32 @@ class InMemoryDocumentVectorStore:
         embeddings: list[list[float]],
     ) -> None:
         self._items.extend(zip(chunks, embeddings, strict=True))
+
+    def delete_chunks(
+        self,
+        *,
+        document_id: str | None = None,
+        filename: str | None = None,
+        document_hash: str | None = None,
+    ) -> int:
+        before = len(self._items)
+        normalized_filename = filename.lower() if filename else None
+        self._items = [
+            (chunk, embedding)
+            for chunk, embedding in self._items
+            if not _metadata_matches(
+                chunk.metadata.model_dump(mode="json"),
+                document_id=document_id,
+                filename=normalized_filename,
+                document_hash=document_hash,
+            )
+        ]
+        return before - len(self._items)
+
+    def clear(self) -> int:
+        removed = len(self._items)
+        self._items.clear()
+        return removed
 
     def similarity_search(
         self,
@@ -133,6 +171,43 @@ class ChromaDocumentVectorStore:
         except Exception as exc:
             raise VectorStoreError("No se pudieron indexar chunks en ChromaDB.") from exc
 
+    def delete_chunks(
+        self,
+        *,
+        document_id: str | None = None,
+        filename: str | None = None,
+        document_hash: str | None = None,
+    ) -> int:
+        filters = [
+            {"document_id": document_id} if document_id else None,
+            {"filename": filename} if filename else None,
+            {"document_hash": document_hash} if document_hash else None,
+        ]
+        removed = 0
+        seen_ids: set[str] = set()
+        try:
+            for where in (item for item in filters if item):
+                result = self._collection.get(where=where)
+                ids = [item for item in result.get("ids", []) if item not in seen_ids]
+                if not ids:
+                    continue
+                self._collection.delete(ids=ids)
+                seen_ids.update(ids)
+                removed += len(ids)
+        except Exception as exc:
+            raise VectorStoreError("No se pudieron eliminar chunks en ChromaDB.") from exc
+        return removed
+
+    def clear(self) -> int:
+        try:
+            result = self._collection.get()
+            ids = result.get("ids", [])
+            if ids:
+                self._collection.delete(ids=ids)
+            return len(ids)
+        except Exception as exc:
+            raise VectorStoreError("No se pudo limpiar ChromaDB.") from exc
+
     def similarity_search(
         self,
         query_embedding: list[float],
@@ -158,7 +233,7 @@ class ChromaDocumentVectorStore:
         return [
             RetrievedDocumentChunk(
                 text=document,
-                metadata=metadata,
+                metadata=_normalized_chunk_metadata(metadata),
                 score=max(0.0, 1.0 - float(distance)),
             )
             for document, metadata, distance in zip(documents, metadatas, distances, strict=True)
@@ -201,6 +276,29 @@ def _cosine_similarity(left: list[float], right: list[float]) -> float:
 
 def _normalize_filenames(filenames: set[str] | None) -> set[str]:
     return {filename.lower() for filename in filenames or set() if filename}
+
+
+def _metadata_matches(
+    metadata: dict[str, object],
+    *,
+    document_id: str | None,
+    filename: str | None,
+    document_hash: str | None,
+) -> bool:
+    if document_id and metadata.get("document_id") == document_id:
+        return True
+    if filename and str(metadata.get("filename") or "").lower() == filename:
+        return True
+    if document_hash and metadata.get("document_hash") == document_hash:
+        return True
+    return False
+
+
+def _normalized_chunk_metadata(metadata: dict[str, object]) -> dict[str, object]:
+    normalized = dict(metadata)
+    normalized.setdefault("document_hash", "unknown")
+    normalized.setdefault("indexed_at", normalized.get("uploaded_at"))
+    return normalized
 
 
 def _chroma_filename_filter(filenames: set[str]) -> dict[str, object] | None:

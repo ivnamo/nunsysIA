@@ -1,5 +1,6 @@
+import hashlib
 from datetime import UTC, datetime
-from uuid import uuid4
+from pathlib import Path
 
 from app.rag.embeddings import DeterministicEmbeddingModel, EmbeddingModel
 from app.rag.loader import PDFExtractionError, PDFLoader
@@ -67,19 +68,28 @@ class DocumentIngestionService:
         if not pages:
             raise EmptyDocumentError("El PDF no contiene texto extraible.")
 
-        document_id = f"doc_{uuid4().hex[:12]}"
+        document_hash = hashlib.sha256(content).hexdigest()
+        document_id = f"doc_{document_hash[:12]}"
         uploaded_at = datetime.now(UTC)
+        indexed_at = uploaded_at
         chunks = self._splitter.split_pages(
             pages=pages,
             document_id=document_id,
+            document_hash=document_hash,
             filename=filename,
             uploaded_at=uploaded_at,
+            indexed_at=indexed_at,
         )
         if not chunks:
             raise EmptyDocumentError("El PDF no genero chunks utiles.")
 
         try:
             embeddings = self._embedding_model.embed_documents([chunk.text for chunk in chunks])
+            self._vector_store.delete_chunks(
+                document_id=document_id,
+                filename=filename,
+                document_hash=document_hash,
+            )
             self._vector_store.add_chunks(chunks=chunks, embeddings=embeddings)
         except VectorStoreError:
             raise
@@ -100,6 +110,12 @@ class DocumentIngestionService:
             documents=self._vector_store.list_documents(),
             fallbacks=self.fallbacks,
         )
+
+    def clear_documents(self) -> int:
+        return self._vector_store.clear()
+
+    def ingest_pdf_path(self, path: Path) -> DocumentUploadResponse:
+        return self.ingest_pdf(content=path.read_bytes(), filename=path.name)
 
     def _add_fallback(self, fallback: str) -> None:
         if fallback not in self._fallbacks:

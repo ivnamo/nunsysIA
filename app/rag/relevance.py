@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 
 RAG_STOPWORDS = {
@@ -50,9 +51,10 @@ def has_query_evidence(query: str, text: str) -> bool:
 
 
 def meaningful_tokens(text: str) -> set[str]:
+    normalized = _strip_accents(text.lower())
     return {
         token
-        for token in re.findall(r"[a-zA-Z0-9]+", text.lower())
+        for token in re.findall(r"[^\W_]+", normalized)
         if len(token) > 2 and token not in RAG_STOPWORDS
     }
 
@@ -69,3 +71,8 @@ def token_overlap(query_tokens: set[str], text_tokens: set[str]) -> set[str]:
                 overlap.add(query_token)
                 break
     return overlap
+
+
+def _strip_accents(text: str) -> str:
+    normalized = unicodedata.normalize("NFKD", text)
+    return "".join(character for character in normalized if not unicodedata.combining(character))

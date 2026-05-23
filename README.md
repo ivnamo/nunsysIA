@@ -80,6 +80,8 @@ y solo se activan con `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
   agente invente datos o acceda directamente a infraestructura.
 - RAG: permite responder preguntas sobre PDFs subidos, con chunks y metadatos
   auditables.
+- Documentos de demo: los PDFs oficiales de entrega son los `v2_*` de
+  `data/sample_docs/`; se pueden sembrar con `scripts/seed_rag.py`.
 - Vector store: ChromaDB es obligatorio en el runtime de entrega. Si ChromaDB
   no esta disponible, la app falla de forma explicita en lugar de usar memoria.
 - Docker: levanta backend, API mock de produccion, Chainlit y ChromaDB con un
@@ -307,7 +309,8 @@ los errores controlados se traducen a estados o codigos HTTP.
   compatible y credenciales del proveedor si se usa un modelo real.
 - La memoria conversacional es in-memory por proceso y conserva una ventana
   corta de interacciones.
-- RAG depende de PDFs previamente subidos o versionados en `data/sample_docs/`.
+- RAG depende de PDFs previamente subidos. Para la demo usa solo los `v2_*` de
+  `data/sample_docs/`.
 - El runtime documental no usa fallback vectorial en memoria ni embeddings
   deterministas; requiere ChromaDB y proveedor real de embeddings.
 - No hay autenticacion, autorizacion ni multi-tenant productivo.

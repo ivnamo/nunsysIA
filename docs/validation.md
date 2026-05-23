@@ -53,6 +53,14 @@ documental no acepta embeddings deterministas ni vector store en memoria.
 
 ## RAG
 
+Los PDFs oficiales de demo son solo los `v2_*` en `data/sample_docs/`.
+Para limpiar la coleccion y sembrar esos documentos desde el entorno Python que
+ve ChromaDB:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\seed_rag.py
+```
+
 Subir un PDF de demo:
 
 ```powershell

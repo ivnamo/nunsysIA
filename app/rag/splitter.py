@@ -15,8 +15,10 @@ class RecursiveTextSplitter:
         self,
         pages: list[DocumentPage],
         document_id: str,
+        document_hash: str,
         filename: str,
         uploaded_at: datetime,
+        indexed_at: datetime,
     ) -> list[DocumentChunk]:
         chunks: list[DocumentChunk] = []
         for page in pages:
@@ -27,10 +29,12 @@ class RecursiveTextSplitter:
                         text=text,
                         metadata=DocumentChunkMetadata(
                             document_id=document_id,
+                            document_hash=document_hash,
                             filename=filename,
                             page=page.page,
                             chunk_id=chunk_id,
                             uploaded_at=uploaded_at,
+                            indexed_at=indexed_at,
                         ),
                     )
                 )

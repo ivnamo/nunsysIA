@@ -32,10 +32,10 @@ def test_phase_0_governance_files_exist() -> None:
         "requirements.txt",
         "requirements-dev.txt",
         "pytest.ini",
-        "docs/architecture.md",
+        "docs/ARCHITECTURE.md",
         "docs/api.md",
         "docs/validation.md",
-        "docs/cleanup-report.md",
+        "docs/VALIDACION_ENTREGA.md",
     ]
 
     missing = [path for path in required_files if not Path(path).is_file()]

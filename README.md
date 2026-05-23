@@ -23,9 +23,9 @@ combina evidencias y devuelve una respuesta con `answer`, `sources` y
 - Interfaz grafica con Chainlit.
 - Ejecucion con Docker y Docker Compose.
 
-## Arquitectura
+## Flujo principal actual
 
-Flujo principal:
+El flujo de entrega es unico y explicito:
 
 ```text
 Usuario / Chainlit
@@ -37,6 +37,12 @@ Usuario / Chainlit
 -> ResponseNormalizer
 -> QueryResponse
 ```
+
+DeepAgents es el modo por defecto real del endpoint de negocio. El servicio
+principal puede ejecutar tools deterministas obligatorias antes y despues de la
+invocacion agentic para garantizar trazabilidad y evitar respuestas no
+grounded; esa logica forma parte del guardrail de entrega, no de un flujo
+paralelo.
 
 Componentes reales:
 
@@ -53,7 +59,7 @@ Componentes reales:
 - `production_mock/`: API REST mock de produccion.
 - `chainlit_app/`: interfaz Chainlit conectada al backend.
 
-Flujos disponibles:
+## Flujos legacy/experimentales
 
 - Flujo principal: `mode=deepagent`. Es el modo por defecto de `/api/query`.
 - Flujo alternativo: `mode=deepagent_sidecar`. DeepAgents delega en el workflow
@@ -103,9 +109,9 @@ y solo se activan con `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
 |   `-- sample_docs/      # PDFs mock de demo
 |-- docs/
 |   |-- api.md
-|   |-- architecture.md
+|   |-- ARCHITECTURE.md
 |   |-- validation.md
-|   |-- cleanup-report.md
+|   |-- VALIDACION_ENTREGA.md
 |   `-- archive/          # Documentacion historica
 |-- production_mock/      # API REST mock de produccion
 |-- scripts/              # Generacion de PDFs y evaluaciones
@@ -164,6 +170,7 @@ Validaciones rapidas:
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:8000/health"
+Invoke-RestMethod -Uri "http://localhost:8000/health/ready"
 Invoke-RestMethod -Uri "http://localhost:8000/api/documents"
 ```
 
@@ -261,6 +268,18 @@ La respuesta real puede incluir tambien `metadata`, `tool_calls`, `fallbacks`,
 `confidence`, `status`, `data` y `failure_reason`.
 
 Mas detalle: `docs/api.md`.
+
+## Validacion de entrega
+
+Con Docker levantado y credenciales reales configuradas, ejecuta:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_delivery_validation.py --output docs\VALIDACION_ENTREGA.md
+```
+
+El criterio de entrega es `PASS=18, FAIL=0` sobre las preguntas obligatorias y
+extendidas de negocio. Los informes beta anteriores se conservan bajo
+`docs/archive/validation/` solo como evidencia historica.
 
 ## Trazabilidad y explicabilidad
 

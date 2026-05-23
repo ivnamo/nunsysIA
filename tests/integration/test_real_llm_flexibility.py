@@ -16,7 +16,7 @@ from app.tools.erp_tool import ERPTool
 from app.tools.production_query_tool import ProductionQueryTool
 from app.tools.production_tool import ProductionAPITool
 from app.tools.rag_tool import DocumentRAGTool
-from scripts.run_beta_validation import _create_real_document_service
+from scripts.archive.run_beta_validation_legacy import _create_real_document_service
 
 
 pytestmark = pytest.mark.real_llm

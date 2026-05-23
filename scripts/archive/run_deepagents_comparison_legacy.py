@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -28,7 +28,7 @@ from app.tools.erp_tool import ERPTool
 from app.tools.production_query_tool import ProductionQueryTool
 from app.tools.production_tool import ProductionAPITool
 from app.tools.rag_tool import DocumentRAGTool
-from scripts.run_beta_validation import (
+from scripts.archive.run_beta_validation_legacy import (
     V2_DOCUMENTS,
     _create_real_chat_model,
     _create_real_document_service,

@@ -9,7 +9,7 @@ from scripts.beta_validation_support import (
     BetaCase,
     evaluate_beta_case,
 )
-from scripts.run_beta_validation import _build_workflow_service
+from scripts.archive.run_beta_validation_legacy import _build_workflow_service
 
 
 pytestmark = pytest.mark.real_llm

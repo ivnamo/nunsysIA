@@ -12,6 +12,33 @@ Response `200`:
 }
 ```
 
+## `GET /health/ready`
+
+Comprueba que las dependencias minimas de entrega estan disponibles:
+
+- API mock de produccion.
+- ChromaDB o vector store persistente configurado.
+- proveedor LLM configurado.
+- proveedor de embeddings configurado.
+
+Response `200` si todo esta listo:
+
+```json
+{
+  "status": "ok",
+  "checks": {
+    "production_api": {"status": "ok", "detail": "HTTP 200"},
+    "chroma": {"status": "ok", "detail": "HTTP 200"},
+    "llm_provider": {"status": "ok", "detail": "gemini"},
+    "embedding_provider": {"status": "ok", "detail": "gemini"}
+  }
+}
+```
+
+Response `503` si falta alguna dependencia o credencial requerida. La respuesta
+mantiene la misma forma con `status="degraded"` y el detalle del check fallido,
+sin exponer secretos.
+
 ## `POST /api/query`
 
 Endpoint principal de consulta en lenguaje natural.

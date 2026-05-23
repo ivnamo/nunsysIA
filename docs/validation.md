@@ -5,7 +5,7 @@
 Validar que la configuracion de Compose es correcta:
 
 ```powershell
-docker compose config
+docker compose config --quiet
 ```
 
 Levantar servicios:
@@ -18,6 +18,7 @@ Comprobar backend y documentos:
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:8000/health"
+Invoke-RestMethod -Uri "http://localhost:8000/health/ready"
 Invoke-RestMethod -Uri "http://localhost:8000/api/documents"
 ```
 
@@ -100,6 +101,15 @@ Comando usado para regenerarlo con Docker levantado:
 ```powershell
 .\.venv\Scripts\python.exe scripts\run_delivery_validation.py --output docs\VALIDACION_ENTREGA.md
 ```
+
+Tambien puede ejecutarse dentro de Compose con el perfil `eval`; el servicio
+`evaluator` escribe el informe en `reports/VALIDACION_ENTREGA.md`:
+
+```powershell
+docker compose --profile eval up --build evaluator
+```
+
+El criterio de cierre es `PASS=18, FAIL=0`.
 
 ## Evidencia historica
 

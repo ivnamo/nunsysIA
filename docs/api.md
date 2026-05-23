@@ -20,7 +20,7 @@ Response `200`:
 Comprueba que las dependencias minimas de entrega estan disponibles:
 
 - API mock de produccion.
-- ChromaDB o vector store persistente configurado.
+- ChromaDB configurado.
 - proveedor LLM configurado.
 - proveedor de embeddings configurado.
 

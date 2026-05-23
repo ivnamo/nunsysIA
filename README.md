@@ -76,6 +76,10 @@ invocacion agentic para garantizar trazabilidad y evitar respuestas no
 grounded; esa logica forma parte del guardrail de entrega, no de un flujo
 paralelo.
 
+El flujo activo no registra subagents de DeepAgents. Las capacidades
+especializadas de ERP, produccion, RAG y memoria se exponen como tools directas
+de negocio y se validan con evidencias antes de construir la respuesta.
+
 Componentes reales:
 
 - `app/api/routes_query.py`: endpoint `POST /api/query`.
@@ -86,8 +90,8 @@ Componentes reales:
   tools directas de ERP, produccion, RAG y memoria.
 - `app/agents/deepagents_policy.py`: politica de seleccion de tools por
   intencion.
-- `app/agents/deepagents_harness.py`: registro del harness DeepAgents sin
-  tools genericas de filesystem o shell.
+- `app/agents/deepagents_harness.py`: registro del harness DeepAgents con
+  perfil de negocio acotado, sin tools genericas de filesystem o shell.
 - `app/agents/deepagents_answering.py`: respuestas deterministas grounded
   cuando ya hay evidencia de tools.
 - `app/services/response_normalizer.py`: normaliza la salida a `QueryResponse`.
@@ -182,6 +186,8 @@ Variables principales:
 - `CHROMA_HOST`, `CHROMA_PORT`, `CHROMA_COLLECTION`: conexion a ChromaDB.
 - `LLM_PROVIDER`: proveedor usado por capas auxiliares y legacy.
 - `DEEPAGENTS_MODEL`: modelo usado por DeepAgents.
+- `DEEPAGENTS_ORCHESTRATION_MODE=direct_tools_verified`: modo de entrega con
+  tools directas de negocio y verificacion de evidencias.
 - `GEMINI_API_KEY` / `OPENAI_API_KEY`: claves locales en `.env`.
 - `GEMINI_API_KEY_FILE` / `OPENAI_API_KEY_FILE`: alternativa por archivo para
   Docker o entornos con secretos montados.
@@ -360,6 +366,16 @@ La respuesta real puede incluir tambien `metadata`, `tool_calls`, `fallbacks`,
 Mas detalle: `docs/api.md`.
 
 ## Validacion de entrega
+
+Tests automatizados en el entorno del proyecto:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+Si se ejecuta `pytest` desde un Python global sin las dependencias del repo,
+pueden aparecer falsos fallos de coleccion por paquetes como `chainlit` o
+`python-multipart`.
 
 Con Docker levantado y credenciales reales configuradas, ejecuta:
 

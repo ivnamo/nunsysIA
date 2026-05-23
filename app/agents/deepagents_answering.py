@@ -46,6 +46,11 @@ def with_deepagents_planning(
         "todos_used": bool(planning.get("todos_used")),
         "todo_tool_calls_count": int(planning.get("todo_tool_calls_count") or 0),
     }
+    required_evidence = planning.get("required_evidence")
+    if isinstance(required_evidence, list):
+        summary["deepagents_planning"]["required_evidence"] = [
+            str(item) for item in required_evidence
+        ]
     return summary
 
 

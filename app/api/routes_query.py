@@ -50,15 +50,19 @@ async def query(
             timeout=settings.agent_execution_timeout_seconds,
         )
         response = _with_request_metadata(response, request_id, started_at)
+        log_context = _log_context(request_id, mode_label, response, started_at)
         logger.info(
-            "Query completed",
-            extra=_log_context(request_id, mode_label, response, started_at),
+            "Query completed %s",
+            _format_log_context(log_context),
+            extra=log_context,
         )
         return response
     except asyncio.TimeoutError as exc:
+        log_context = _log_context(request_id, mode_label, None, started_at)
         logger.warning(
-            "Query timed out",
-            extra=_log_context(request_id, mode_label, None, started_at),
+            "Query timed out %s",
+            _format_log_context(log_context),
+            extra=log_context,
         )
         raise _http_error(
             status.HTTP_504_GATEWAY_TIMEOUT,
@@ -88,9 +92,11 @@ async def query(
             str(exc),
         ) from exc
     except Exception as exc:
+        log_context = _log_context(request_id, mode_label, None, started_at)
         logger.exception(
-            "Query workflow failed",
-            extra=_log_context(request_id, mode_label, None, started_at),
+            "Query workflow failed %s",
+            _format_log_context(log_context),
+            extra=log_context,
         )
         raise _http_error(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -135,13 +141,28 @@ def _log_context(
     started_at: float,
 ) -> dict[str, object]:
     return {
+        "event": "query_completed" if response is not None else "query_failed",
         "request_id": request_id,
         "agent_mode": mode,
         "duration_ms": _duration_ms(started_at),
         "status": response.status if response is not None else "failed",
         "tool_calls_count": len(response.tool_calls) if response is not None else 0,
+        "sources": ",".join(response.sources) if response is not None else "",
+        "verification_status": (
+            (response.metadata or {}).get("verification_status", "")
+            if response is not None
+            else ""
+        ),
     }
 
 
 def _duration_ms(started_at: float) -> int:
     return int((time.perf_counter() - started_at) * 1000)
+
+
+def _format_log_context(context: dict[str, object]) -> str:
+    return " ".join(
+        f"{key}={value}"
+        for key, value in context.items()
+        if value not in (None, "")
+    )

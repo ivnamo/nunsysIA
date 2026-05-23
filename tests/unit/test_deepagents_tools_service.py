@@ -144,6 +144,18 @@ class _DelayedOverqueryAgent:
         return {"messages": [{"content": "Respuesta no determinista."}]}
 
 
+class _BlockedOverqueryAgent:
+    def __init__(self, tools):
+        self._tools = {tool.__name__: tool for tool in tools}
+
+    def invoke(self, payload: dict) -> dict:
+        if "query_production_orders" in self._tools:
+            self._tools["query_production_orders"](production_status="blocked")
+        if "query_erp_orders" in self._tools:
+            self._tools["query_erp_orders"](order_ids=[10252, 10312])
+        return {"messages": [{"content": "Respuesta no determinista."}]}
+
+
 class _StaticAgent:
     def __init__(self, content: str) -> None:
         self._content = content
@@ -481,14 +493,47 @@ def test_deepagents_tools_service_handles_delayed_orders_beta_case() -> None:
 
     assert response.status == "completed"
     assert response.sources == ["Produccion", "ERP"]
-    assert "ProductionQueryTool" in [call.tool for call in response.tool_calls]
-    assert "ERPQueryTool" in [call.tool for call in response.tool_calls]
+    tool_names = [call.tool for call in response.tool_calls]
+    assert "ProductionQueryTool" in tool_names
+    assert "ERPQueryTool" in tool_names
+    assert "ProductionAPITool" in tool_names
+    assert "ERPTool" in tool_names
     assert response.data["production_order_ids"] == [10301]
     assert "10301" in response.answer
     assert "ANATR" in response.answer
     assert "10252" not in response.answer
     assert "10312" not in response.answer
     assert "bloqueado" not in response.answer
+
+
+def test_deepagents_tools_service_adds_canonical_traces_for_blocked_orders() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool_with_all_beta_orders(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _BlockedOverqueryAgent(kwargs["tools"]),
+    )
+
+    response = service.run(
+        QueryRequest(
+            question="Que pedidos estan bloqueados y cual es el motivo?",
+            conversation_id="tools-blocked-canonical",
+        )
+    )
+
+    assert response.status == "completed"
+    assert response.sources == ["Produccion", "ERP"]
+    tool_names = [call.tool for call in response.tool_calls]
+    assert "ProductionQueryTool" in tool_names
+    assert "ERPQueryTool" in tool_names
+    assert "ProductionAPITool" in tool_names
+    assert "ERPTool" in tool_names
+    assert response.data["production_order_ids"] == [10252, 10312]
+    assert "10252" in response.answer
+    assert "10312" in response.answer
 
 
 def test_deepagents_tools_service_handles_month_summary_beta_case() -> None:
@@ -576,7 +621,11 @@ def test_deepagents_tools_service_exposes_sanitized_todo_usage() -> None:
         "ERP",
         "Produccion",
     ]
-    assert "erp_specialist" in response.data["deepagents_planning"]["subagents_available"]
+    assert set(response.data["deepagents_planning"]) == {
+        "todos_used",
+        "todo_tool_calls_count",
+        "required_evidence",
+    }
     assert "Consultar ERP" not in str(response.data["deepagents_planning"])
 
 

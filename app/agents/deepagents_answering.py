@@ -51,11 +51,6 @@ def with_deepagents_planning(
         summary["deepagents_planning"]["required_evidence"] = [
             str(item) for item in required_evidence
         ]
-    subagents_available = planning.get("subagents_available")
-    if isinstance(subagents_available, list):
-        summary["deepagents_planning"]["subagents_available"] = [
-            str(item) for item in subagents_available
-        ]
     return summary
 
 

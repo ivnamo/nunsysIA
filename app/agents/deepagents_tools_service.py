@@ -29,7 +29,6 @@ from app.agents.deepagents_policy import (
     normalize_text as _normalize_text,
     tool_policy as _tool_policy,
 )
-from app.agents.deepagents_subagents import build_business_subagents, subagent_names
 from app.agents.evidence_verifier import (
     VerificationResult,
     required_evidence,
@@ -83,7 +82,7 @@ class DeepAgentsToolsQueryService:
         openai_api_key: str | None = None,
         memory_store: ConversationMemoryStore | None = None,
         agent_builder: AgentBuilder | None = None,
-        orchestration_mode: str = "verified_subagents",
+        orchestration_mode: str = "direct_tools_verified",
     ) -> None:
         self._erp_tool = erp_tool
         self._production_tool = production_tool
@@ -116,15 +115,16 @@ class DeepAgentsToolsQueryService:
             )
             return self._remember_and_return(request, response)
 
-        return self._run_verified_subagents(request, execution)
+        return self._run_direct_tools_verified(request, execution)
 
-    def _run_verified_subagents(
+    def _run_direct_tools_verified(
         self,
         request: QueryRequest,
         execution: "_DirectToolsExecution",
     ) -> QueryResponse:
         result = self._invoke_agent(execution, request)
         execution.record_deepagents_planning(result)
+        execution.ensure_canonical_business_traces()
         response = execution.build_response(
             _last_message_text(result),
             prefer_agent_answer=True,
@@ -147,6 +147,7 @@ class DeepAgentsToolsQueryService:
             repair_feedback=verification.repair_prompt(),
         )
         execution.record_deepagents_planning(repair_result)
+        execution.ensure_canonical_business_traces()
         repaired_response = execution.build_response(
             _last_message_text(repair_result),
             prefer_agent_answer=True,
@@ -197,11 +198,9 @@ class DeepAgentsToolsQueryService:
         request: QueryRequest,
         repair_feedback: str | None = None,
     ) -> Any:
-        subagents = execution.subagents(self._model)
         agent = self._agent_builder(
             model=self._model,
             tools=execution.tools(),
-            subagents=subagents,
             system_prompt=MAIN_DEEP_AGENT_PROMPT,
             name="nunsys-deepagent-query",
         )
@@ -351,6 +350,21 @@ class _DirectToolsExecution:
 
     run_mandatory_tools = run_guarded_fallback
 
+    def ensure_canonical_business_traces(self) -> None:
+        """Garantiza trazas canónicas ERP/Producción para casos obligatorios."""
+        if self._policy.needs_documents and not self._policy.needs_penalty:
+            return
+        required_tools = []
+        if self._policy.needs_erp:
+            required_tools.append("ERPTool")
+        if self._policy.needs_production:
+            required_tools.append("ProductionAPITool")
+        if not required_tools:
+            return
+        recorded_tools = {call.tool for call in self.tool_calls}
+        if any(tool_name not in recorded_tools for tool_name in required_tools):
+            self.run_guarded_fallback()
+
     def verify(self, response: QueryResponse) -> VerificationResult:
         return verify_response(response, policy=self._policy, data=self.data)
 
@@ -362,7 +376,7 @@ class _DirectToolsExecution:
         repair_attempted: bool,
     ) -> QueryResponse:
         metadata = dict(response.metadata or {})
-        metadata["orchestration_style"] = "deepagents_subagents_verified"
+        metadata["orchestration_style"] = "deepagents_direct_tools_verified"
         metadata["verification_status"] = verification.status
         metadata["repair_attempted"] = repair_attempted
         if verification.issues:
@@ -374,37 +388,6 @@ class _DirectToolsExecution:
                 if verification.passed
                 else "; ".join(verification.issues),
             }
-        )
-
-    def subagents(self, model: str | None = None) -> list[dict[str, Any]]:
-        erp_tools: list[Callable[..., Any]] = [
-            self.query_erp_customer_summary,
-            self.get_pending_orders_by_customer,
-            self.get_orders_by_month,
-            self.calculate_order_amount,
-        ]
-        if not (self._policy.needs_customer_orders or self._policy.needs_blocked_cross):
-            erp_tools.append(self.query_erp_orders)
-
-        production_tools: list[Callable[..., Any]] = [
-            self.query_production_status,
-            self.list_production_orders,
-            self.get_production_status_for_order_ids,
-        ]
-        if not self._policy.needs_blocked_cross:
-            production_tools.append(self.query_production_orders)
-
-        return build_business_subagents(
-            model=model or self._model,
-            erp_tools=erp_tools,
-            production_tools=production_tools,
-            document_tools=[
-                self.answer_document_question_with_citations,
-                self.search_documents,
-                self.summarize_document_context,
-                self.query_documents,
-            ],
-            memory_tools=[self.recall_memory],
         )
 
     def tools(self) -> list[Callable[..., dict[str, Any] | list[dict[str, Any]] | None]]:
@@ -918,7 +901,6 @@ class _DirectToolsExecution:
             "",
             "Evidencia minima requerida por la politica de tools: "
             + ", ".join(required_evidence(self._policy) or ["sin fuente obligatoria"]),
-            "Subagentes disponibles: " + ", ".join(subagent_names(self.subagents())),
         ]
         if repair_feedback:
             lines.extend(["", "Feedback de verificacion:", repair_feedback])
@@ -952,14 +934,12 @@ class _DirectToolsExecution:
 
     def record_deepagents_planning(self, result: Any) -> None:
         todo_tool_calls_count = _count_tool_calls(result, "write_todos")
-        subagents = self.subagents(self._model)
         with self._lock:
             planning = dict(self.data.get("deepagents_planning") or {})
             planning.update(
                 {
                     "todos_used": True,
                     "todo_tool_calls_count": todo_tool_calls_count,
-                    "subagents_available": subagent_names(subagents),
                     "required_evidence": required_evidence(self._policy),
                 }
             )
@@ -1004,7 +984,7 @@ class _DirectToolsExecution:
             status=status,
             data=public_data,
             metadata={
-                "orchestration_style": "deepagents_subagents_verified",
+                "orchestration_style": "deepagents_direct_tools_verified",
                 "verification_status": verification.status,
                 "repair_attempted": repair_attempted,
             },

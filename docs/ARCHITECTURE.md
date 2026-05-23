@@ -79,8 +79,10 @@ politica de seleccion de tools vive en `deepagents_policy.py`, la configuracion
 del harness DeepAgents en `deepagents_harness.py` y la respuesta determinista
 grounded en `deepagents_answering.py`. Antes de responder, el flujo ejecuta
 tools obligatorias segun la intencion detectada y registra tool calls.
-DeepAgents recibe solo tools de negocio; no se exponen tools de filesystem,
-shell ni subagentes genericos al endpoint de negocio.
+DeepAgents recibe solo tools directas de negocio. El flujo activo no registra
+subagents de DeepAgents; las especializaciones ERP, produccion, RAG y memoria se
+modelan como tools auditables. Tampoco se exponen tools de filesystem o shell al
+endpoint de negocio.
 
 La implementacion legacy en LangGraph sigue disponible en `app/agents/graph.py`
 y modulos relacionados, pero no es el camino principal.

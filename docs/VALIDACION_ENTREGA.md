@@ -1,6 +1,6 @@
 # Validacion de entrega Docker/API
 
-Fecha de ejecucion: 2026-05-23 11:15:22
+Fecha de ejecucion: 2026-05-23 21:55:06
 Endpoint validado: `http://localhost:8000/api/query`
 Modo agentic: `deepagent`
 
@@ -37,11 +37,11 @@ Resultado global: PASS=18, FAIL=0, casos=18.
 | --- | --- | --- | --- | --- | --- | --- |
 | F-ERP-01 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | ERP, Produccion | ERPTool, ProductionAPITool |
 | F-ERP-02 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | Produccion, ERP | ProductionAPITool, ERPTool |
-| F-ERP-03 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | Produccion, ERP | ProductionAPITool, ERPTool |
+| F-ERP-03 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | Produccion, ERP | ProductionQueryTool, ERPQueryTool, ProductionAPITool, ERPTool |
 | F-ERP-04 | OBLIGATORIO | PDF 2.1 | PASS | 200/completed | ERP, Produccion | ERPTool, ProductionAPITool |
 | F-RAG-01 | OBLIGATORIO | PDF 2.2 | PASS | 200/completed | Documentos | DocumentRAGTool |
 | F-RAG-02 | OBLIGATORIO | PDF 2.2 | PASS | 200/completed | Documentos | DocumentRAGTool |
-| F-RAG-03 | OBLIGATORIO | PDF 2.2 | PASS | 200/completed | Documentos | DocumentRAGTool |
+| F-RAG-03 | OBLIGATORIO | PDF 2.2 | PASS | 200/completed | Documentos, Produccion | DocumentRAGTool, ProductionAPITool |
 | BT-08 | ADICIONAL | Beta validation | PASS | 200/completed | ERP, Produccion, Documentos | ERPTool, ProductionAPITool, DocumentRAGTool |
 | BT-09 | ADICIONAL | Beta validation | PASS | 200/completed<br>200/completed<br>200/completed | ERP, Memoria, Produccion | ERPTool, MemoryTool, ProductionAPITool |
 | BT-10 | ADICIONAL | Beta validation | PASS | 200/insufficient_context | Documentos | DocumentRAGTool |
@@ -68,12 +68,20 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-El cliente ALFKI tiene 2 pedidos pendientes:
+El cliente ALFKI tiene los siguientes pedidos pendientes:
 
-| Pedido | Estado ERP | Estado produccion | Observacion |
-| --- | --- | --- | --- |
-| 10248 | pendiente | en curso | sin bloqueo informado |
-| 10252 | pendiente | bloqueado | Falta de material |
+*   **Pedido 10248**:
+    *   Importe: 440.00
+    *   Fecha de pedido: 2026-05-02
+    *   Estado de producción: En progreso (in_progress)
+    *   Fecha estimada de finalización: 2026-05-22
+
+*   **Pedido 10252**:
+    *   Importe: 1863.00
+    *   Fecha de pedido: 2026-05-07
+    *   Estado de producción: Bloqueado (blocked)
+    *   Razón del bloqueo: Falta de material
+    *   Fecha estimada de finalización: 2026-05-30
 ```
 
 Pasos:
@@ -93,12 +101,9 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Estos son los estados de produccion de los pedidos referenciados:
-
-| Pedido | Cliente | Estado | Motivo |
-| --- | --- | --- | --- |
-| 10252 | ALFKI - Alfreds Futterkiste | bloqueado | Falta de material |
-| 10312 | BONAP - Bon app | bloqueado | Falta de capacidad |
+Los siguientes pedidos están bloqueados:
+- Pedido 10252: Bloqueado por 'Falta de material'.
+- Pedido 10312: Bloqueado por 'Falta de capacidad'.
 ```
 
 Pasos:
@@ -113,21 +118,19 @@ Pregunta 1: `Que clientes tienen pedidos retrasados por problemas de produccion?
 
 HTTP: `200` | status: `completed`
 Fuentes: `["Produccion", "ERP"]`
-Tools: `["ProductionAPITool", "ERPTool"]`
+Tools: `["ProductionQueryTool", "ERPQueryTool", "ProductionAPITool", "ERPTool"]`
 Fallbacks: `[]`
 
 Respuesta:
 
 ```markdown
-Estos son los estados de produccion de los pedidos referenciados:
-
-| Pedido | Cliente | Estado | Motivo |
-| --- | --- | --- | --- |
-| 10301 | ANATR - Ana Trujillo Emparedados y helados | retrasado | Averia en linea de produccion |
+El cliente 'Ana Trujillo Emparedados y helados' (ID: ANATR) tiene un pedido retrasado (ID: 10301) debido a una avería en la línea de producción.
 ```
 
 Pasos:
 
+- Consulta Produccion mediante filtros seguros
+- Consulta ERP mediante filtros seguros
 - Consulta API de produccion por estado
 - Consulta ERP de cliente para pedido 10301
 
@@ -143,17 +146,7 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-En mayo de 2026 hay 5 pedidos ERP. Distribucion por estado de produccion: bloqueado: 2, en curso: 1, finalizado: 1, retrasado: 1.
-
-| Pedido | Estado ERP | Estado produccion |
-| --- | --- | --- |
-| 10248 | pendiente | en curso |
-| 10252 | pendiente | bloqueado |
-| 10255 | enviado | finalizado |
-| 10301 | pendiente | retrasado |
-| 10312 | pendiente | bloqueado |
-
-Periodo auditado: 2026-05.
+Updated todo list to [{'content': 'Obtener el año y mes actuales.', 'status': 'in_progress'}, {'content': 'Consultar pedidos ERP del mes actual.', 'status': 'pending'}, {'content': 'Extraer order_id de los resultados de ERP.', 'status': 'pending'}, {'content': 'Consultar el estado de producción de los order_id obtenidos.', 'status': 'pending'}, {'content': 'Combinar y resumir la información de ERP y producción.', 'status': 'pending'}]
 ```
 
 Pasos:
@@ -173,19 +166,19 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-El documento establece que, para pedidos standard, el plazo maximo de entrega es de 5 dias laborables desde la liberacion de produccion. Tambien fija un plazo maximo de 48 horas para pedidos urgentes. Para aplicar una penalizacion, no basta con que haya retraso: debe existir incumplimiento de plazo, causa imputable al operador logistico y evidencia completa en ERP, produccion y prueba de entrega.
+Según el documento, los pedidos estándar deben entregarse en un plazo máximo de 5 días laborables desde la liberación de producción. Los pedidos urgentes tienen un plazo máximo de 48 horas. Las entregas parciales solo se consideran cumplimiento si son aprobadas por comercial y el cliente acepta la documentación.
 ```
 
 Pasos:
 
 - Consulta RAG documental para localizar evidencia verificable sobre la pregunta
-- Selecciona 3 chunk(s) relevante(s) de v2_contrato_marco_logistica_2026.pdf, v2_anexo_penalizaciones_sla.pdf como base de evidencia
+- Selecciona 1 chunk(s) relevante(s) de v2_contrato_marco_logistica_2026.pdf como base de evidencia
 - Sintetiza la respuesta final usando solo el contexto recuperado y deja las citas documentales auditables en data.rag.citations
 
 Evidencia RAG:
 
-- documentos: `["v2_anexo_penalizaciones_sla.pdf", "v2_contrato_marco_logistica_2026.pdf"]`
-- chunks_count: `3`
+- documentos: `["v2_contrato_marco_logistica_2026.pdf"]`
+- chunks_count: `1`
 
 ### F-RAG-02 - PASS - Resumen de puntos clave del contrato
 
@@ -199,29 +192,7 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-El contrato marco de logística 2026, válido para ese año, regula la preparación, expedición, entrega y cierre documental de pedidos comerciales. Cubre pedidos estándar, urgentes, entregas parciales y envíos desde almacenes centrales o externos [1].
-
-**Definiciones clave:**
-*   **Pedido estándar:** Orden ERP liberada por producción sin prioridad comercial especial [1].
-*   **Pedido urgente:** Marcado por dirección comercial con alta prioridad y fecha requerida en 48 horas o menos [1].
-*   **Pedido bloqueado:** Detenido por producción debido a falta de material, capacidad, problemas de calidad o aprobación pendiente [1].
-
-El plazo logístico comienza cuando producción registra la liberación final y el ERP contiene la dirección de entrega y contacto [1].
-
-**Plazos de entrega:**
-*   **Pedidos estándar:** Máximo 5 días laborables desde la liberación de producción [3].
-*   **Pedidos urgentes:** Máximo 48 horas [3].
-*   **Entregas parciales:** Solo cumplen si comercial las aprueba y el cliente acepta la documentación [3].
-
-El cálculo de días laborables excluye sábados, domingos, festivos nacionales y festivos de la provincia de destino. Si un pedido sale después de las 14:00, el primer día computable es el siguiente día laborable. Aduanas y documentación sanitaria pueden pausar el contador en exportación si hay evidencia [3].
-
-**Trazabilidad y evidencia:**
-Cada expedición debe tener cinco hitos obligatorios: liberación de producción, preparación de almacén, salida de muelle, entrega al transportista y confirmación de entrega. Cada hito debe registrar fecha, origen, estados y observaciones [2]. Para auditorías, se requiere información como order\_id, customer\_id, cliente, fechas (prometida y real), transportista, estado ERP y de producción, y la causa de cualquier desviación. Si falta evidencia, debe indicarse "insufficient\_context" [2]. Un informe mensual categoriza los pedidos por estado (en curso, bloqueados, retrasados, finalizados, urgentes y parciales) [2].
-
-**Fuentes:**
-*   v2\_contrato\_marco\_logistica\_2026.pdf, página 1 [1]
-*   v2\_contrato\_marco\_logistica\_2026.pdf, página 2 [3]
-*   v2\_contrato\_marco\_logistica\_2026.pdf, página 3 [2]
+El contrato marco de logística para 2026 regula la preparación, expedición, entrega y cierre documental de pedidos comerciales. Un "pedido bloqueado" se define como una orden detenida en producción por falta de material, capacidad, incidencia de calidad o aprobación pendiente. Para auditorías, se requiere un registro mínimo que incluya order_id, customer_id, cliente, fecha prometida, fecha real, transportista, estado ERP, estado de producción y causa de desviación.
 ```
 
 Pasos:
@@ -240,14 +211,16 @@ Evidencia RAG:
 Pregunta 1: `Hay alguna penalizacion por retrasos?`
 
 HTTP: `200` | status: `completed`
-Fuentes: `["Documentos"]`
-Tools: `["DocumentRAGTool"]`
+Fuentes: `["Documentos", "Produccion"]`
+Tools: `["DocumentRAGTool", "ProductionAPITool"]`
 Fallbacks: `[]`
 
 Respuesta:
 
 ```markdown
-Sí, existen penalizaciones por retrasos. Por un retraso imputable, se aplica una penalización del 2%. Si el retraso supera los 5 días laborables, la penalización aumenta al 5%. Para pedidos urgentes, la penalización es del 3% desde el primer día de retraso imputable.
+Sí, existen penalizaciones por retrasos. Para pedidos estándar, se aplica una penalización del 2% si el retraso imputable supera los 2 días laborables, y del 5% si excede los 5 días laborables. Los pedidos urgentes tienen una penalización del 3% desde el primer día de retraso imputable [1, 2].
+
+Para que se aplique una penalización, debe haber un incumplimiento de plazo, la causa debe ser imputable al operador logístico y debe existir evidencia completa en ERP, producción y prueba de entrega [2]. La información de producción es necesaria para aportar el estado de la orden si hubo bloqueo, retraso o cualquier otra incidencia [3]. Por ejemplo, se ha identificado un pedido (ID 10301) con estado 'delayed' debido a una 'Averia en linea de produccion', lo que demuestra la existencia de retrasos en producción que pueden llevar a penalizaciones.
 ```
 
 Pasos:
@@ -255,6 +228,7 @@ Pasos:
 - Consulta RAG documental para localizar evidencia verificable sobre la pregunta
 - Selecciona 3 chunk(s) relevante(s) de v2_anexo_penalizaciones_sla.pdf como base de evidencia
 - Sintetiza la respuesta final usando solo el contexto recuperado y deja las citas documentales auditables en data.rag.citations
+- Consulta API de produccion por estado
 
 Evidencia RAG:
 
@@ -273,17 +247,29 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Con los datos disponibles, esta es la evaluacion de penalizaciones por pedido:
+Los riesgos de penalización para los pedidos son los siguientes:
 
-| Pedido | Cliente | Estado | Penalizacion |
-| --- | --- | --- | --- |
-| 10248 | Alfreds Futterkiste | en curso | No aplicable con los datos disponibles |
-| 10252 | Alfreds Futterkiste | bloqueado (Falta de material) | No aplicable segun la documentacion consultada |
-| 10255 | Alfreds Futterkiste | finalizado | No aplicable; consta enviado antes del plazo requerido |
-| 10301 | Ana Trujillo Emparedados y helados | retrasado (Averia en linea de produccion) | No aplicable segun la documentacion consultada |
-| 10312 | Bon app | bloqueado (Falta de capacidad) | No aplicable segun la documentacion consultada |
-
-El principal punto de atencion es el seguimiento operativo de los pedidos bloqueados, retrasados o pendientes de datos antes de comunicar una penalizacion.
+*   **Pedido 10248 (Alfreds Futterkiste):** **Potencial de penalización.** El pedido está en progreso con una fecha estimada de finalización (2026-05-22) posterior a la fecha requerida (2026-05-20). No se ha identificado ninguna razón de bloqueo o retraso que lo excluya de penalización según el anexo de penalizaciones.
+*   **Pedido 10252 (Alfreds Futterkiste): No sujeto a penalización.** El pedido está bloqueado debido a "Falta de material", lo cual es una exclusión explícita para la aplicación de penalizaciones según el anexo de penalizaciones.
+*   **Pedido 10255 (Alfreds Futterkiste): No sujeto a penalización.** El pedido ya ha sido enviado (2026-05-15) y finalizado, antes de la fecha requerida (2026-05-30).
+*   **Pedido 10301 (Ana Trujillo Emparedados y helados): No sujeto a penalización.** El pedido está retrasado debido a "Averia en linea de produccion", lo cual es una exclusión explícita para la aplicación de penalizaciones según el anexo de penalizaciones.
+*   **Pedido 10312 (Bon app): No sujeto a penalización.** El pedido está bloqueado debido a "Falta de capacidad", lo cual es una exclusión explícita para la aplicación de penalizaciones según el anexo de penalizaciones.
+```json
+{
+  "answer": "Los riesgos de penalización para los pedidos son los siguientes:\n\n*   **Pedido 10248 (Alfreds Futterkiste):** **Potencial de penalización.** El pedido está en progreso con una fecha estimada de finalización (2026-05-22) posterior a la fecha requerida (2026-05-20). No se ha identificado ninguna razón de bloqueo o retraso que lo excluya de penalización según el anexo de penalizaciones.\n*   **Pedido 10252 (Alfreds Futterkiste): No sujeto a penalización.** El pedido está bloqueado debido a \"Falta de material\", lo cual es una exclusión explícita para la aplicación de penalizaciones según el anexo de penalizaciones.\n*   **Pedido 10255 (Alfreds Futterkiste): No sujeto a penalización.** El pedido ya ha sido enviado (2026-05-15) y finalizado, antes de la fecha requerida (2026-05-30).\n*   **Pedido 10301 (Ana Trujillo Emparedados y helados): No sujeto a penalización.** El pedido está retrasado debido a \"Averia en linea de produccion\", lo cual es una exclusión explícita para la aplicación de penalizaciones según el anexo de penalizaciones.\n*   **Pedido 10312 (Bon app): No sujeto a penalización.** El pedido está bloqueado debido a \"Falta de capacidad\", lo cual es una exclusión explícita para la aplicación de penalizaciones según el anexo de penalizaciones.",
+  "sources": [
+    "ERP (Pedidos 10248, 10252, 10255, 10301, 10312)",
+    "Producción (Pedidos 10248, 10252, 10255, 10301, 10312)",
+    "Documentos (v2_anexo_penalizaciones_sla.pdf, v2_contrato_marco_logistica_2026.pdf)"
+  ],
+  "reasoning": [
+    "Se utilizó la tool compuesta `assess_penalty_risk_for_orders` para obtener información combinada de ERP, producción y documentos.",
+    "Se analizaron los datos de cada pedido, incluyendo su estado en ERP y producción, las fechas requeridas y estimadas de finalización/envío, y las razones de bloqueo o retraso.",
+    "Se consultaron los documentos `v2_anexo_penalizaciones_sla.pdf` y `v2_contrato_marco_logistica_2026.pdf` para identificar las cláusulas de penalización y las exclusiones aplicables.",
+    "Se determinó el riesgo de penalización para cada pedido basándose en el cruce de la información de las tres fuentes y las reglas contractuales."
+  ]
+}
+```
 ```
 
 Pasos:
@@ -311,12 +297,9 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-El cliente ALFKI tiene 2 pedidos pendientes:
-
-| Pedido | Estado ERP |
-| --- | --- |
-| 10248 | pendiente |
-| 10252 | pendiente |
+El cliente ALFKI (Alfreds Futterkiste) tiene los siguientes pedidos pendientes:
+- **Pedido ID 10248**: Monto 440.00, Fecha de pedido 2026-05-02, Fecha requerida 2026-05-20.
+- **Pedido ID 10252**: Monto 1863.00, Fecha de pedido 2026-05-07, Fecha requerida 2026-05-25.
 ```
 
 Pasos:
@@ -333,11 +316,7 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Estos son los estados de produccion de los pedidos referenciados:
-
-| Pedido | Cliente | Estado | Motivo |
-| --- | --- | --- | --- |
-| 10252 | ALFKI - Alfreds Futterkiste | bloqueado | Falta de material |
+De los pedidos mencionados, el Pedido ID 10252 está bloqueado por "Falta de material".
 ```
 
 Pasos:
@@ -356,7 +335,7 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Con los datos disponibles, el impacto economico del pedido referenciado es 10252: 1863.00.
+El impacto económico del pedido bloqueado (ID 10252) es de 1863.00.
 ```
 
 Pasos:
@@ -416,19 +395,19 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según el documento v2_contrato_marco_logistica_2026.pdf, cada expedición debe conservar cinco hitos obligatorios: liberación de producción, preparación de almacén, salida de muelle, entrega al transportista y confirmación de entrega. Cada uno de estos hitos debe registrar la fecha, el usuario o sistema de origen, el estado anterior, el estado nuevo y una observación de negocio si el cambio afecta al cliente.
+Según el documento v2_contrato_marco_logistica_2026.pdf, cada expedición debe conservar cinco hitos obligatorios: liberación de producción, preparación de almacén, salida de muelle, entrega al transportista y confirmación de entrega. Cada hito debe registrar la fecha, el usuario o sistema de origen, el estado anterior, el estado nuevo y una observación de negocio cuando el cambio afecte al cliente.
 ```
 
 Pasos:
 
 - Consulta RAG documental para localizar evidencia verificable sobre la pregunta
-- Selecciona 2 chunk(s) relevante(s) de v2_contrato_marco_logistica_2026.pdf como base de evidencia
+- Selecciona 3 chunk(s) relevante(s) de v2_contrato_marco_logistica_2026.pdf, v2_procedimiento_produccion_bloqueos.pdf como base de evidencia
 - Sintetiza la respuesta final usando solo el contexto recuperado y deja las citas documentales auditables en data.rag.citations
 
 Evidencia RAG:
 
-- documentos: `["v2_contrato_marco_logistica_2026.pdf"]`
-- chunks_count: `2`
+- documentos: `["v2_contrato_marco_logistica_2026.pdf", "v2_procedimiento_produccion_bloqueos.pdf"]`
+- chunks_count: `3`
 
 ### BT-V2-02 - PASS - V2: evidencia SLA
 
@@ -442,9 +421,7 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según el documento v2_anexo_penalizaciones_sla.pdf, la evidencia obligatoria para aplicar una penalización debe incluir el ID del pedido (`order_id`), el ID del cliente (`customer_id`), el importe del pedido (procedente de líneas ERP), la fecha prometida, la fecha real de entrega, la fecha de liberación, el transportista, la causa del retraso y la fuente responsable.
-
-Si no se puede demostrar la causa del retraso, el sistema debe informar que no hay evidencia suficiente para asignar responsabilidad, y no se debe aplicar una penalización solo porque la fecha real sea posterior a la fecha prometida.
+Según el documento v2_anexo_penalizaciones_sla.pdf, la evidencia obligatoria para aplicar una penalización incluye: order_id, customer_id, importe del pedido, fecha prometida, fecha real de entrega, fecha de liberación, transportista, causa del retraso y fuente responsable. El importe debe proceder de líneas ERP. Específicamente, Producción debe aportar el estado de la orden si hubo bloqueo, retraso, retrabajo o incidencia de calidad. Si no se puede demostrar la causa del retraso, el sistema debe informar que no hay evidencia suficiente para asignar responsabilidad y no se aplicará penalización solo por el hecho de que la fecha real sea posterior a la prometida.
 ```
 
 Pasos:
@@ -470,9 +447,11 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según el documento v2_anexo_penalizaciones_sla.pdf, las exclusiones de SLA son aplicables cuando el retraso se debe a: bloqueo de producción, falta de material, falta de capacidad, avería de línea, retrabajo por calidad, espera de validación técnica, fuerza mayor, error de dirección proporcionado por el cliente o un cambio de prioridad aprobado por dirección comercial. 
+Según el documento v2_anexo_penalizaciones_sla.pdf, las exclusiones de penalizaciones se aplican cuando el retraso se debe a: bloqueo de producción, falta de material, falta de capacidad, avería de línea, retrabajo por calidad, espera de validación técnica, fuerza mayor, error de dirección proporcionado por el cliente o cambio de prioridad aprobado por dirección comercial.
 
-En cuanto a las pausas del SLA, el contador se detiene desde la fecha de bloqueo hasta la fecha de desbloqueo registrada por producción. En casos de exportación, también puede pausarse por documentación aduanera o sanitaria incompleta, siempre y cuando el expediente contenga el evento, responsable y fecha de resolución.
+Las pausas en el contador de SLA ocurren desde la fecha de bloqueo hasta la fecha de desbloqueo registrada por producción. En casos de exportación, también puede pausarse por documentación aduanera o sanitaria incompleta, siempre que el expediente contenga el evento, el responsable y la fecha de resolución.
+
+Además, existen casos no penalizables como un pedido urgente marcado como tal después de la liberación y con ruta estándar ya planificada por logística, o una entrega rechazada por ausencia del cliente en domicilio con cita confirmada.
 ```
 
 Pasos:
@@ -498,9 +477,7 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según el documento v2_procedimiento_produccion_bloqueos.pdf, los motivos válidos de bloqueo en producción son falta de material, falta de capacidad, incidencia de calidad, mantenimiento no planificado, aprobación técnica pendiente y discrepancia de receta o especificación. No se debe utilizar 'blocked' para retrasos menores si la orden puede continuar fabricándose.
-
-Los campos obligatorios que deben registrarse en cada bloqueo son: order_id, línea de producción, motivo, responsable, fecha de inicio, fecha estimada de desbloqueo, impacto en cliente y comentario operativo. Si la fecha estimada no está disponible, el sistema debe indicar que no hay una fecha comunicable.
+Según el documento "v2_procedimiento_produccion_bloqueos.pdf", los motivos de bloqueo válidos incluyen falta de material, falta de capacidad, incidencia de calidad, mantenimiento no planificado, aprobación técnica pendiente y discrepancia de receta o especificación. Los campos obligatorios para cada bloqueo son: order_id, línea de producción, motivo, responsable, fecha de inicio, fecha estimada de desbloqueo, impacto en cliente y comentario operativo. Si la fecha estimada no está disponible, el sistema debe indicar que no hay fecha comunicable.
 ```
 
 Pasos:
@@ -526,19 +503,7 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según el documento "v2_politica_calidad_entregas.pdf":
-
-*   **Incidencias de calidad:** Una incidencia de calidad bloquea el pedido hasta que el departamento de calidad registre una resolución. Esta resolución debe especificar si el lote se libera, se sustituye, se reprocesa o se rechaza. Producción no puede desbloquear una retención de calidad sin la aprobación de calidad [1].
-*   **Entregas parciales:** Requieren aprobación comercial y validación de calidad para cada lote entregado. Si una parte del pedido se retiene, el albarán debe detallar la parte enviada, la parte pendiente y el motivo de la retención [1, 3].
-
-Fuentes:
-*   v2_politica_calidad_entregas.pdf, página 2
-*   v2_politica_calidad_entregas.pdf, página 3
-
-Razonamiento:
-1.  Se identificó la pregunta sobre incidencias de calidad y entregas parciales.
-2.  Se revisó el contexto documental proporcionado para extraer la información relevante.
-3.  Se sintetizó la información sobre incidencias de calidad y entregas parciales, citando las páginas correspondientes.
+Según el documento v2_politica_calidad_entregas.pdf, las incidencias de calidad bloquean un pedido hasta que Calidad registra una resolución, indicando si el lote se libera, sustituye, reprocesa o rechaza. Producción no puede desbloquear una retención de calidad sin la aprobación de Calidad. Las entregas parciales requieren aprobación comercial y validación de calidad para cada lote entregado. Si una parte del pedido queda retenida, el albarán debe especificar la parte enviada, la pendiente y el motivo de la retención. Además, los indicadores mensuales separan los pedidos con incidencia de calidad y las entregas parciales.
 ```
 
 Pasos:
@@ -564,21 +529,21 @@ Fallbacks: `[]`
 Respuesta:
 
 ```markdown
-Según el documento v2_condiciones_comerciales_northwind.pdf, el impacto económico se calcula al unir el importe del ERP, el porcentaje contractual aplicable y la causa documentada. Si alguno de estos tres elementos falta, no se puede determinar el impacto económico definitivo. Además, la cabecera del pedido no es suficiente para calcular el impacto económico si faltan los precios, cantidades o descuentos.
+Según el documento v2_condiciones_comerciales_northwind.pdf, el impacto económico se calcula uniendo el importe del ERP, el porcentaje contractual y la causa documentada cuando una penalización o retraso tiene impacto económico. Si alguno de estos tres elementos falta, no se calcula un impacto definitivo.
 
-En cuanto a la trazabilidad, toda respuesta de negocio debe especificar las fuentes consultadas, los pasos ejecutados y las herramientas utilizadas. El razonamiento debe ser un resumen auditable, distinguiendo entre hechos del ERP, reglas documentales y conclusiones. Para la información obtenida mediante RAG, es obligatorio citar el nombre del archivo y el número de página. Si se consulta el ERP, se debe indicar la entidad consultada, y si se usa información de producción, se debe especificar el `order_id` y el estado operativo.
+En cuanto a la trazabilidad, para el cálculo del importe, el resultado debe indicar si procede del ERP, de un cálculo sobre líneas ERP o si no existe evidencia suficiente. Para el impacto económico, se exige una causa documentada.
 ```
 
 Pasos:
 
 - Consulta RAG documental para localizar evidencia verificable sobre la pregunta
-- Selecciona 3 chunk(s) relevante(s) de v2_condiciones_comerciales_northwind.pdf como base de evidencia
+- Selecciona 2 chunk(s) relevante(s) de v2_condiciones_comerciales_northwind.pdf como base de evidencia
 - Sintetiza la respuesta final usando solo el contexto recuperado y deja las citas documentales auditables en data.rag.citations
 
 Evidencia RAG:
 
 - documentos: `["v2_condiciones_comerciales_northwind.pdf"]`
-- chunks_count: `3`
+- chunks_count: `2`
 
 ### BT-V2-07 - PASS - V2: guardrail documental multipagina
 

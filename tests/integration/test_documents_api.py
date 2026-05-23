@@ -61,6 +61,61 @@ def test_upload_document_accepts_direct_pdf_body(client: TestClient) -> None:
     assert response.json()["filename"] == "directo.pdf"
 
 
+def test_reset_documents_requires_confirmation(client: TestClient) -> None:
+    response = client.delete("/api/documents", params={"confirm": "wrong"})
+
+    assert response.status_code == 400
+    assert "Confirmacion" in response.json()["detail"]
+
+
+def test_reset_documents_clears_indexed_chunks(client: TestClient) -> None:
+    upload_response = client.post(
+        "/api/documents/upload",
+        files={
+            "file": (
+                "contrato.pdf",
+                _pdf_bytes("Contrato marco con penalizacion por retrasos."),
+                "application/pdf",
+            )
+        },
+    )
+    assert upload_response.status_code == 201
+
+    response = client.delete(
+        "/api/documents",
+        params={"confirm": "reset-delivery-rag"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "cleared"
+    assert payload["chunks_removed"] == 1
+    assert client.get("/api/documents").json()["documents"] == []
+
+
+def test_reset_documents_is_forbidden_outside_local_delivery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.api import routes_documents
+
+    monkeypatch.setattr(
+        routes_documents,
+        "get_settings",
+        lambda: Settings(app_env="production"),
+    )
+    app = create_app()
+    service = DocumentIngestionService(vector_store=InMemoryDocumentVectorStore())
+    app.dependency_overrides[get_document_service] = lambda: service
+    local_client = TestClient(app)
+
+    response = local_client.delete(
+        "/api/documents",
+        params={"confirm": "reset-delivery-rag"},
+    )
+
+    assert response.status_code == 403
+
+
 def test_upload_document_rejects_multipart_without_file(client: TestClient) -> None:
     response = client.post(
         "/api/documents/upload",

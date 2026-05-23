@@ -51,7 +51,7 @@ def _check_chroma(settings: Settings) -> ReadinessCheck:
             detail=f"modo Chroma no soportado: {settings.chroma_mode}",
         )
     url = f"http://{settings.chroma_host}:{settings.chroma_port}/api/v2/heartbeat"
-    return _check_http(url, accepted_statuses={200, 404})
+    return _check_http(url, accepted_statuses={200})
 
 
 def _check_llm_provider(settings: Settings) -> ReadinessCheck:

@@ -1,4 +1,5 @@
 import re
+import time
 from threading import Lock
 from typing import Any
 
@@ -63,6 +64,7 @@ class MemoryTool:
     name = "MemoryTool"
 
     def recall(self, tool_input: MemoryRecallInput) -> ToolResult:
+        started_at = time.perf_counter()
         turns = [
             _public_turn(turn)
             for turn in tool_input.conversation_history[-tool_input.max_turns :]
@@ -89,6 +91,7 @@ class MemoryTool:
                 },
                 status="success" if turns else "skipped",
                 output_summary=summary,
+                duration_ms=_duration_ms(started_at),
                 source="Memoria",
             ),
         )
@@ -207,3 +210,7 @@ def _short_text(value: str, max_length: int) -> str:
     if len(normalized) <= max_length:
         return normalized
     return normalized[: max_length - 3].rstrip() + "..."
+
+
+def _duration_ms(started_at: float) -> int:
+    return max(0, int((time.perf_counter() - started_at) * 1000))

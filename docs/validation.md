@@ -110,6 +110,10 @@ Comando usado para regenerarlo con Docker levantado:
 .\.venv\Scripts\python.exe scripts\run_delivery_validation.py --output docs\VALIDACION_ENTREGA.md
 ```
 
+Ese comando limpia primero el indice RAG del backend con
+`DELETE /api/documents?confirm=reset-delivery-rag` y despues sube solo los PDFs
+`v2_*`. Asi la validacion no depende del estado previo de ChromaDB.
+
 Tambien puede ejecutarse dentro de Compose con el perfil `eval`; el servicio
 `evaluator` escribe el informe en `reports/VALIDACION_ENTREGA.md`:
 

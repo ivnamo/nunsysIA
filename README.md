@@ -68,6 +68,12 @@ Componentes reales:
 - `app/agents/deep_agent.py`: envoltorio del servicio principal.
 - `app/agents/deepagents_tools_service.py`: flujo principal con DeepAgents y
   tools directas de ERP, produccion, RAG y memoria.
+- `app/agents/deepagents_policy.py`: politica de seleccion de tools por
+  intencion.
+- `app/agents/deepagents_harness.py`: registro del harness DeepAgents sin
+  tools genericas de filesystem o shell.
+- `app/agents/deepagents_answering.py`: respuestas deterministas grounded
+  cuando ya hay evidencia de tools.
 - `app/services/response_normalizer.py`: normaliza la salida a `QueryResponse`.
 - `app/tools/`: tools deterministas para ERP, produccion, RAG, memoria y Query
   DSL interna.
@@ -86,6 +92,8 @@ Componentes reales:
 
 Los endpoints `/api/experimental/deepagents/*` estan deshabilitados por defecto
 y solo se activan con `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
+Los servicios `deepagent_sidecar` y `legacy_langgraph` se cargan bajo demanda;
+no se instancian durante consultas normales con `mode=deepagent`.
 
 ## Decisiones tecnicas
 
@@ -313,6 +321,9 @@ Con Docker levantado y credenciales reales configuradas, ejecuta:
 El criterio de entrega es `PASS=18, FAIL=0` sobre las preguntas obligatorias y
 extendidas de negocio. Los informes beta anteriores se conservan bajo
 `docs/archive/validation/` solo como evidencia historica.
+El script resetea el indice documental mediante el endpoint protegido
+`DELETE /api/documents?confirm=reset-delivery-rag` y vuelve a cargar solo los
+PDFs oficiales `v2_*`, para evitar contaminacion de ejecuciones previas.
 
 ## Trazabilidad y explicabilidad
 

@@ -181,6 +181,34 @@ Response `200`:
 }
 ```
 
+## `DELETE /api/documents`
+
+Limpia el indice documental para validaciones reproducibles. Esta ruta esta
+limitada a `APP_ENV=development`, `APP_ENV=docker` o `APP_ENV=test`, y exige
+confirmacion explicita.
+
+Request:
+
+```powershell
+curl.exe -X DELETE "http://localhost:8000/api/documents?confirm=reset-delivery-rag"
+```
+
+Response `200`:
+
+```json
+{
+  "status": "cleared",
+  "chunks_removed": 20,
+  "fallbacks": []
+}
+```
+
+Errores:
+
+- `400`: confirmacion invalida.
+- `403`: entorno no permitido.
+- `500`: error de vector store.
+
 ## Endpoints experimentales
 
 Solo para diagnostico y comparativa:

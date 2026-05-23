@@ -41,4 +41,4 @@ class DeterministicEmbeddingModel:
 
     @staticmethod
     def _tokens(text: str) -> list[str]:
-        return re.findall(r"[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]+", text.lower())
+        return re.findall(r"[A-Za-z0-9áéíóúÁÉÍÓÚüÜñÑ]+", text.lower())

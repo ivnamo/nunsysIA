@@ -52,6 +52,8 @@ requieren `ENABLE_DEEPAGENTS_EXPERIMENT=true`.
 - `POST /api/query`
 - `POST /api/documents/upload`
 - `GET /api/documents`
+- `DELETE /api/documents?confirm=reset-delivery-rag`, limitado a entornos
+  `development`, `docker` o `test` para validacion reproducible
 - endpoints experimentales DeepAgents deshabilitados por defecto
 
 Las rutas validan input, invocan servicios y devuelven schemas Pydantic.
@@ -64,17 +66,21 @@ Las rutas validan input, invocan servicios y devuelven schemas Pydantic.
 - tools de produccion;
 - tool RAG;
 - normalizador de respuesta;
-- servicios legacy o experimentales.
+- servicios legacy o experimentales cargados de forma lazy. Si `/api/query`
+  usa `deepagent`, no se construye el workflow LangGraph.
 
 `ResponseNormalizer` evita filtrar objetos internos de LangChain, LangGraph o
 ChromaDB.
 
 ### Agentes
 
-`app/agents/deepagents_tools_service.py` implementa el flujo principal. Antes de
-responder, ejecuta tools obligatorias segun la intencion detectada y registra
-tool calls. DeepAgents recibe solo tools de negocio; no se exponen tools de
-filesystem, shell ni subagentes genericos al endpoint de negocio.
+`app/agents/deepagents_tools_service.py` implementa el flujo principal. La
+politica de seleccion de tools vive en `deepagents_policy.py`, la configuracion
+del harness DeepAgents en `deepagents_harness.py` y la respuesta determinista
+grounded en `deepagents_answering.py`. Antes de responder, el flujo ejecuta
+tools obligatorias segun la intencion detectada y registra tool calls.
+DeepAgents recibe solo tools de negocio; no se exponen tools de filesystem,
+shell ni subagentes genericos al endpoint de negocio.
 
 La implementacion legacy en LangGraph sigue disponible en `app/agents/graph.py`
 y modulos relacionados, pero no es el camino principal.
@@ -105,8 +111,8 @@ El factory documental de la aplicacion falla de forma explicita si no puede
 crear ChromaDB o si el proveedor de embeddings es determinista. Las clases
 in-memory/deterministicas se conservan solo para tests unitarios acotados.
 
-Cada chunk conserva `document_id`, `filename`, `page`, `chunk_id` y
-`uploaded_at`.
+Cada chunk conserva `document_id`, `document_hash`, `filename`, `page`,
+`chunk_id`, `uploaded_at` e `indexed_at`.
 
 ### Datos
 
@@ -114,7 +120,8 @@ Cada chunk conserva `document_id`, `filename`, `page`, `chunk_id` y
   memoria por `app/services/erp_service.py`.
 - Produccion: seed JSON en `data/production_seed.json`, servido por
   `production_mock/`.
-- Documentos: PDFs mock en `data/sample_docs/`.
+- Documentos: los PDFs oficiales de demo son los `v2_*` en
+  `data/sample_docs/`; los PDFs base quedan como historico de desarrollo.
 
 ## Trazabilidad
 
@@ -122,7 +129,8 @@ La respuesta publica incluye:
 
 - `sources`: fuentes usadas.
 - `reasoning`: pasos visibles, resumidos y aptos para auditoria.
-- `tool_calls`: tool, accion, argumentos sanitizados, estado y resumen.
+- `tool_calls`: tool, accion, argumentos sanitizados, estado, fuente,
+  duracion y resumen.
 - `fallbacks`: rutas alternativas usadas por capas no documentales. En la
   entrega no debe aparecer fallback de vector store en memoria ni embeddings
   deterministas.

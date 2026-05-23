@@ -13,8 +13,10 @@ services:
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "grep -q ':1F40' /proc/net/tcp",
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v2/heartbeat', timeout=2)",
         ]
       interval: 5s
       timeout: 3s

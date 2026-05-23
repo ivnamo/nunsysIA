@@ -67,6 +67,7 @@ def test_memory_tool_returns_public_history_and_facts() -> None:
     assert result.tool_call.action == "recall"
     assert result.tool_call.source == "Memoria"
     assert result.tool_call.status == "success"
+    assert isinstance(result.tool_call.duration_ms, int)
     assert result.data["status"] == "found"
     assert result.data["facts"] == {
         "customer_id": "ALFKI",

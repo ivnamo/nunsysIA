@@ -28,12 +28,15 @@ def test_format_query_response_includes_traceability_sections() -> None:
         ],
         confidence=0.9,
         status="completed",
+        metadata={"request_id": "req-123", "duration_ms": 42},
     )
 
     content = format_query_response(response)
 
     assert "El cliente ALFKI" in content
     assert "Estado: `completed`" in content
+    assert "request_id: `req-123`" in content
+    assert "duracion: `42 ms`" in content
     assert "- ERP" in content
     assert "1. Consulta ERP" in content
     assert "`ERPTool.calculate_order_amount` [success]: 2 pedidos encontrados" in content

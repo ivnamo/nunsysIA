@@ -91,6 +91,9 @@ def main() -> int:
             chainlit_url=args.chainlit_url,
             chroma_url=args.chroma_url,
         )
+        reset = _reset_documents(client, args.base_url)
+        if reset.get("http_status") != 200:
+            raise RuntimeError(f"No se pudo resetear el indice RAG: {reset}")
         uploads = _upload_documents(client, args.base_url)
         cases = _delivery_cases()
         results = [_execute_case(client, args.base_url, args.mode, case) for case in cases]
@@ -101,6 +104,7 @@ def main() -> int:
         base_url=args.base_url,
         mode=args.mode,
         checks=checks,
+        reset=reset,
         uploads=uploads,
         results=results,
     )
@@ -124,7 +128,7 @@ def _service_checks(
         "chromadb": _check_url(
             client,
             f"{chroma_url.rstrip('/')}/api/v2/heartbeat",
-            accepted_statuses={200, 404},
+            accepted_statuses={200},
         ),
     }
 
@@ -143,6 +147,22 @@ def _check_url(
     if response.status_code in accepted:
         return f"OK HTTP {response.status_code}"
     return f"ERROR HTTP {response.status_code}: {response.text[:120]}"
+
+
+def _reset_documents(client: httpx.Client, base_url: str) -> dict[str, Any]:
+    endpoint = f"{base_url.rstrip('/')}/api/documents"
+    response = client.delete(endpoint, params={"confirm": "reset-delivery-rag"})
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {"raw": response.text}
+    return {
+        "http_status": response.status_code,
+        "status": payload.get("status"),
+        "chunks_removed": payload.get("chunks_removed"),
+        "fallbacks": payload.get("fallbacks"),
+        "detail": payload.get("detail"),
+    }
 
 
 def _upload_documents(client: httpx.Client, base_url: str) -> list[dict[str, Any]]:
@@ -387,6 +407,7 @@ def _render_report(
     base_url: str,
     mode: str,
     checks: dict[str, str],
+    reset: dict[str, Any],
     uploads: list[dict[str, Any]],
     results: list[CaseResult],
 ) -> str:
@@ -414,7 +435,29 @@ def _render_report(
     for name, status in checks.items():
         lines.append(f"| {name} | {status} |")
 
-    lines.extend(["", "## PDFs indexados", "", "| PDF | HTTP | Estado | Chunks | Fallbacks |", "| --- | ---: | --- | ---: | --- |"])
+    lines.extend(
+        [
+            "",
+            "## Reset RAG",
+            "",
+            "| HTTP | Estado | Chunks eliminados | Fallbacks | Detail |",
+            "| ---: | --- | ---: | --- | --- |",
+            (
+                "| {http_status} | {status} | {chunks_removed} | {fallbacks} | {detail} |"
+            ).format(
+                http_status=reset.get("http_status"),
+                status=reset.get("status"),
+                chunks_removed=reset.get("chunks_removed"),
+                fallbacks=_inline_json(reset.get("fallbacks")),
+                detail=reset.get("detail") or "",
+            ),
+            "",
+            "## PDFs indexados",
+            "",
+            "| PDF | HTTP | Estado | Chunks | Fallbacks |",
+            "| --- | ---: | --- | ---: | --- |",
+        ]
+    )
     for upload in uploads:
         lines.append(
             "| {filename} | {http_status} | {status} | {chunks_indexed} | {fallbacks} |".format(

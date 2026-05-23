@@ -58,8 +58,38 @@ def create_agent_router(
     rag_tool = create_rag_tool(document_service)
     trace_service = TraceService()
     response_normalizer = ResponseNormalizer(trace_service=trace_service)
+    deepagent_service = create_primary_deepagent_service(
+        settings=settings,
+        erp_tool=erp_tool,
+        production_tool=production_tool,
+        erp_query_tool=erp_query_tool,
+        production_query_tool=production_query_tool,
+        rag_tool=rag_tool,
+    )
+    legacy_service, sidecar_service = create_legacy_services(
+        settings=settings,
+        document_service=document_service,
+    )
 
-    deepagent_service = DeepAgentService(
+    return AgentRouter(
+        deepagent_service=deepagent_service,
+        sidecar_service=sidecar_service,
+        legacy_service=legacy_service,
+        response_normalizer=response_normalizer,
+        default_mode=configured_agent_mode(settings),
+    )
+
+
+def create_primary_deepagent_service(
+    *,
+    settings: Settings,
+    erp_tool: Any,
+    production_tool: Any,
+    erp_query_tool: Any,
+    production_query_tool: Any,
+    rag_tool: Any,
+) -> DeepAgentService:
+    return DeepAgentService(
         create_deepagents_tools_query_service(
             settings=settings,
             erp_tool=erp_tool,
@@ -70,6 +100,12 @@ def create_agent_router(
         )
     )
 
+
+def create_legacy_services(
+    *,
+    settings: Settings,
+    document_service: DocumentIngestionService,
+) -> tuple[LazyAgentService, LazyAgentService]:
     legacy_workflow_cache: dict[str, Any] = {}
 
     def legacy_workflow() -> Any:
@@ -91,14 +127,7 @@ def create_agent_router(
             )
         )
     )
-
-    return AgentRouter(
-        deepagent_service=deepagent_service,
-        sidecar_service=sidecar_service,
-        legacy_service=legacy_service,
-        response_normalizer=response_normalizer,
-        default_mode=configured_agent_mode(settings),
-    )
+    return legacy_service, sidecar_service
 
 
 def configured_agent_mode(settings: Settings) -> AgentMode:

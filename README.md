@@ -135,6 +135,7 @@ No se debe commitear `.env`. El archivo ya esta ignorado por `.gitignore`.
 Variables principales:
 
 - `AGENT_MODE=deepagent`: modo principal por defecto.
+- `AGENT_EXECUTION_TIMEOUT_SECONDS`: timeout global de `/api/query`.
 - `PRODUCTION_API_BASE_URL`: URL de la API mock de produccion.
 - `CHROMA_MODE`: `persistent` en local o `http` en Docker.
 - `CHROMA_HOST`, `CHROMA_PORT`, `CHROMA_COLLECTION`: conexion a ChromaDB.
@@ -289,6 +290,7 @@ El sistema devuelve:
 - fuentes consultadas en `sources`;
 - pasos visibles en `reasoning`;
 - tools ejecutadas en `tool_calls`;
+- `request_id` y duracion total en `metadata`;
 - fallbacks usados en `fallbacks`;
 - estado final en `status`;
 - evidencias publicas resumidas en `data`.

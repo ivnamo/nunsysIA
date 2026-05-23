@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -53,6 +55,8 @@ def test_query_endpoint_without_mode_uses_deepagent(client: TestClient) -> None:
     payload = response.json()
     assert payload["metadata"]["agent_mode"] == "deepagent"
     assert payload["metadata"]["agent_framework"] == "LangChain DeepAgents"
+    assert payload["metadata"]["request_id"]
+    assert isinstance(payload["metadata"]["duration_ms"], int)
     assert payload["sources"] == ["ERP", "Produccion"]
     assert "10248" in payload["answer"]
     assert "10252" in payload["answer"]
@@ -164,9 +168,33 @@ def test_query_endpoint_returns_controlled_500_when_router_fails() -> None:
     response = client.post("/api/query", json={"question": "Que pedidos hay?"})
 
     assert response.status_code == 500
-    assert response.json() == {
-        "detail": "No se pudo procesar la consulta de forma controlada."
-    }
+    detail = response.json()["detail"]
+    assert detail["status"] == "failed"
+    assert detail["request_id"]
+    assert isinstance(detail["duration_ms"], int)
+    assert detail["failure_reason"] == (
+        "No se pudo procesar la consulta de forma controlada."
+    )
+
+
+def test_query_endpoint_returns_controlled_504_when_router_times_out(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    get_settings.cache_clear()
+    monkeypatch.setenv("AGENT_EXECUTION_TIMEOUT_SECONDS", "0.01")
+    app = create_app()
+    app.dependency_overrides[get_agent_router] = lambda: _SlowRouter()
+    client = TestClient(app)
+
+    response = client.post("/api/query", json={"question": "Que pedidos hay?"})
+
+    assert response.status_code == 504
+    detail = response.json()["detail"]
+    assert detail["status"] == "failed"
+    assert detail["request_id"]
+    assert isinstance(detail["duration_ms"], int)
+    assert detail["failure_reason"] == "La consulta supero el timeout configurado."
+    get_settings.cache_clear()
 
 
 def _agent_router(document_service: DocumentIngestionService) -> AgentRouter:
@@ -223,6 +251,12 @@ class _ModeService:
 class _FailingRouter:
     async def query(self, **kwargs):
         raise RuntimeError("boom")
+
+
+class _SlowRouter:
+    async def query(self, **kwargs):
+        await asyncio.sleep(0.1)
+        return QueryResponse(answer="tarde")
 
 
 def _erp_tool() -> ERPTool:

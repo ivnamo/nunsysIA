@@ -24,6 +24,7 @@ def test_settings_load_llm_and_embedding_provider_env(
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
     monkeypatch.setenv("GEMINI_API_TRANSPORT", "grpc")
     monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "8")
+    monkeypatch.setenv("AGENT_EXECUTION_TIMEOUT_SECONDS", "9")
     monkeypatch.setenv("EMBEDDING_PROVIDER", "openai")
     monkeypatch.setenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 
@@ -36,6 +37,7 @@ def test_settings_load_llm_and_embedding_provider_env(
     assert settings.embedding_provider == "openai"
     assert settings.openai_embedding_model == "text-embedding-3-small"
     assert settings.llm_timeout_seconds == 8.0
+    assert settings.agent_execution_timeout_seconds == 9.0
 
     get_settings.cache_clear()
 

@@ -1,3 +1,5 @@
+import asyncio
+
 from app.agents.service import QueryWorkflowService
 from app.schemas.query import AgentMode, QueryRequest
 
@@ -14,12 +16,11 @@ class LegacyLangGraphService:
         conversation_id: str | None = None,
         include_citation_previews: bool = False,
     ):
-        return self._workflow.run(
-            QueryRequest(
-                question=question,
-                conversation_id=conversation_id,
-                mode=AgentMode.LEGACY_LANGGRAPH,
-                include_citation_previews=include_citation_previews,
-            )
+        request = QueryRequest(
+            question=question,
+            conversation_id=conversation_id,
+            mode=AgentMode.LEGACY_LANGGRAPH,
+            include_citation_previews=include_citation_previews,
         )
+        return await asyncio.to_thread(self._workflow.run, request)
 

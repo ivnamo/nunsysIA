@@ -1,3 +1,5 @@
+import asyncio
+
 from app.agents.deepagents_tools_service import DeepAgentsToolsQueryService
 from app.schemas.query import AgentMode, QueryRequest
 
@@ -14,12 +16,11 @@ class DeepAgentService:
         conversation_id: str | None = None,
         include_citation_previews: bool = False,
     ):
-        return self._service.run(
-            QueryRequest(
-                question=question,
-                conversation_id=conversation_id,
-                mode=AgentMode.DEEPAGENT,
-                include_citation_previews=include_citation_previews,
-            )
+        request = QueryRequest(
+            question=question,
+            conversation_id=conversation_id,
+            mode=AgentMode.DEEPAGENT,
+            include_citation_previews=include_citation_previews,
         )
+        return await asyncio.to_thread(self._service.run, request)
 

@@ -80,7 +80,9 @@ Response `200`:
   ],
   "metadata": {
     "agent_mode": "deepagent",
-    "agent_framework": "LangChain DeepAgents"
+    "agent_framework": "LangChain DeepAgents",
+    "request_id": "7d4a5b80-7f4f-4f1f-9cb8-5d6fd2c1786f",
+    "duration_ms": 842
   },
   "tool_calls": [
     {
@@ -123,7 +125,11 @@ Errores HTTP principales:
 - `422`: validacion Pydantic.
 - `502`: fallo de ejecucion DeepAgents.
 - `503`: dependencia DeepAgents o proveedor no disponible.
+- `504`: timeout de ejecucion agentic.
 - `500`: error no esperado controlado por el backend.
+
+Los errores controlados devuelven `detail` estructurado con `status`,
+`request_id`, `duration_ms` y `failure_reason`.
 
 ## `POST /api/documents/upload`
 

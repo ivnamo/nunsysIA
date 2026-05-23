@@ -24,8 +24,9 @@ Crear o mantener tests para:
 
 - health endpoint;
 - schema request/response de `/api/query`;
-- forma del output del Planner;
-- decisiones de routing del Validator;
+- routing de `AgentRouter`;
+- normalizacion de respuestas DeepAgents;
+- flujo legacy Planner/Validator solo cuando se toque `legacy_langgraph`;
 - `ERPTool`;
 - `ProductionAPITool`;
 - ingestion RAG;

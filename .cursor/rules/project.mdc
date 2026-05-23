@@ -7,20 +7,26 @@ alwaysApply: true
 
 # Reglas del Proyecto
 
-Este repositorio es una POC tecnica de un sistema agentic empresarial. El objetivo es responder preguntas de negocio en lenguaje natural combinando datos de ERP, API de produccion y documentos PDF mediante RAG.
+Este repositorio es una POC tecnica de un sistema agentic empresarial. El
+objetivo es responder preguntas de negocio en lenguaje natural combinando datos
+de ERP, API de produccion y documentos PDF mediante RAG.
 
 ## Stack obligatorio
 
 - Backend: FastAPI.
-- Orquestacion agentic: LangGraph.
+- Orquestacion principal: LangChain DeepAgents.
 - Ecosistema LLM, tools y RAG: LangChain.
+- Flujo legacy/comparativo: LangGraph.
 - UI: Chainlit.
 - Vector store objetivo: ChromaDB.
 - Schemas y contratos: Pydantic.
 - Tests: pytest.
-- Runtime objetivo de cierre: Docker y Docker Compose.
+- Runtime objetivo: Docker y Docker Compose.
 
-No introducir frameworks alternativos, capas de orquestacion paralelas, vector stores alternativos ni frameworks UI distintos sin aprobacion explicita. El fallback en memoria ya documentado para ChromaDB queda permitido solo para desarrollo, tests y validacion local.
+No introducir frameworks alternativos, capas de orquestacion paralelas, vector
+stores alternativos ni frameworks UI distintos sin aprobacion explicita. El
+fallback en memoria para ChromaDB queda permitido solo para desarrollo, tests y
+validacion local.
 
 ## Restricciones globales
 
@@ -28,18 +34,21 @@ No introducir frameworks alternativos, capas de orquestacion paralelas, vector s
 - No crear arquitecturas paralelas.
 - No mezclar handlers de rutas API con logica de negocio.
 - No inventar datos de ERP, produccion o documentos.
-- No responder sin fuentes cuando la pregunta requiere evidencia de ERP, produccion o RAG.
-- No usar memoria del modelo ni memoria conversacional como sustituto de base de datos, API o documentos.
+- No responder sin fuentes cuando la pregunta requiere evidencia de ERP,
+  produccion o RAG.
+- No usar memoria del modelo ni memoria conversacional como sustituto de base
+  de datos, API o documentos.
 - Mantener modulos pequenos y enfocados.
-- Usar Pydantic para requests, responses, planes y schemas de tools.
+- Usar Pydantic para requests, responses, planes internos y schemas de tools.
 - Toda respuesta de `/api/query` debe incluir campos de trazabilidad.
 - Toda tool call debe registrarse de forma estructurada.
-- Mantener la documentacion en espanol salvo identificadores de codigo o terminos tecnicos.
+- Mantener la documentacion en espanol salvo identificadores de codigo o
+  terminos tecnicos.
 
 ## Modularidad esperada
 
 - `api/` expone rutas FastAPI finas.
-- `agents/` contiene nodos LangGraph, estado y prompts.
+- `agents/` contiene AgentRouter, DeepAgents, prompts y flujo legacy LangGraph.
 - `tools/` contiene tools deterministas.
 - `rag/` contiene carga documental, chunking, embeddings, ChromaDB y retrieval.
 - `erp/` contiene acceso a datos ERP y repositorios.
@@ -57,8 +66,11 @@ Las respuestas deben distinguir:
 - errores o contexto insuficiente;
 - estado final.
 
-No exponer chain-of-thought interno. Usar razonamiento visible conciso y apto para auditoria.
+No exponer chain-of-thought interno. Usar razonamiento visible conciso y apto
+para auditoria.
 
 ## Flujo Git
 
-Seguir `.cursor/rules/git-workflow.mdc`: `develop` para construccion, `main` para estado estable, `feature/*` para tareas acotadas. Remoto: `https://github.com/ivnamo/nunsysIA.git`.
+Seguir `.cursor/rules/git-workflow.mdc`: `develop` para construccion, `main`
+para estado estable, `feature/*` para tareas acotadas. Remoto:
+`https://github.com/ivnamo/nunsysIA.git`.

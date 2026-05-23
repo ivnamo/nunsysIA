@@ -23,8 +23,8 @@ No anadir endpoints publicos adicionales salvo que soporten el alcance acordado 
 ## Diseno de rutas
 
 - Las rutas deben ser finas.
-- Las rutas validan input, llaman un servicio de aplicacion o entrypoint del grafo y devuelven respuestas Pydantic.
-- No incluir SQL, llamadas a API de produccion, llamadas a ChromaDB ni logica de nodos LangGraph dentro de route handlers.
+- Las rutas validan input, llaman un servicio de aplicacion o `AgentRouter` y devuelven respuestas Pydantic.
+- No incluir SQL, llamadas a API de produccion, llamadas a ChromaDB ni logica agentic dentro de route handlers.
 - Usar codigos HTTP claros.
 - Usar respuestas de error controladas.
 
@@ -47,7 +47,7 @@ La respuesta de `/api/query` debe exponer:
 ## Manejo de errores
 
 - No filtrar stack traces al usuario.
-- No devolver objetos raw de LangChain, LangGraph o ChromaDB.
+- No devolver objetos raw de LangChain, DeepAgents, LangGraph o ChromaDB.
 - No exponer variables de entorno, connection strings ni secretos.
 - Convertir fallos de tools en estados estructurados como `tool_error`, `partial_answer`, `insufficient_context` o `failed`.
 

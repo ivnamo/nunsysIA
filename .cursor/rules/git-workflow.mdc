@@ -40,7 +40,7 @@ feature/* -> develop -> main
 
 1. Trabajar en `feature/*` con cambios pequenos y revisables.
 2. Integrar en `develop` con merge o PR.
-3. Pasar a `main` solo cuando la fase cumpla criterios de `docs/TASK_PLAN.md` o el usuario indique entrega estable.
+3. Pasar a `main` solo cuando la validacion acordada pase o el usuario indique entrega estable.
 4. Tras merge a `main`, hacer push solo si el usuario lo solicita o forma parte de la tarea acordada.
 
 ## Comandos de referencia
@@ -62,4 +62,4 @@ git merge develop
 
 - `feature/*` -> `develop` para integracion diaria.
 - `develop` -> `main` para releases o hitos de fase.
-- Descripcion del PR: que cambia, como probar y fase de `docs/TASK_PLAN.md`.
+- Descripcion del PR: que cambia, como probar y que validacion se ejecuto.

@@ -101,7 +101,11 @@ def main() -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        default=ROOT / "docs" / "DEEPAGENTS_COMPARISON_REPORT.md",
+        default=ROOT
+        / "docs"
+        / "archive"
+        / "validation"
+        / "DEEPAGENTS_COMPARISON_REPORT.md",
         help="Ruta del informe Markdown.",
     )
     args = parser.parse_args()
@@ -117,7 +121,7 @@ def main() -> int:
     if not deepagents_is_available():
         print(
             "deepagents no esta instalado en este entorno. "
-            "Usa requirements-deepagents.txt o el venv temporal compatible.",
+            "Instala requirements.txt o usa un venv compatible.",
             file=sys.stderr,
         )
         return 2

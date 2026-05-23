@@ -10,9 +10,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt requirements-chroma.txt ./
+COPY requirements.txt ./
 RUN python -m pip install --upgrade pip \
-    && python -m pip install -r requirements-chroma.txt
+    && python -m pip install -r requirements.txt
 
 COPY app ./app
 COPY chainlit_app ./chainlit_app

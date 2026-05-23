@@ -729,7 +729,8 @@ class _DirectToolsExecution:
         with self._lock:
             self._cache[cache_key] = data
             self.data["rag"] = data
-            self._record(result, "Consulta RAG documental con chunks recuperados")
+            self._record(result, _rag_retrieval_reasoning(data))
+            self._extend_reasoning(_rag_evidence_reasoning_steps(data))
         return data
 
     def search_documents(
@@ -857,6 +858,11 @@ class _DirectToolsExecution:
         self.reasoning.append(reasoning)
         self._add_fallbacks(result)
 
+    def _extend_reasoning(self, steps: list[str]) -> None:
+        for step in steps:
+            if step and step not in self.reasoning:
+                self.reasoning.append(step)
+
     def _add_fallbacks(self, result: ToolResult) -> None:
         summary = result.tool_call.output_summary or ""
         if "FALLBACK" in summary and summary not in self.fallbacks:
@@ -942,6 +948,67 @@ def _document_context_for_agent(rag: Any) -> str:
             f"[{index}] {filename}, pagina {page}, {chunk_id}: {text_preview}"
         )
     return "\n".join(lines)
+
+
+def _rag_retrieval_reasoning(rag: Any) -> str:
+    if not isinstance(rag, dict):
+        return "Consulta RAG documental para localizar evidencia verificable"
+    chunks = _rag_chunks(rag)
+    if rag.get("status") == "insufficient_context" or not chunks:
+        return (
+            "Consulta RAG documental para buscar evidencia; no se recuperan "
+            "chunks relevantes suficientes"
+        )
+    return (
+        "Consulta RAG documental para localizar evidencia verificable sobre "
+        "la pregunta"
+    )
+
+
+def _rag_evidence_reasoning_steps(rag: Any) -> list[str]:
+    if not isinstance(rag, dict):
+        return []
+
+    chunks = _rag_chunks(rag)
+    if rag.get("status") == "insufficient_context" or not chunks:
+        return [
+            "Valida que no hay evidencia documental suficiente y evita completar con conocimiento del modelo",
+        ]
+
+    documents = _rag_document_names(chunks)
+    document_label = ", ".join(documents[:3]) if documents else "documentos recuperados"
+    if len(documents) > 3:
+        document_label += f" y {len(documents) - 3} mas"
+
+    return [
+        (
+            f"Selecciona {len(chunks)} chunk(s) relevante(s) de {document_label} "
+            "como base de evidencia"
+        ),
+        (
+            "Sintetiza la respuesta final usando solo el contexto recuperado "
+            "y deja las citas documentales auditables en data.rag.citations"
+        ),
+    ]
+
+
+def _rag_chunks(rag: dict[str, Any]) -> list[dict[str, Any]]:
+    chunks = rag.get("chunks")
+    if not isinstance(chunks, list):
+        return []
+    return [chunk for chunk in chunks if isinstance(chunk, dict)]
+
+
+def _rag_document_names(chunks: list[dict[str, Any]]) -> list[str]:
+    names: list[str] = []
+    for chunk in chunks:
+        metadata = chunk.get("metadata")
+        if not isinstance(metadata, dict):
+            continue
+        filename = str(metadata.get("filename") or "").strip()
+        if filename and filename not in names:
+            names.append(filename)
+    return names
 
 
 def _usable_document_agent_answer(answer: str | None) -> bool:

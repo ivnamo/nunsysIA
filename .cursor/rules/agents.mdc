@@ -1,5 +1,5 @@
 ---
-description: Reglas para Planner, Executor, Validator y tools
+description: Reglas para AgentRouter, DeepAgents y tools
 globs:
   - "app/agents/**/*.py"
   - "app/tools/**/*.py"
@@ -8,68 +8,56 @@ alwaysApply: false
 
 # Reglas de Agentes
 
-Los agentes coordinan capacidades deterministas. No deben inventar resultados de negocio.
+Los agentes coordinan capacidades deterministas. No deben inventar resultados
+de negocio.
 
-## Planner Agent
+## DeepAgent principal
 
-El Planner debe:
+El modo `deepagent` debe:
 
-- recibir la pregunta del usuario y el contexto conversacional;
-- clasificar la intencion como `erp`, `production`, `erp_production`, `rag`, `mixed`, `conversation` o `unsupported`;
-- seleccionar fuentes requeridas;
-- crear un plan estructurado y serializable;
-- seleccionar solo tools aprobadas:
-  - `ERPTool`
-  - `ProductionAPITool`
-  - `DocumentRAGTool`
-  - `MemoryTool`
-
-Los planes deben validarse con Pydantic y con lista cerrada de acciones permitidas.
-
-## Reasoner / Executor Agent
-
-El Reasoner / Executor debe:
-
-- ejecutar el plan paso a paso;
-- llamar tools deterministas;
-- capturar cada tool call;
+- recibir la pregunta y el contexto conversacional;
+- seleccionar y ejecutar solo tools aprobadas;
 - combinar resultados de ERP, produccion, RAG y memoria cuando corresponda;
-- producir resultados intermedios estructurados.
+- registrar cada tool call;
+- devolver una respuesta normalizada por `ResponseNormalizer`.
 
-No debe fabricar outputs que no hayan devuelto las tools.
+Tools aprobadas para el flujo de negocio:
+
+- `ERPTool`
+- `ERPQueryTool`
+- `ProductionAPITool`
+- `ProductionQueryTool`
+- `DocumentRAGTool`
+- `MemoryTool`
+
+No exponer al endpoint de negocio tools de filesystem, shell, subagentes
+genericos ni ejecucion arbitraria.
 
 ## Memoria conversacional
 
 - La memoria conserva las ultimas 5 interacciones por `conversation_id`.
 - Solo resuelve referencias conversacionales.
 - No es fuente de verdad de negocio.
-- Si la respuesta requiere datos actuales, debe combinarse con ERP, Produccion o Documentos.
+- Si la respuesta requiere datos actuales, debe combinarse con ERP, Produccion
+  o Documentos.
 
-## Validator Node
+## Legacy LangGraph
 
-El Validator decide:
-
-- `finish`
-- `replan`
-- `fail`
-
-Debe comprobar:
-
-- datos suficientes;
-- fuentes requeridas consultadas;
-- schema de salida satisfacible;
-- trazabilidad presente;
-- limite de replans no superado.
+Planner, Reasoner/Executor, Validator y FinalResponseBuilder pertenecen al modo
+`legacy_langgraph`. Mantenerlos solo para compatibilidad, regresion y
+comparativa tecnica.
 
 ## Salida final
 
-La salida final debe cumplir el schema de `/api/query`. Si el contexto es insuficiente, devolver un estado controlado en lugar de inventar.
+La salida final debe cumplir el schema de `/api/query`. Si el contexto es
+insuficiente, devolver un estado controlado en lugar de inventar.
 
 ## Trazabilidad
 
 Cada tool call debe registrar:
 
 - nombre de tool;
+- accion cuando aplique;
 - argumentos sanitizados;
 - estado;
 - resumen de salida;

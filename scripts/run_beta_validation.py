@@ -287,7 +287,7 @@ def _ensure_deepagents_available() -> None:
     if not deepagents_is_available():
         raise RuntimeError(
             "deepagents no esta instalado en este entorno. "
-            "Usa requirements-deepagents.txt o el venv temporal compatible."
+            "Instala requirements.txt o usa un venv compatible."
         )
 
 

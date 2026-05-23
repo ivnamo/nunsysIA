@@ -1,5 +1,5 @@
 ---
-description: Reglas de arquitectura para el workflow agentic con LangGraph
+description: Reglas de arquitectura para el workflow agentic principal
 globs:
   - "app/agents/**/*.py"
   - "app/tools/**/*.py"
@@ -10,65 +10,42 @@ alwaysApply: false
 
 # Reglas de Arquitectura
 
-LangGraph es el orquestador principal. LangChain aporta tools, prompts, retrievers, embeddings, parsers y llamadas LLM.
+El flujo principal de entrega es `POST /api/query -> AgentRouter ->
+mode=deepagent -> DeepAgentService -> LangChain DeepAgents -> tools de negocio
+-> ResponseNormalizer`.
 
-## Flujo agentic fijo
+LangGraph se conserva como implementacion legacy/comparativa. No debe
+presentarse como la arquitectura principal salvo que el cambio solicite
+explicitamente trabajar en `mode=legacy_langgraph`.
 
-El flujo aprobado es:
+## Flujo agentic principal
 
 ```text
 Usuario
 -> FastAPI / Chainlit
--> LangGraph StateGraph
--> Planner Agent
--> Reasoner / Executor Agent
--> Validator Node
--> FinalResponseBuilder
+-> POST /api/query
+-> AgentRouter
+-> DeepAgentService
+-> DeepAgentsToolsQueryService
+-> ERPTool / ProductionAPITool / DocumentRAGTool / MemoryTool
+-> ResponseNormalizer
+-> QueryResponse
 ```
 
-No reemplazar este flujo por un agente libre de una sola pieza.
+No reemplazar este flujo por un agente libre sin tools auditables.
 
-## Nodos obligatorios
+## Modos soportados
 
-- `Planner Agent`: clasifica intencion y crea un plan estructurado.
-- `Reasoner / Executor Agent`: ejecuta tools deterministas y combina resultados.
-- `Validator Node`: comprueba suficiencia, schema, fuentes y trazabilidad.
-- `FinalResponseBuilder`: construye la respuesta final de API.
+- `deepagent`: principal y por defecto.
+- `deepagent_sidecar`: experimental/comparativo.
+- `legacy_langgraph`: legacy/experimental.
 
-## Replanning
-
-- El replanning solo se permite cuando el Validator detecta un problema recuperable.
-- `MAX_REPLANS = 2`.
-- Los loops infinitos estan prohibidos.
-- Si el sistema no puede responder tras el limite, devolver `partial_answer`, `insufficient_context` o `failed`.
-
-## Estado compartido de LangGraph
-
-El estado compartido debe incluir al menos:
-
-- `question`
-- `conversation_id`
-- `conversation_history`
-- `plan`
-- `tool_results`
-- `sources`
-- `reasoning`
-- `tool_calls`
-- `fallbacks`
-- `attempts`
-- `status`
-- `final_answer`
-- `failure_reason`
-- `confidence`
-- `data`
-- `validation_decision`
-- `response`
-
-Usar modelos Pydantic en los limites de API y en planes serializables. Mantener el estado del StateGraph explicito y testeable.
+Los endpoints `/api/experimental/deepagents/*` son diagnosticos y no sustituyen
+`POST /api/query`.
 
 ## Limites de modulo
 
-- `agents/` coordina.
+- `agents/` coordina el motor agentic y los modos.
 - `tools/` llama capacidades deterministas.
 - `api/` traduce HTTP a llamadas de aplicacion.
 - `rag/` gestiona ingestion y retrieval documental.
@@ -76,4 +53,10 @@ Usar modelos Pydantic en los limites de API y en planes serializables. Mantener 
 - `production/` gestiona acceso a API de produccion.
 - `core/` gestiona configuracion, logging y trazabilidad.
 
-No mover consultas SQL, llamadas HTTP, retrieval documental ni logica de nodos LangGraph a prompts de agentes.
+No mover consultas SQL, llamadas HTTP, retrieval documental ni logica de negocio
+a prompts de agentes.
+
+## Contrato de salida
+
+Toda salida de `/api/query` debe normalizarse a `QueryResponse` y exponer
+trazabilidad publica sin objetos raw de LangChain, LangGraph o ChromaDB.

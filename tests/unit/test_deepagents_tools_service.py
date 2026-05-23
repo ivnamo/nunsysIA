@@ -359,6 +359,14 @@ def test_deepagents_tools_service_uses_deepagent_redaction_for_documents() -> No
     assert "```json" not in response.answer
     assert '"answer"' not in response.answer
     assert "Pagina 2 de 4" not in response.answer
+    assert response.reasoning == [
+        "Consulta RAG documental para localizar evidencia verificable sobre la pregunta",
+        "Selecciona 1 chunk(s) relevante(s) de contrato.pdf como base de evidencia",
+        (
+            "Sintetiza la respuesta final usando solo el contexto recuperado y "
+            "deja las citas documentales auditables en data.rag.citations"
+        ),
+    ]
     assert "Contexto documental recuperado" in seen["prompt"]
     assert "No pegues chunks completos" in seen["prompt"]
     assert "contrato.pdf, pagina 2" in seen["prompt"]

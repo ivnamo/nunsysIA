@@ -316,6 +316,14 @@ def test_deepagents_tools_service_records_direct_tool_traces() -> None:
         "ERP",
         "Produccion",
     ]
+    assert response.data["deepagents_planning"][
+        "answer_auditor_subagent_available"
+    ] is True
+    assert response.data["deepagents_planning"][
+        "deterministic_answer_gate_used"
+    ] is True
+    assert response.metadata["orchestration_style"] == "deepagents_direct_tools_verified"
+    assert response.metadata["verification_status"] == "passed"
     assert "10252" in response.answer
 
 

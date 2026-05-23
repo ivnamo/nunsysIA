@@ -74,9 +74,12 @@ ChromaDB.
 
 ### Agentes
 
-`app/agents/deepagents_tools_service.py` implementa el flujo principal. La
-politica de seleccion de tools vive en `deepagents_policy.py`, la configuracion
-del harness DeepAgents en `deepagents_harness.py` y la respuesta determinista
+`app/agents/deepagents_tools_service.py` es la fachada publica estable del
+flujo principal. La implementacion interna vive en
+`app/agents/deepagents_runtime/`, separando ejecucion, tool adapters, parsing
+de salidas del agente, prompts de usuario y helpers de respuesta. La politica
+de seleccion de tools vive en `deepagents_policy.py`, la configuracion del
+harness DeepAgents en `deepagents_harness.py` y la respuesta determinista
 grounded en `deepagents_answering.py`. Antes de responder, el flujo ejecuta
 tools obligatorias segun la intencion detectada y registra tool calls.
 DeepAgents recibe tools directas de negocio y un subagente acotado,

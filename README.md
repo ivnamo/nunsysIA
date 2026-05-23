@@ -30,7 +30,7 @@ combina evidencias y devuelve una respuesta con `answer`, `sources` y
 | --- | --- |
 | ERP Northwind | SQLite sembrado con `data/northwind_seed.sql` y consultado por `app/tools/erp_tool.py`. |
 | Produccion via API REST | Servicio `production_mock/` levantado por Compose en `production-api`. |
-| Fusion ERP + produccion | `app/agents/deepagents_tools_service.py` cruza pedidos por `order_id`. |
+| Fusion ERP + produccion | `app/agents/deepagents_runtime/` cruza pedidos por `order_id` mediante tools auditables. |
 | RAG documental | `app/rag/` usa PDFs subidos, embeddings reales y ChromaDB. |
 | Endpoint obligatorio | `POST /api/query` en `app/api/routes_query.py`. |
 | `answer`, `sources`, `reasoning` | Contrato `QueryResponse` normalizado por `app/services/response_normalizer.py`. |
@@ -92,8 +92,10 @@ Componentes reales:
 - `app/api/routes_documents.py`: subida y listado de documentos.
 - `app/agents/router.py`: seleccion del modo agentic.
 - `app/agents/deep_agent.py`: envoltorio del servicio principal.
-- `app/agents/deepagents_tools_service.py`: flujo principal con DeepAgents y
-  tools directas de ERP, produccion, RAG y memoria.
+- `app/agents/deepagents_tools_service.py`: fachada publica estable del flujo
+  principal DeepAgents.
+- `app/agents/deepagents_runtime/`: runtime interno con ejecucion, tool
+  adapters, parsing de salidas, prompts de usuario y helpers de respuesta.
 - `app/agents/deepagents_policy.py`: politica de seleccion de tools por
   intencion.
 - `app/agents/deepagents_harness.py`: registro del harness DeepAgents con

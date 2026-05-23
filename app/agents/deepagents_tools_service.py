@@ -6,6 +6,10 @@ import re
 from threading import Lock
 from typing import Any, Callable
 
+from app.agents.deepagents_answer_auditor import (
+    answer_auditor_names,
+    build_answer_auditor_subagents,
+)
 from app.agents.deepagents_answering import (
     confidence as _confidence,
     economic_impact_answer as _economic_impact_answer,
@@ -201,6 +205,7 @@ class DeepAgentsToolsQueryService:
         agent = self._agent_builder(
             model=self._model,
             tools=execution.tools(),
+            subagents=execution.answer_auditor_subagents(),
             system_prompt=MAIN_DEEP_AGENT_PROMPT,
             name="nunsys-deepagent-query",
         )
@@ -446,6 +451,9 @@ class _DirectToolsExecution:
                 ]
             )
         return _dedupe_tools(tools)
+
+    def answer_auditor_subagents(self) -> list[dict[str, Any]]:
+        return build_answer_auditor_subagents(self._model)
 
     def get_customer_pending_orders_with_production(
         self,
@@ -901,6 +909,14 @@ class _DirectToolsExecution:
             "",
             "Evidencia minima requerida por la politica de tools: "
             + ", ".join(required_evidence(self._policy) or ["sin fuente obligatoria"]),
+            (
+                "Antes de entregar la respuesta final es obligatorio llamar a la "
+                "tool `task` con `subagent_type=\"answer_auditor\"`. Pasa al "
+                "auditor un borrador de respuesta, fuentes, pasos y tools usadas. "
+                "Si el auditor pide reparar, redacta una respuesta final limpia "
+                "usando solo la evidencia de tools. No devuelvas listas de TODOs, "
+                "estados internos ni actualizaciones de planificacion como answer."
+            ),
         ]
         if repair_feedback:
             lines.extend(["", "Feedback de verificacion:", repair_feedback])
@@ -934,6 +950,7 @@ class _DirectToolsExecution:
 
     def record_deepagents_planning(self, result: Any) -> None:
         todo_tool_calls_count = _count_tool_calls(result, "write_todos")
+        answer_auditor_calls_count = _count_tool_calls(result, "task")
         with self._lock:
             planning = dict(self.data.get("deepagents_planning") or {})
             planning.update(
@@ -941,6 +958,11 @@ class _DirectToolsExecution:
                     "todos_used": True,
                     "todo_tool_calls_count": todo_tool_calls_count,
                     "required_evidence": required_evidence(self._policy),
+                    "subagents_available": answer_auditor_names(),
+                    "answer_auditor_subagent_available": True,
+                    "answer_auditor_task_used": answer_auditor_calls_count > 0,
+                    "answer_auditor_task_calls_count": answer_auditor_calls_count,
+                    "deterministic_answer_gate_used": True,
                 }
             )
             if todo_tool_calls_count <= 0:
@@ -1189,6 +1211,12 @@ def _usable_business_agent_answer(answer: str | None) -> bool:
         for marker in (
             "respuesta no determinista",
             "sin consultas para inspeccion",
+            "updated todo list",
+            "todo list",
+            "write_todos",
+            "in_progress",
+            "'pending'",
+            '"pending"',
             "pregunta:",
             "conversation_id:",
             "usa solo las tools",

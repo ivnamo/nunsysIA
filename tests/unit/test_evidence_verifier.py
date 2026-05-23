@@ -130,6 +130,41 @@ def test_evidence_verifier_rejects_prompt_echo() -> None:
     assert "answer no usable o generico pese a status completed" in result.issues
 
 
+def test_evidence_verifier_rejects_internal_todo_updates() -> None:
+    policy = tool_policy("Dame un resumen del estado de los pedidos de este mes", [])
+    response = QueryResponse(
+        answer=(
+            "Updated todo list to [{'content': 'Consultar ERP', "
+            "'status': 'in_progress'}, {'content': 'Combinar datos', "
+            "'status': 'pending'}]"
+        ),
+        sources=["ERP", "Produccion"],
+        reasoning=["Consulta ERP", "Consulta produccion"],
+        tool_calls=[
+            ToolCallTrace(
+                tool="ERPTool",
+                action="get_orders_by_month",
+                args={"year": 2026, "month": 5},
+                status="success",
+                source="ERP",
+            ),
+            ToolCallTrace(
+                tool="ProductionAPITool",
+                action="get_status_for_order_ids",
+                args={"order_ids": [10248]},
+                status="success",
+                source="Produccion",
+            ),
+        ],
+        status="completed",
+    )
+
+    result = verify_response(response, policy=policy, data={"erp_orders": []})
+
+    assert not result.passed
+    assert "answer no usable o generico pese a status completed" in result.issues
+
+
 def test_evidence_verifier_does_not_treat_years_as_order_ids() -> None:
     policy = tool_policy("Dame un resumen del estado de los pedidos de este mes", [])
     response = QueryResponse(

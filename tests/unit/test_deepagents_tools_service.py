@@ -132,6 +132,28 @@ class _TodosAgent:
         }
 
 
+class _MonthlyTodoAnswerAgent:
+    def __init__(self, tools):
+        self._tools = {tool.__name__: tool for tool in tools}
+
+    def invoke(self, payload: dict) -> dict:
+        orders = self._tools["get_orders_by_month"](year=2026, month=5)
+        self._tools["get_production_status_for_order_ids"](
+            [order["order_id"] for order in orders]
+        )
+        return {
+            "messages": [
+                {
+                    "content": (
+                        "Updated todo list to [{'content': 'Consultar ERP', "
+                        "'status': 'in_progress'}, {'content': 'Combinar datos', "
+                        "'status': 'pending'}]"
+                    )
+                }
+            ]
+        }
+
+
 class _DelayedOverqueryAgent:
     def __init__(self, tools):
         self._tools = {tool.__name__: tool for tool in tools}
@@ -625,33 +647,102 @@ def test_deepagents_tools_service_exposes_sanitized_todo_usage() -> None:
         "todos_used",
         "todo_tool_calls_count",
         "required_evidence",
+        "subagents_available",
+        "answer_auditor_subagent_available",
+        "answer_auditor_task_used",
+        "answer_auditor_task_calls_count",
+        "deterministic_answer_gate_used",
     }
+    assert response.data["deepagents_planning"]["subagents_available"] == [
+        "answer_auditor"
+    ]
+    assert response.data["deepagents_planning"]["answer_auditor_subagent_available"] is True
+    assert response.data["deepagents_planning"]["answer_auditor_task_used"] is False
+    assert response.data["deepagents_planning"]["answer_auditor_task_calls_count"] == 0
+    assert response.data["deepagents_planning"]["deterministic_answer_gate_used"] is True
     assert "Consultar ERP" not in str(response.data["deepagents_planning"])
+
+
+def test_deepagents_tools_service_passes_answer_auditor_subagent() -> None:
+    captured: dict = {}
+
+    def builder(**kwargs):
+        captured["subagents"] = kwargs["subagents"]
+        captured["tools"] = kwargs["tools"]
+        return _StaticAgent("Sin consultas para inspeccion.")
+
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool_with_all_beta_orders(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=builder,
+    )
+
+    service.run(QueryRequest(question="Que pedidos estan bloqueados y cual es el motivo?"))
+
+    assert [subagent["name"] for subagent in captured["subagents"]] == [
+        "answer_auditor"
+    ]
+    assert captured["subagents"][0]["tools"] == []
+
+
+def test_deepagents_tools_service_rejects_todo_answer_and_uses_grounded_summary() -> None:
+    service = DeepAgentsToolsQueryService(
+        erp_tool=_erp_tool(),
+        production_tool=_production_tool_with_all_beta_orders(),
+        erp_query_tool=_erp_query_tool(),
+        production_query_tool=_production_query_tool(),
+        rag_tool=_rag_tool(),
+        model="google_genai:gemini-3.5-flash",
+        agent_builder=lambda **kwargs: _MonthlyTodoAnswerAgent(kwargs["tools"]),
+    )
+
+    response = service.run(
+        QueryRequest(question="Dame un resumen del estado de los pedidos de este mes")
+    )
+
+    assert "Updated todo list" not in response.answer
+    assert "mayo de 2026" in response.answer
+    assert response.metadata["verification_status"] == "passed"
+    assert response.tool_calls[0].tool == "ERPTool"
+    assert response.tool_calls[1].tool == "ProductionAPITool"
 
 
 def test_deepagents_business_harness_excludes_system_tools() -> None:
     captured: dict = {}
 
     class _Profile:
-        def __init__(self, excluded_tools):
+        def __init__(self, excluded_tools, general_purpose_subagent=None):
             self.excluded_tools = excluded_tools
+            self.general_purpose_subagent = general_purpose_subagent
+
+    class _GeneralPurpose:
+        def __init__(self, enabled):
+            self.enabled = enabled
 
     def register(key, profile) -> None:
         captured["key"] = key
         captured["excluded_tools"] = profile.excluded_tools
+        captured["general_purpose_subagent"] = profile.general_purpose_subagent
 
     service_module._REGISTERED_BUSINESS_HARNESS_MODELS.clear()
     service_module._register_business_harness_profile(
         "google_genai:gemini-3.5-flash",
+        general_purpose_subagent=_GeneralPurpose,
         harness_profile=_Profile,
         register_harness_profile=register,
     )
 
     assert captured["key"] == "google_genai:gemini-3.5-flash"
-    assert {"read_file", "write_file", "execute", "task"}.issubset(
+    assert {"read_file", "write_file", "execute"}.issubset(
         captured["excluded_tools"]
     )
+    assert "task" not in captured["excluded_tools"]
     assert "write_todos" not in captured["excluded_tools"]
+    assert captured["general_purpose_subagent"].enabled is False
 
 
 def test_deepagents_tools_service_resolves_conversational_economic_impact() -> None:

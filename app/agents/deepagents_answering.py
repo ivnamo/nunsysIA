@@ -51,6 +51,22 @@ def with_deepagents_planning(
         summary["deepagents_planning"]["required_evidence"] = [
             str(item) for item in required_evidence
         ]
+    subagents_available = planning.get("subagents_available")
+    if isinstance(subagents_available, list):
+        summary["deepagents_planning"]["subagents_available"] = [
+            str(item) for item in subagents_available
+        ]
+    for key in (
+        "answer_auditor_subagent_available",
+        "answer_auditor_task_used",
+        "deterministic_answer_gate_used",
+    ):
+        if key in planning:
+            summary["deepagents_planning"][key] = bool(planning.get(key))
+    if "answer_auditor_task_calls_count" in planning:
+        summary["deepagents_planning"]["answer_auditor_task_calls_count"] = int(
+            planning.get("answer_auditor_task_calls_count") or 0
+        )
     return summary
 
 

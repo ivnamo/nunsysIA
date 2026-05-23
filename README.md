@@ -76,9 +76,15 @@ invocacion agentic para garantizar trazabilidad y evitar respuestas no
 grounded; esa logica forma parte del guardrail de entrega, no de un flujo
 paralelo.
 
-El flujo activo no registra subagents de DeepAgents. Las capacidades
-especializadas de ERP, produccion, RAG y memoria se exponen como tools directas
-de negocio y se validan con evidencias antes de construir la respuesta.
+El flujo activo registra un subagente DeepAgents acotado: `answer_auditor`.
+Este auditor no tiene acceso a tools externas y puede ser invocado mediante la
+tool `task` para revisar que la respuesta final sea presentable, no una lista
+interna de TODOs, eco del prompt o salida de planificacion. Como los LLM no
+deben ser la unica barrera de calidad, el backend aplica ademas un gate
+determinista que bloquea esas salidas internas aunque el modelo no invoque el
+subagente. Las capacidades especializadas de ERP, produccion, RAG y memoria se
+exponen como tools directas de negocio y se validan con evidencias antes de
+construir la respuesta.
 
 Componentes reales:
 

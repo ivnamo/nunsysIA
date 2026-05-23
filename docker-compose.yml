@@ -137,6 +137,18 @@ services:
       ]
     ports:
       - "8002:8002"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8002', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   evaluator:
     build:
@@ -147,6 +159,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      chainlit:
+        condition: service_healthy
     environment:
       API_BASE_URL: http://backend:8000
       AGENT_MODE: ${AGENT_MODE:-deepagent}
@@ -154,15 +168,19 @@ services:
     command:
       [
         "python",
-        "scripts/evaluate_api_responses.py",
+        "scripts/run_delivery_validation.py",
         "--base-url",
         "http://backend:8000",
+        "--production-url",
+        "http://production-api:8001",
+        "--chainlit-url",
+        "http://chainlit:8002",
+        "--chroma-url",
+        "http://chromadb:8000",
         "--mode",
         "deepagent",
         "--output",
-        "reports/api_evaluation.md",
-        "--raw-output",
-        "reports/raw_responses.json",
+        "reports/VALIDACION_ENTREGA.md",
       ]
     volumes:
       - ./reports:/app/reports

@@ -111,7 +111,7 @@ class _TodosAgent:
         self._tools = {tool.__name__: tool for tool in tools}
 
     def invoke(self, payload: dict) -> dict:
-        self._tools["query_erp_orders"](limit=1)
+        self._tools["get_blocked_production_orders_with_erp"]()
         return {
             "messages": [
                 {
@@ -306,7 +306,7 @@ def test_deepagents_tools_service_selects_tools_by_intent() -> None:
 
     assert "query_documents" not in seen["tool_names"]
     assert "get_pending_orders_by_customer" in seen["tool_names"]
-    assert "query_erp_orders" in seen["tool_names"]
+    assert "query_erp_orders" not in seen["tool_names"]
     assert "query_production_orders" not in seen["tool_names"]
 
 

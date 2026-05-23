@@ -377,21 +377,27 @@ class _DirectToolsExecution:
         )
 
     def subagents(self, model: str | None = None) -> list[dict[str, Any]]:
+        erp_tools: list[Callable[..., Any]] = [
+            self.query_erp_customer_summary,
+            self.get_pending_orders_by_customer,
+            self.get_orders_by_month,
+            self.calculate_order_amount,
+        ]
+        if not (self._policy.needs_customer_orders or self._policy.needs_blocked_cross):
+            erp_tools.append(self.query_erp_orders)
+
+        production_tools: list[Callable[..., Any]] = [
+            self.query_production_status,
+            self.list_production_orders,
+            self.get_production_status_for_order_ids,
+        ]
+        if not self._policy.needs_blocked_cross:
+            production_tools.append(self.query_production_orders)
+
         return build_business_subagents(
             model=model or self._model,
-            erp_tools=[
-                self.query_erp_customer_summary,
-                self.get_pending_orders_by_customer,
-                self.get_orders_by_month,
-                self.calculate_order_amount,
-                self.query_erp_orders,
-            ],
-            production_tools=[
-                self.query_production_status,
-                self.list_production_orders,
-                self.get_production_status_for_order_ids,
-                self.query_production_orders,
-            ],
+            erp_tools=erp_tools,
+            production_tools=production_tools,
             document_tools=[
                 self.answer_document_question_with_citations,
                 self.search_documents,
@@ -428,18 +434,20 @@ class _DirectToolsExecution:
                     self.get_pending_orders_by_customer,
                     self.get_orders_by_month,
                     self.calculate_order_amount,
-                    self.query_erp_orders,
                 ]
             )
+            if not (self._policy.needs_customer_orders or self._policy.needs_blocked_cross):
+                tools.append(self.query_erp_orders)
         if self._policy.needs_production:
             tools.extend(
                 [
                     self.query_production_status,
                     self.list_production_orders,
                     self.get_production_status_for_order_ids,
-                    self.query_production_orders,
                 ]
             )
+            if not self._policy.needs_blocked_cross:
+                tools.append(self.query_production_orders)
         if self._policy.needs_documents:
             tools.append(self.search_documents)
             tools.append(self.summarize_document_context)
@@ -474,12 +482,12 @@ class _DirectToolsExecution:
 
     def get_blocked_production_orders_with_erp(self) -> dict[str, Any]:
         """Tool compuesta: produccion bloqueada cruzada con pedidos ERP."""
-        production_orders = self.query_production_orders(production_status="blocked")
+        production_orders = self.list_production_orders(status="blocked")
         order_ids = _order_ids(production_orders)
-        erp_orders = self.query_erp_orders(order_ids=order_ids) if order_ids else []
+        customers_by_order = self.get_customers_for_order_ids(order_ids) if order_ids else {}
         return {
             "production_orders": production_orders,
-            "erp_orders": erp_orders,
+            "customers_by_order": customers_by_order,
         }
 
     def query_blocked_orders(self) -> dict[str, Any]:

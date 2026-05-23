@@ -91,7 +91,11 @@ Responsabilidad:
 
 - Implementar el flujo principal `mode=deepagent`.
 - Mantener DeepAgents conectado a tools de negocio auditables.
-- Evitar tools genericas de filesystem, shell o subagentes en el endpoint de negocio.
+- Evitar tools genericas de filesystem/shell y subagentes generalistas en el
+  endpoint de negocio.
+- Se permite solo el subagente acotado `answer_auditor`, sin tools externas,
+  para validar que la respuesta final no exponga TODOs, prompt interno ni
+  planificacion.
 
 Puede modificar:
 

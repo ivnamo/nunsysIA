@@ -2,8 +2,8 @@
 
 ## Descripcion
 
-nunsysIA es una POC de workflow agentic con LangChain DeepAgents como
-orquestador principal para responder consultas de negocio en lenguaje natural
+nunsysIA es una POC de workflow agentic con LangChain DeepAgents como motor
+agentic principal para responder consultas de negocio en lenguaje natural
 combinando datos de ERP, una API REST de produccion y documentos PDF indexados
 mediante RAG.
 
@@ -70,11 +70,12 @@ flowchart LR
 ```
 
 DeepAgents es el modo por defecto real del endpoint de negocio mientras
-`AGENT_MODE=deepagent`, que es la configuracion de entrega. El servicio
-principal puede ejecutar tools deterministas obligatorias antes y despues de la
-invocacion agentic para garantizar trazabilidad y evitar respuestas no
-grounded; esa logica forma parte del guardrail de entrega, no de un flujo
-paralelo.
+`AGENT_MODE=deepagent`, que es la configuracion de entrega. DeepAgents opera
+dentro de un perimetro de tools de negocio permitidas: puede invocarlas,
+combinar evidencias y redactar la respuesta final. La politica de tools, el
+verificador de evidencia y los formatters deterministas no sustituyen al
+agente; limitan el perimetro de ejecucion, evitan datos inventados y garantizan
+que la respuesta publica tenga fuentes, pasos y trazas auditables.
 
 El flujo activo registra un subagente DeepAgents acotado: `answer_auditor`.
 Este auditor no tiene acceso a tools externas y puede ser invocado mediante la
@@ -125,8 +126,10 @@ no se instancian durante consultas normales con `mode=deepagent`.
 
 ## Decisiones tecnicas
 
-- LangChain / DeepAgents: se usa como motor principal para que el agente pueda
-  decidir y ejecutar tools de negocio en consultas multi-fuente.
+- LangChain / DeepAgents: se usa como motor agentic principal dentro de un
+  perimetro verificado de tools de negocio. Los guardrails validan evidencias y
+  contrato de respuesta; no son una ruta paralela ni sustituyen la invocacion
+  DeepAgents.
 - Tools: encapsulan acceso a ERP, produccion, memoria y RAG. Esto evita que el
   agente invente datos o acceda directamente a infraestructura.
 - RAG: permite responder preguntas sobre PDFs subidos, con chunks y metadatos
@@ -203,12 +206,12 @@ Variables principales:
   `deterministic` queda limitado a tests unitarios y no se acepta en el factory
   documental de la app.
 
-El `docker-compose.yml` arranca la infraestructura sin publicar secretos. Docker
-Compose lee automaticamente `.env` si existe; si ahi configuras proveedores
-reales como `gemini` u `openai`, asegurate de definir tambien la clave
-correspondiente. Para consultas reales con DeepAgents configura una clave
-compatible con `DEEPAGENTS_MODEL`. En Docker, la opcion preferida para Gemini es
-crear `.secrets/gemini_api_key` y usar `docker-compose.secrets.yml`.
+Docker Compose lee automaticamente `.env` si existe. Si defines
+`GEMINI_API_KEY` u `OPENAI_API_KEY` en `.env`, esas variables se inyectaran en
+los contenedores. Para una entrega mas limpia se recomienda usar
+`docker-compose.secrets.yml` con `GEMINI_API_KEY_FILE` u `OPENAI_API_KEY_FILE`
+y guardar el secreto en `.secrets/`, nunca versionado. Para consultas reales
+con DeepAgents configura una clave compatible con `DEEPAGENTS_MODEL`.
 
 ## Ejecucion con Docker
 
@@ -239,9 +242,11 @@ docker compose down
 docker compose down -v
 ```
 
-En un arranque limpio, ChromaDB puede estar vacio. Las preguntas RAG requieren
-subir PDFs por `POST /api/documents/upload`, ejecutar `scripts/seed_rag.py` o
-lanzar la validacion de entrega, que reinicia e indexa los PDFs `v2_*`.
+En un arranque limpio, ChromaDB puede estar vacio. Para la demo oficial usa
+`scripts/seed_rag.py` o el evaluator, que resetea el indice y sube solo los
+PDFs `data/sample_docs/v2_*`. Tambien puedes subir PDFs manualmente con
+`POST /api/documents/upload`. Las preguntas RAG sin documentos deben devolver
+`insufficient_context`.
 
 Con secreto Gemini por archivo:
 
@@ -348,28 +353,54 @@ Ejemplo RAG tras indexar o subir PDFs:
 curl.exe --% -X POST http://localhost:8000/api/query -H "Content-Type: application/json" -d "{\"question\":\"Que dice este documento sobre plazos de entrega?\"}"
 ```
 
-Response simplificada:
+Response real abreviada. La forma completa queda versionada en
+`docs/VALIDACION_ENTREGA.md`:
 
 ```json
 {
-  "answer": "El cliente ALFKI tiene 2 pedidos pendientes: 10248 en curso y 10252 bloqueado por falta de material.",
+  "answer": "El cliente ALFKI tiene los pedidos pendientes 10248 y 10252; 10248 esta en progreso y 10252 esta bloqueado por falta de material.",
   "sources": ["ERP", "Produccion"],
   "reasoning": [
-    "Consulta ERP para pedidos",
-    "Consulta API de produccion",
-    "Fusion de resultados"
+    "Consulta ERP de pedidos pendientes",
+    "Consulta API de produccion para pedidos referenciados"
   ],
   "metadata": {
     "agent_mode": "deepagent",
     "agent_framework": "LangChain DeepAgents",
+    "orchestration_style": "deepagents_direct_tools_verified",
+    "verification_status": "passed",
     "request_id": "uuid",
     "duration_ms": 842
-  }
+  },
+  "tool_calls": [
+    {
+      "tool": "ERPTool",
+      "action": "get_pending_orders_by_customer",
+      "source": "ERP",
+      "status": "success"
+    },
+    {
+      "tool": "ProductionAPITool",
+      "action": "get_status_for_order_ids",
+      "source": "Produccion",
+      "status": "success"
+    }
+  ],
+  "status": "completed",
+  "data": {
+    "erp_orders_count": 2,
+    "production_orders_count": 2,
+    "deepagents_planning": {
+      "subagents_available": ["answer_auditor"],
+      "deterministic_answer_gate_used": true
+    }
+  },
+  "fallbacks": []
 }
 ```
 
-La respuesta real puede incluir tambien `metadata`, `tool_calls`, `fallbacks`,
-`confidence`, `status`, `data` y `failure_reason`.
+La respuesta puede incluir tambien `confidence` y `failure_reason` segun el
+estado final.
 
 Mas detalle: `docs/api.md`.
 

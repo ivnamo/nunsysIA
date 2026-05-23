@@ -83,14 +83,17 @@ harness DeepAgents en `deepagents_harness.py` y la respuesta determinista
 grounded en `deepagents_answering.py`. Antes de responder, el flujo ejecuta
 tools obligatorias segun la intencion detectada y registra tool calls.
 DeepAgents recibe tools directas de negocio y un subagente acotado,
-`answer_auditor`, sin acceso a fuentes externas. El auditor puede revisar que la
-respuesta final sea una respuesta de negocio limpia y no una lista de TODOs, eco
-del prompt o salida interna de planificacion. Para que esa proteccion no dependa
-solo de que el modelo decida invocar `task`, el backend aplica tambien un gate
-determinista de respuesta final antes de devolver `QueryResponse`. Las
-especializaciones ERP, produccion, RAG y memoria se modelan como tools
-auditables. No se exponen tools de filesystem o shell al endpoint de negocio, y
-el subagente general-purpose de DeepAgents queda deshabilitado.
+`answer_auditor`, sin acceso a fuentes externas. DeepAgents opera dentro de un
+perimetro verificado: la politica selecciona tools permitidas, el agente las
+invoca y el verificador confirma que la respuesta final se apoya en evidencias
+reales. El auditor puede revisar que la respuesta sea una respuesta de negocio
+limpia y no una lista de TODOs, eco del prompt o salida interna de
+planificacion. Para que esa proteccion no dependa solo de que el modelo decida
+invocar `task`, el backend aplica tambien un gate determinista de respuesta
+final antes de devolver `QueryResponse`. Las especializaciones ERP, produccion,
+RAG y memoria se modelan como tools auditables. No se exponen tools de
+filesystem o shell al endpoint de negocio, y el subagente general-purpose de
+DeepAgents queda deshabilitado.
 
 La implementacion legacy en LangGraph sigue disponible en `app/agents/graph.py`
 y modulos relacionados, pero no es el camino principal.

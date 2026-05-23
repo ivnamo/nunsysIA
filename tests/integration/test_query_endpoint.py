@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import httpx
 import pytest
@@ -41,15 +42,19 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def test_query_endpoint_without_mode_uses_deepagent(client: TestClient) -> None:
-    response = client.post(
-        "/api/query",
-        json={
-            "question": (
-                "Que pedidos pendientes tiene ALFKI y en que estado de produccion estan?"
-            )
-        },
-    )
+def test_query_endpoint_without_mode_uses_deepagent(
+    client: TestClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.INFO, logger="app.api.routes_query"):
+        response = client.post(
+            "/api/query",
+            json={
+                "question": (
+                    "Que pedidos pendientes tiene ALFKI y en que estado de produccion estan?"
+                )
+            },
+        )
 
     assert response.status_code == 200
     payload = response.json()
@@ -60,6 +65,8 @@ def test_query_endpoint_without_mode_uses_deepagent(client: TestClient) -> None:
     assert payload["sources"] == ["ERP", "Produccion"]
     assert "10248" in payload["answer"]
     assert "10252" in payload["answer"]
+    assert "request_id=" in caplog.text
+    assert "verification_status=passed" in caplog.text
 
 
 def test_query_endpoint_with_deepagent_mode_works(client: TestClient) -> None:
